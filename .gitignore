@@ -1,0 +1,20 @@
+# This file is used both by .gitignore and .eslintrc.js. By happy circumstance,
+# both use the same syntax for ignoring files.
+# https://git-scm.com/docs/gitignore
+# https://eslint.org/docs/user-guide/configuring/ignoring-code#ignorepatterns-in-config-files
+
+# Generated files
+**/check-type.generated.ts
+**/schema.json
+client/src/shared/version.ts
+
+# Build output
+client/build/
+server/build/
+data/
+
+# Node related
+node_modules/
+yarn-debug.log*
+yarn-error.log*
+npm-debug.*
