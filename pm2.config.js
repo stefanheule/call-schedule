@@ -1,15 +1,15 @@
 module.exports = {
   apps: [
     {
-      name: 'pm-client',
+      name: 'cs-client',
       script: 'yarn client start',
     },
     {
-      name: 'pm-server',
+      name: 'cs-server',
       script: 'yarn server start',
     },
     {
-      name: 'pm-codegen',
+      name: 'cs-codegen',
       script: 'yarn codegen-watch',
     },
   ],
