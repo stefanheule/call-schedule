@@ -1458,6 +1458,13 @@ node-fetch@^2.6.7:
   dependencies:
     whatwg-url "^5.0.0"
 
+node-xlsx@^0.23.0:
+  version "0.23.0"
+  resolved "https://registry.yarnpkg.com/node-xlsx/-/node-xlsx-0.23.0.tgz#0c4b642f9457712d68f30e1e30351d640cc37e90"
+  integrity sha512-r3KaSZSsSrK92rbPXnX/vDdxURmPPik0rjJ3A+Pybzpjyrk4G6WyGfj8JIz5dMMEpCmWVpmO4qoVPBxnpLv/8Q==
+  dependencies:
+    xlsx "https://cdn.sheetjs.com/xlsx-0.19.3/xlsx-0.19.3.tgz"
+
 object-inspect@^1.9.0:
   version "1.12.2"
   resolved "https://registry.yarnpkg.com/object-inspect/-/object-inspect-1.12.2.tgz#c0641f26394532f28ab8d796ab954e43c009a8ea"
@@ -1934,6 +1941,10 @@ wrap-ansi@^7.0.0:
     ansi-styles "^4.0.0"
     string-width "^4.1.0"
     strip-ansi "^6.0.0"
+
+"xlsx@https://cdn.sheetjs.com/xlsx-0.19.3/xlsx-0.19.3.tgz":
+  version "0.19.3"
+  resolved "https://cdn.sheetjs.com/xlsx-0.19.3/xlsx-0.19.3.tgz#f804c1850e2da5260165db0a059dc2a6099d55f3"
 
 y18n@^5.0.5:
   version "5.0.8"
