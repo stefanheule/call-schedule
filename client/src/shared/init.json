@@ -1,4 +1,6 @@
 {
+  "firstDay": "2024-07-01",
+  "lastDay": "2025-06-30",
   "weeks": [
     {
       "sundayDate": "2024-06-30",
@@ -65,7 +67,7 @@
         {
           "date": "2024-07-09",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "RB"
           }
         },
         {
@@ -106,13 +108,13 @@
         {
           "date": "2024-07-15",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "TM"
           }
         },
         {
           "date": "2024-07-16",
           "shifts": {
-            "south_weekday": "AJ"
+            "south_weekday": "AA"
           }
         },
         {
@@ -131,7 +133,7 @@
           "date": "2024-07-19",
           "shifts": {
             "south_weekend": "MB",
-            "uw_weekend": "AJ",
+            "uw_weekend": "AA",
             "north_weekend": "AA"
           }
         },
@@ -241,7 +243,7 @@
         {
           "date": "2024-08-04",
           "shifts": {
-            "south_weekday": "TM"
+            "south_weekday": "MB"
           }
         },
         {
@@ -253,7 +255,7 @@
         {
           "date": "2024-08-06",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "MB"
           }
         },
         {
@@ -265,7 +267,7 @@
         {
           "date": "2024-08-08",
           "shifts": {
-            "south_weekday": "RB"
+            "south_weekday": "TM"
           }
         },
         {
@@ -294,7 +296,7 @@
         {
           "date": "2024-08-12",
           "shifts": {
-            "south_weekday": "DC"
+            "south_weekday": "AA"
           }
         },
         {
@@ -312,7 +314,7 @@
         {
           "date": "2024-08-15",
           "shifts": {
-            "south_weekday": "TM"
+            "south_weekday": "MJ"
           }
         },
         {
@@ -359,14 +361,14 @@
         {
           "date": "2024-08-22",
           "shifts": {
-            "south_weekday": "MB"
+            "south_weekday": "TM"
           }
         },
         {
           "date": "2024-08-23",
           "shifts": {
             "south_weekend": "NR",
-            "uw_weekend": "AJ",
+            "uw_weekend": "AA",
             "north_weekend": "AJ"
           }
         },
@@ -382,7 +384,7 @@
         {
           "date": "2024-08-25",
           "shifts": {
-            "south_weekday": "MB"
+            "south_weekday": "MJ"
           }
         },
         {
@@ -435,7 +437,7 @@
         {
           "date": "2024-09-02",
           "shifts": {
-            "south_weekday": "RB"
+            "south_weekday": "MJ"
           }
         },
         {
@@ -461,7 +463,7 @@
           "shifts": {
             "south_weekend": "AJ",
             "uw_weekend": "GN",
-            "north_weekend": "MB"
+            "north_weekend": "TM"
           }
         },
         {
@@ -482,7 +484,7 @@
         {
           "date": "2024-09-09",
           "shifts": {
-            "south_weekday": "TM"
+            "south_weekday": "RB"
           }
         },
         {
@@ -494,7 +496,7 @@
         {
           "date": "2024-09-11",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "RB"
           }
         },
         {
@@ -535,7 +537,7 @@
         {
           "date": "2024-09-17",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "RB"
           }
         },
         {
@@ -553,9 +555,9 @@
         {
           "date": "2024-09-20",
           "shifts": {
-            "south_weekend": "TM",
+            "south_weekend": "MB",
             "uw_weekend": "CC",
-            "north_weekend": "DC"
+            "north_weekend": "AA"
           }
         },
         {
@@ -588,7 +590,7 @@
         {
           "date": "2024-09-25",
           "shifts": {
-            "south_weekday": "TM"
+            "south_weekday": "RB"
           }
         },
         {
@@ -635,7 +637,7 @@
         {
           "date": "2024-10-02",
           "shifts": {
-            "south_weekday": "TM"
+            "south_weekday": "MB"
           }
         },
         {
@@ -670,7 +672,7 @@
         {
           "date": "2024-10-07",
           "shifts": {
-            "south_weekday": "MB"
+            "south_weekday": "RB"
           }
         },
         {
@@ -695,7 +697,7 @@
           "date": "2024-10-11",
           "shifts": {
             "south_weekend": "KO",
-            "uw_weekend": "RB",
+            "uw_weekend": "MB",
             "north_weekend": "CPu"
           }
         },
@@ -743,7 +745,7 @@
           "shifts": {
             "south_weekend": "GN",
             "uw_weekend": "AA",
-            "north_weekend": "TM"
+            "north_weekend": "RB"
           }
         },
         {
@@ -758,7 +760,7 @@
         {
           "date": "2024-10-20",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "RB"
           }
         },
         {
@@ -770,7 +772,7 @@
         {
           "date": "2024-10-22",
           "shifts": {
-            "south_weekday": "TM"
+            "south_weekday": "RB"
           }
         },
         {
@@ -789,7 +791,7 @@
           "date": "2024-10-25",
           "shifts": {
             "south_weekend": "CC",
-            "uw_weekend": "AA",
+            "uw_weekend": "AJ",
             "north_weekend": "DC"
           }
         },
@@ -805,7 +807,7 @@
         {
           "date": "2024-10-27",
           "shifts": {
-            "south_weekday": "MB"
+            "south_weekday": "TM"
           }
         },
         {
@@ -829,7 +831,7 @@
         {
           "date": "2024-10-31",
           "shifts": {
-            "south_weekday": "DC"
+            "south_weekday": "AA"
           }
         },
         {
@@ -870,7 +872,7 @@
         {
           "date": "2024-11-06",
           "shifts": {
-            "south_weekday": "RB"
+            "south_weekday": "MB"
           }
         },
         {
@@ -884,7 +886,7 @@
           "shifts": {
             "south_weekend": "KO",
             "uw_weekend": "AJ",
-            "north_weekend": "RB"
+            "north_weekend": "MB"
           }
         },
         {
@@ -899,7 +901,7 @@
         {
           "date": "2024-11-10",
           "shifts": {
-            "south_weekday": "MB"
+            "south_weekday": "MJ"
           }
         },
         {
@@ -923,14 +925,14 @@
         {
           "date": "2024-11-14",
           "shifts": {
-            "south_weekday": "TM"
+            "south_weekday": "MB"
           }
         },
         {
           "date": "2024-11-15",
           "shifts": {
-            "south_weekend": "RB",
-            "uw_weekend": "RB",
+            "south_weekend": "TM",
+            "uw_weekend": "MB",
             "north_weekend": "LX"
           }
         },
@@ -970,7 +972,7 @@
         {
           "date": "2024-11-21",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "RB"
           }
         },
         {
@@ -978,7 +980,7 @@
           "shifts": {
             "south_weekend": "KO",
             "uw_weekend": "AA",
-            "north_weekend": "MB"
+            "north_weekend": "TM"
           }
         },
         {
@@ -1017,7 +1019,7 @@
         {
           "date": "2024-11-28",
           "shifts": {
-            "south_weekday": "MB"
+            "south_weekday": "TM"
           }
         },
         {
@@ -1046,13 +1048,13 @@
         {
           "date": "2024-12-02",
           "shifts": {
-            "south_weekday": "TM"
+            "south_weekday": "MB"
           }
         },
         {
           "date": "2024-12-03",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "MB"
           }
         },
         {
@@ -1064,15 +1066,15 @@
         {
           "date": "2024-12-05",
           "shifts": {
-            "south_weekday": "AJ"
+            "south_weekday": "DC"
           }
         },
         {
           "date": "2024-12-06",
           "shifts": {
-            "south_weekend": "MB",
+            "south_weekend": "MJ",
             "uw_weekend": "TM",
-            "north_weekend": "MJ"
+            "north_weekend": "RB"
           }
         },
         {
@@ -1093,7 +1095,7 @@
         {
           "date": "2024-12-09",
           "shifts": {
-            "south_weekday": "AJ"
+            "south_weekday": "AA"
           }
         },
         {
@@ -1105,20 +1107,20 @@
         {
           "date": "2024-12-11",
           "shifts": {
-            "south_weekday": "TM"
+            "south_weekday": "RB"
           }
         },
         {
           "date": "2024-12-12",
           "shifts": {
-            "south_weekday": "TM"
+            "south_weekday": "MB"
           }
         },
         {
           "date": "2024-12-13",
           "shifts": {
             "south_weekend": "KO",
-            "uw_weekend": "AA",
+            "uw_weekend": "AJ",
             "north_weekend": "GN"
           }
         },
@@ -1134,7 +1136,7 @@
         {
           "date": "2024-12-15",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "RB"
           }
         },
         {
@@ -1146,7 +1148,7 @@
         {
           "date": "2024-12-17",
           "shifts": {
-            "south_weekday": "MB"
+            "south_weekday": "TM"
           }
         },
         {
@@ -1181,7 +1183,7 @@
         {
           "date": "2024-12-22",
           "shifts": {
-            "south_weekday": "MB"
+            "south_weekday": "RB"
           }
         },
         {
@@ -1193,13 +1195,13 @@
         {
           "date": "2024-12-24",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "MB"
           }
         },
         {
           "date": "2024-12-25",
           "shifts": {
-            "south_weekday": "MB"
+            "south_weekday": "RB"
           }
         },
         {
@@ -1212,7 +1214,7 @@
           "date": "2024-12-27",
           "shifts": {
             "south_weekend": "AA",
-            "uw_weekend": "DC",
+            "uw_weekend": "AA",
             "north_weekend": "LX"
           }
         },
@@ -1246,7 +1248,7 @@
         {
           "date": "2025-01-01",
           "shifts": {
-            "south_weekday": "AJ"
+            "south_weekday": "DC"
           }
         },
         {
@@ -1259,7 +1261,7 @@
           "date": "2025-01-03",
           "shifts": {
             "south_weekend": "CC",
-            "uw_weekend": "TM",
+            "uw_weekend": "MJ",
             "north_weekend": "GN"
           }
         },
@@ -1293,13 +1295,13 @@
         {
           "date": "2025-01-08",
           "shifts": {
-            "south_weekday": "RB"
+            "south_weekday": "MJ"
           }
         },
         {
           "date": "2025-01-09",
           "shifts": {
-            "south_weekday": "MB"
+            "south_weekday": "MJ"
           }
         },
         {
@@ -1328,7 +1330,7 @@
         {
           "date": "2025-01-13",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "MB"
           }
         },
         {
@@ -1340,20 +1342,20 @@
         {
           "date": "2025-01-15",
           "shifts": {
-            "south_weekday": "DC"
+            "south_weekday": "AA"
           }
         },
         {
           "date": "2025-01-16",
           "shifts": {
-            "south_weekday": "RB"
+            "south_weekday": "MB"
           }
         },
         {
           "date": "2025-01-17",
           "shifts": {
             "south_weekend": "TM",
-            "uw_weekend": "TM",
+            "uw_weekend": "MB",
             "north_weekend": "AJ"
           }
         },
@@ -1369,7 +1371,7 @@
         {
           "date": "2025-01-19",
           "shifts": {
-            "south_weekday": "RB"
+            "south_weekday": "MJ"
           }
         },
         {
@@ -1399,7 +1401,7 @@
         {
           "date": "2025-01-24",
           "shifts": {
-            "south_weekend": "MJ",
+            "south_weekend": "TM",
             "uw_weekend": "LX",
             "north_weekend": "NR"
           }
@@ -1422,13 +1424,13 @@
         {
           "date": "2025-01-27",
           "shifts": {
-            "south_weekday": "TM"
+            "south_weekday": "MB"
           }
         },
         {
           "date": "2025-01-28",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "MB"
           }
         },
         {
@@ -1440,13 +1442,13 @@
         {
           "date": "2025-01-30",
           "shifts": {
-            "south_weekday": "RB"
+            "south_weekday": "MB"
           }
         },
         {
           "date": "2025-01-31",
           "shifts": {
-            "south_weekend": "MJ",
+            "south_weekend": "RB",
             "uw_weekend": "CC",
             "north_weekend": "DC"
           }
@@ -1475,13 +1477,13 @@
         {
           "date": "2025-02-04",
           "shifts": {
-            "south_weekday": "TM"
+            "south_weekday": "RB"
           }
         },
         {
           "date": "2025-02-05",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "TM"
           }
         },
         {
@@ -1516,7 +1518,7 @@
         {
           "date": "2025-02-10",
           "shifts": {
-            "south_weekday": "AJ"
+            "south_weekday": "DC"
           }
         },
         {
@@ -1542,7 +1544,7 @@
           "shifts": {
             "south_weekend": "DC",
             "uw_weekend": "CC",
-            "north_weekend": "MB"
+            "north_weekend": "RB"
           }
         },
         {
@@ -1557,7 +1559,7 @@
         {
           "date": "2025-02-16",
           "shifts": {
-            "south_weekday": "AA"
+            "south_weekday": "AJ"
           }
         },
         {
@@ -1569,25 +1571,25 @@
         {
           "date": "2025-02-18",
           "shifts": {
-            "south_weekday": "MB"
+            "south_weekday": "MJ"
           }
         },
         {
           "date": "2025-02-19",
           "shifts": {
-            "south_weekday": "RB"
+            "south_weekday": "TM"
           }
         },
         {
           "date": "2025-02-20",
           "shifts": {
-            "south_weekday": "TM"
+            "south_weekday": "RB"
           }
         },
         {
           "date": "2025-02-21",
           "shifts": {
-            "south_weekend": "DC",
+            "south_weekend": "AJ",
             "uw_weekend": "CPu",
             "north_weekend": "KO"
           }
@@ -1604,7 +1606,7 @@
         {
           "date": "2025-02-23",
           "shifts": {
-            "south_weekday": "DC"
+            "south_weekday": "AJ"
           }
         },
         {
@@ -1628,15 +1630,15 @@
         {
           "date": "2025-02-27",
           "shifts": {
-            "south_weekday": "DC"
+            "south_weekday": "AJ"
           }
         },
         {
           "date": "2025-02-28",
           "shifts": {
-            "south_weekend": "MJ",
+            "south_weekend": "TM",
             "uw_weekend": "AA",
-            "north_weekend": "TM"
+            "north_weekend": "MB"
           }
         },
         {
@@ -1682,7 +1684,7 @@
           "date": "2025-03-07",
           "shifts": {
             "south_weekend": "NR",
-            "uw_weekend": "MB",
+            "uw_weekend": "RB",
             "north_weekend": "AA"
           }
         },
@@ -1710,7 +1712,7 @@
         {
           "date": "2025-03-11",
           "shifts": {
-            "south_weekday": "RB"
+            "south_weekday": "MJ"
           }
         },
         {
@@ -1745,13 +1747,13 @@
         {
           "date": "2025-03-16",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "MB"
           }
         },
         {
           "date": "2025-03-17",
           "shifts": {
-            "south_weekday": "RB"
+            "south_weekday": "MB"
           }
         },
         {
@@ -1769,7 +1771,7 @@
         {
           "date": "2025-03-20",
           "shifts": {
-            "south_weekday": "DC"
+            "south_weekday": "AA"
           }
         },
         {
@@ -1822,9 +1824,9 @@
         {
           "date": "2025-03-28",
           "shifts": {
-            "south_weekend": "MJ",
+            "south_weekend": "RB",
             "uw_weekend": "CC",
-            "north_weekend": "TM"
+            "north_weekend": "MJ"
           }
         },
         {
@@ -1851,13 +1853,13 @@
         {
           "date": "2025-04-01",
           "shifts": {
-            "south_weekday": "AJ"
+            "south_weekday": "AA"
           }
         },
         {
           "date": "2025-04-02",
           "shifts": {
-            "south_weekday": "MB"
+            "south_weekday": "TM"
           }
         },
         {
@@ -1886,7 +1888,7 @@
         {
           "date": "2025-04-06",
           "shifts": {
-            "south_weekday": "AJ"
+            "south_weekday": "AA"
           }
         },
         {
@@ -1898,7 +1900,7 @@
         {
           "date": "2025-04-08",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "TM"
           }
         },
         {
@@ -1910,7 +1912,7 @@
         {
           "date": "2025-04-10",
           "shifts": {
-            "south_weekday": "AJ"
+            "south_weekday": "DC"
           }
         },
         {
@@ -1965,7 +1967,7 @@
           "shifts": {
             "south_weekend": "GN",
             "uw_weekend": "KO",
-            "north_weekend": "MB"
+            "north_weekend": "RB"
           }
         },
         {
@@ -1986,7 +1988,7 @@
         {
           "date": "2025-04-21",
           "shifts": {
-            "south_weekday": "MB"
+            "south_weekday": "RB"
           }
         },
         {
@@ -1998,7 +2000,7 @@
         {
           "date": "2025-04-23",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "RB"
           }
         },
         {
@@ -2010,7 +2012,7 @@
         {
           "date": "2025-04-25",
           "shifts": {
-            "south_weekend": "TM",
+            "south_weekend": "MB",
             "uw_weekend": "DC",
             "north_weekend": "NR"
           }
@@ -2027,7 +2029,7 @@
         {
           "date": "2025-04-27",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "MB"
           }
         },
         {
@@ -2039,7 +2041,7 @@
         {
           "date": "2025-04-29",
           "shifts": {
-            "south_weekday": "AJ"
+            "south_weekday": "DC"
           }
         },
         {
@@ -2058,7 +2060,7 @@
           "date": "2025-05-02",
           "shifts": {
             "south_weekend": "CPu",
-            "uw_weekend": "MJ",
+            "uw_weekend": "MB",
             "north_weekend": "LX"
           }
         },
@@ -2080,13 +2082,13 @@
         {
           "date": "2025-05-05",
           "shifts": {
-            "south_weekday": "TM"
+            "south_weekday": "MJ"
           }
         },
         {
           "date": "2025-05-06",
           "shifts": {
-            "south_weekday": "AA"
+            "south_weekday": "DC"
           }
         },
         {
@@ -2139,7 +2141,7 @@
         {
           "date": "2025-05-14",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "TM"
           }
         },
         {
@@ -2151,8 +2153,8 @@
         {
           "date": "2025-05-16",
           "shifts": {
-            "south_weekend": "AJ",
-            "uw_weekend": "RB",
+            "south_weekend": "DC",
+            "uw_weekend": "MJ",
             "north_weekend": "MADIGAN"
           }
         },
@@ -2168,7 +2170,7 @@
         {
           "date": "2025-05-18",
           "shifts": {
-            "south_weekday": "TM"
+            "south_weekday": "MJ"
           }
         },
         {
@@ -2186,7 +2188,7 @@
         {
           "date": "2025-05-21",
           "shifts": {
-            "south_weekday": "MB"
+            "south_weekday": "RB"
           }
         },
         {
@@ -2215,19 +2217,19 @@
         {
           "date": "2025-05-25",
           "shifts": {
-            "south_weekday": "DC"
+            "south_weekday": "AJ"
           }
         },
         {
           "date": "2025-05-26",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "RB"
           }
         },
         {
           "date": "2025-05-27",
           "shifts": {
-            "south_weekday": "DC"
+            "south_weekday": "AA"
           }
         },
         {
@@ -2247,7 +2249,7 @@
           "shifts": {
             "south_weekend": "GN",
             "uw_weekend": "KO",
-            "north_weekend": "MJ"
+            "north_weekend": "MB"
           }
         },
         {
@@ -2268,7 +2270,7 @@
         {
           "date": "2025-06-02",
           "shifts": {
-            "south_weekday": "AA"
+            "south_weekday": "DC"
           }
         },
         {
@@ -2293,7 +2295,7 @@
           "date": "2025-06-06",
           "shifts": {
             "south_weekend": "CPu",
-            "uw_weekend": "TM",
+            "uw_weekend": "RB",
             "north_weekend": "LX"
           }
         },
@@ -2333,13 +2335,13 @@
         {
           "date": "2025-06-12",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "TM"
           }
         },
         {
           "date": "2025-06-13",
           "shifts": {
-            "south_weekend": "MJ",
+            "south_weekend": "RB",
             "uw_weekend": "KO",
             "north_weekend": "GN"
           }
@@ -2380,13 +2382,13 @@
         {
           "date": "2025-06-19",
           "shifts": {
-            "south_weekday": "MJ"
+            "south_weekday": "RB"
           }
         },
         {
           "date": "2025-06-20",
           "shifts": {
-            "south_weekend": "AJ",
+            "south_weekend": "DC",
             "uw_weekend": "AA",
             "north_weekend": "AJ"
           }
@@ -2415,7 +2417,7 @@
         {
           "date": "2025-06-24",
           "shifts": {
-            "south_weekday": "RB"
+            "south_weekday": "MJ"
           }
         },
         {
@@ -2433,8 +2435,8 @@
         {
           "date": "2025-06-27",
           "shifts": {
-            "south_weekend": "TM",
-            "uw_weekend": "MJ",
+            "south_weekend": "RB",
+            "uw_weekend": "RB",
             "north_weekend": "GN"
           }
         },
@@ -2456,7 +2458,7 @@
         {
           "date": "2025-06-30",
           "shifts": {
-            "south_weekday": "TM"
+            "south_weekday": "MB"
           }
         },
         {
