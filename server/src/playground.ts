@@ -3,11 +3,19 @@ dotenv.config({ path: __dirname + '/../.env' });
 
 import { globalSetup } from './common/error-reporting';
 import * as xlsx from 'node-xlsx';
-import { CallPool } from './shared/types';
+import {
+  CallPool,
+  CallSchedule,
+  Day,
+  PersonConfig,
+  ShiftConfig,
+  Week,
+} from './shared/types';
 
 // eslint-disable-next-line unused-imports/no-unused-imports
 import * as datefns from 'date-fns';
-import { mapEnum } from 'check-type';
+import fs from 'fs';
+import { IsoDate, dateToIsoDate, isoDateToDate, mapEnum } from 'check-type';
 
 async function main() {
   await globalSetup();
@@ -15,13 +23,84 @@ async function main() {
   await importPreviousSchedule();
 }
 
+const people: {
+  [name: string]: PersonConfig;
+} = {
+  DK: {
+    name: 'DK',
+    year: '5',
+  },
+  LZ: {
+    name: 'LZ',
+    year: '5',
+  },
+  TW: {
+    name: 'TW',
+    year: '5',
+  },
+  CP: {
+    name: 'CP',
+    year: '5',
+  },
+  AA: {
+    name: 'AA',
+    year: '4',
+  },
+  DC: {
+    name: 'DC',
+    year: '4',
+  },
+  AJ: {
+    name: 'AJ',
+    year: '4',
+  },
+  LX: {
+    name: 'LX',
+    year: 'R',
+  },
+  CC: {
+    name: 'CC',
+    year: 'R',
+  },
+  MB: {
+    name: 'MB',
+    year: '3',
+  },
+  RB: {
+    name: 'RB',
+    year: '3',
+  },
+  MJ: {
+    name: 'MJ',
+    year: '3',
+  },
+  TM: {
+    name: 'TM',
+    year: '3',
+  },
+  GN: {
+    name: 'GN',
+    year: '2',
+  },
+  KO: {
+    name: 'KO',
+    year: '2',
+  },
+  CPu: {
+    name: 'CPu',
+    year: '2',
+  },
+  NR: {
+    name: 'NR',
+    year: '2',
+  },
+};
+
 async function importPreviousSchedule() {
   const workSheetsFromFile = xlsx.parse(
     `${__dirname}/../../input-files/ay24.xlsx`,
   );
   const sheet = workSheetsFromFile[1];
-  console.log(sheet.data.slice(0, 13));
-  console.log(xlsxDateToIsoDate(sheet.data[1][1]));
 
   let rowIndex = 0;
   let sunday = '';
@@ -50,6 +129,10 @@ async function importPreviousSchedule() {
     return false;
   }
 
+  function rand<T>(arr: T[]): T {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
   function consumeCall(pool: CallPool) {
     const key = mapEnum(pool, {
       north: 'NWH/SCH',
@@ -76,6 +159,67 @@ async function importPreviousSchedule() {
       call[i] = call[i].replace(/\*/g, '');
       call[i] = call[i].trim();
       call[i] = call[i].toUpperCase();
+
+      if (rowIndex === 4 || rowIndex === 6 || rowIndex === 8) {
+        call[i] = {
+          JR: 'CP',
+          LZ: 'LX',
+          DC: 'AJ',
+          TW: 'AA',
+          AJ: 'MB',
+          CC: 'RB',
+          DK: 'DC',
+          AA: 'MJ',
+          LX: 'TM',
+          JC: 'LZ',
+        }[call[i]] as string;
+      }
+
+      switch (call[i]) {
+        case 'MADIGAN':
+          break;
+        // old 2 -> new 2
+        case 'MB':
+          call[i] = 'GN';
+          break;
+        case 'RB':
+          call[i] = 'KO';
+          break;
+        case 'MJ':
+          call[i] = 'CPu';
+          break;
+        case 'TM':
+          call[i] = 'NR';
+          break;
+        // old 3 -> new 3
+        case 'AJ':
+        case 'LX':
+        case 'CC':
+          call[i] = rand(['MB', 'RB', 'MJ', 'TM']);
+          break;
+        // old r -> new r
+        case 'DC':
+          call[i] = 'LX';
+          break;
+        case 'AA':
+          call[i] = 'CC';
+          break;
+        // old 4 -> new 4
+        case 'TW':
+          call[i] = 'DC';
+          break;
+        case 'LZ':
+          call[i] = 'AA';
+          break;
+        case 'DK':
+          call[i] = 'AJ';
+          break;
+        case 'CP':
+          call[i] = rand(['DC', 'AA', 'AJ']);
+          break;
+        default:
+          throw new Error(`Unknown person ${call[i]} at row ${rowIndex}`);
+      }
     }
     return call;
   }
@@ -121,7 +265,7 @@ async function importPreviousSchedule() {
   }
   weeks = weeks.slice(0, -1);
 
-  const people = new Set<string>();
+  const allPeople = new Set<string>();
   for (const week of weeks) {
     for (const call of [week.north, week.uw, week.south]) {
       if (call.length != 8) {
@@ -130,11 +274,92 @@ async function importPreviousSchedule() {
         throw new Error('Expected 8 calls');
       }
       for (const person of call) {
-        people.add(person);
+        allPeople.add(person);
       }
     }
   }
-  console.log(people);
+
+  const weekday: Omit<ShiftConfig, 'name'> = {
+    start: '17:00',
+    end: '+1 07:00',
+  };
+  const weekend: Omit<ShiftConfig, 'name'> = {
+    start: '17:00',
+    end: '+2 07:00',
+  };
+  const data: CallSchedule = {
+    weeks: [],
+    shiftConfigs: {
+      south_weekday: {
+        name: 'South Weekday',
+        ...weekday,
+      },
+      south_weekend: {
+        name: 'South Weekend',
+        ...weekend,
+      },
+      uw_weekend: {
+        name: 'UW Weekend',
+        ...weekend,
+      },
+      north_weekend: {
+        name: 'North Weekend',
+        ...weekend,
+      },
+    },
+    people,
+  };
+
+  {
+    let sunday: IsoDate = '2024-06-30' as IsoDate;
+    function sundayPlus(days: number) {
+      return dateToIsoDate(datefns.addDays(isoDateToDate(sunday), days));
+    }
+    for (const week of weeks) {
+      const days: Day[] = [];
+
+      // Weekday calls
+      for (let i = 0; i < 5; i++) {
+        days.push({
+          date: sundayPlus(i),
+          shifts: {
+            south_weekday: week.south[1 + i],
+          },
+        });
+      }
+      // Weekend call (on Friday)
+      days.push({
+        date: sundayPlus(5),
+        shifts: {
+          south_weekend: week.south[6],
+          uw_weekend: week.uw[6],
+          north_weekend: week.north[6],
+        },
+      });
+      // Saturday (no shifts)
+      days.push({
+        date: sundayPlus(6),
+        shifts: {},
+      });
+
+      const newWeek: Week = {
+        sundayDate: sunday,
+        days,
+      };
+      data.weeks.push(newWeek);
+
+      // Next week
+      sunday = sundayPlus(7);
+    }
+  }
+
+  // Write to file in data/init.json
+  fs.writeFileSync(
+    `${__dirname}/shared/init.json`,
+    JSON.stringify(data, null, 2),
+  );
+
+  return data;
 }
 
 function xlsxDateToIsoDate(xlsxDate: unknown) {
