@@ -288,6 +288,8 @@ async function importPreviousSchedule() {
     end: '+2 07:00',
   };
   const data: CallSchedule = {
+    firstDay: '2024-07-01',
+    lastDay: '2025-06-30',
     weeks: [],
     shiftConfigs: {
       south_weekday: {

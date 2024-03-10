@@ -37,6 +37,8 @@ export type Week = {
 };
 
 export type CallSchedule = {
+  firstDay: string;
+  lastDay: string;
   weeks: Week[];
 
   shiftConfigs: {

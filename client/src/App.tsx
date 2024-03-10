@@ -1,35 +1,21 @@
-import { useState } from 'react'
-import './App.css'
-import { Heading } from './common/text'
+import React, { useState } from 'react';
 import initialData from './shared/init.json';
 import { assertCallSchedule } from './shared/check-type.generated';
-
-// TODO: remove this once there is at least one other type in client
-// @check-type
-export type DummyTypeApp = {
-  field: string;
-};
+import { MainLayout } from './pages/layout';
+import { DataContext } from './pages/data-context';
+import { RenderCallSchedule } from './pages/schedule';
 
 function App() {
   const [data, setData] = useState(assertCallSchedule(initialData));
+  console.log(data);
 
   return (
-    <>
-      <div>
-        <Heading>Tests</Heading>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <DataContext.Provider value={{ data, setData }}>
+      <MainLayout>
+        <RenderCallSchedule />
+      </MainLayout>
+    </DataContext.Provider>
+  );
 }
 
-export default App
+export default App;
