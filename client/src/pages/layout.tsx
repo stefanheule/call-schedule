@@ -1,8 +1,5 @@
 import { Helmet } from 'react-helmet';
-import { Heading } from '../common/text';
-import { Link, useLocation } from 'react-router-dom';
 import { LoadingIndicator } from '../common/loading';
-import { ElementSpacer } from '../common/flex';
 
 export function MainLayout({
   children,
@@ -21,11 +18,18 @@ export function MainLayout({
       )}
       <div
         style={{
-          padding: '10px',
-          margin: '20px',
+          height: '95vh',
         }}
       >
-        {children}
+        <div
+          style={{
+            padding: '10px',
+            margin: '20px',
+            height: '100%',
+          }}
+        >
+          {children}
+        </div>
       </div>
     </>
   );
