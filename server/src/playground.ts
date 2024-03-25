@@ -16,6 +16,7 @@ import {
 import * as datefns from 'date-fns';
 import fs from 'fs';
 import { IsoDate, dateToIsoDate, isoDateToDate, mapEnum } from 'check-type';
+import { assertIsoDate } from './shared/check-type.generated';
 
 async function main() {
   await globalSetup();
@@ -292,8 +293,8 @@ async function importPreviousSchedule() {
     lastDay: '2025-06-30',
     weeks: [],
     shiftConfigs: {
-      south_weekday: {
-        name: 'South Weekday',
+      south: {
+        name: 'South',
         ...weekday,
       },
       south_weekend: {
@@ -310,6 +311,24 @@ async function importPreviousSchedule() {
       },
     },
     people,
+    holidays: {
+      '2024-07-04': 'Indep. Day',
+      '2024-09-02': 'Labor Day',
+      '2024-10-14': 'Indigenous Ppl',
+      '2024-11-11': 'Veterans Day',
+      '2024-11-28': 'Thanksgiving',
+      '2024-11-29': 'Thanksgiving 2',
+      '2024-12-25': 'Christmas',
+      '2025-01-01': 'New Year',
+      '2025-01-20': 'MLK Day',
+      '2025-02-17': "President's Day",
+      '2025-05-26': 'Memorial Day',
+      '2025-06-19': 'Juneteenth',
+    },
+    vacations: {
+      LZ: [assertIsoDate('2024-07-10')],
+    },
+    highlighted: [],
   };
 
   {
@@ -325,7 +344,7 @@ async function importPreviousSchedule() {
         days.push({
           date: sundayPlus(i),
           shifts: {
-            south_weekday: week.south[1 + i],
+            south: week.south[1 + i],
           },
         });
       }
