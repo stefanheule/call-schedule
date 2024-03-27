@@ -1,4 +1,4 @@
-import { IsoDate } from 'check-type';
+import { IsoDate, mapEnum } from 'check-type';
 
 // @check-type:entire-file
 
@@ -10,7 +10,20 @@ export type ShiftConfig = {
   end?: string;
 };
 
-export type Year = '1' | '2' | '3' | '4' | '5' | 'R';
+export type Year = '1' | '2' | '3' | 'S' | 'C' | 'R' | 'M';
+export type YearOnSchedule = '2' | '3' | 'S' | 'R' | 'M';
+
+export function yearToString(year: Year): string {
+  return mapEnum(year, {
+    '1': 'PGY1',
+    '2': 'PGY2',
+    '3': 'PGY3',
+    S: 'Senior',
+    C: 'Chief',
+    R: 'Research',
+    M: 'Madigan',
+  });
+}
 
 export type PersonConfig = {
   name: string;
