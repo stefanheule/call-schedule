@@ -15,6 +15,7 @@ module.exports = {
     '!.*',
     // Generated files
     '**/schema.json',
+    'client/vite.config.ts',
   ].concat(ignorePatterns),
   extends: ['plugin:prettier/recommended'],
   parser: '@typescript-eslint/parser',

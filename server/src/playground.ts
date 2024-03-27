@@ -12,7 +12,6 @@ import {
   Week,
 } from './shared/types';
 
-// eslint-disable-next-line unused-imports/no-unused-imports
 import * as datefns from 'date-fns';
 import fs from 'fs';
 import { IsoDate, dateToIsoDate, isoDateToDate, mapEnum } from 'check-type';

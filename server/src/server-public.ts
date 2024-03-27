@@ -4,7 +4,7 @@ dotenv.config({ path: __dirname + '/../.env' });
 import { SERVER_PUBLIC_PORT } from './shared/ports';
 import { setupExpressServer } from './common/express';
 
-const AXIOS_PROPS = {
+export const AXIOS_PROPS = {
   isLocal: true,
   isFrontend: false,
 };

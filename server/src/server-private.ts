@@ -3,14 +3,12 @@ dotenv.config({ path: __dirname + '/../.env' });
 
 import express from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import { axiosPost } from './shared/common/axios';
 import { CLIENT_PORT, SERVER_PRIVATE_PORT } from './shared/ports';
 import path from 'path';
 import { setupExpressServer } from './common/express';
-import { exceptionToString } from 'check-type';
 import { isLocal } from './common/error-reporting';
 
-const AXIOS_PROPS = {
+export const AXIOS_PROPS = {
   isLocal: true,
   isFrontend: false,
 };
