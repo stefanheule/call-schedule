@@ -11,7 +11,6 @@ export function MainLayout({
   return (
     <>
       {title !== undefined && (
-        // @ts-expect-error react-helmet seems deprecated
         <Helmet>
           <title>{`${title} | Metro`}</title>
         </Helmet>

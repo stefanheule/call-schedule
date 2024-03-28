@@ -1,4 +1,8 @@
-import { CallSchedule, CallScheduleProcessed } from '../shared/types';
+import {
+  CallSchedule,
+  CallScheduleProcessed,
+  LocalData,
+} from '../shared/types';
 import { createContext, useContext } from 'react';
 
 export const DataContext = createContext<
@@ -6,6 +10,8 @@ export const DataContext = createContext<
       data: CallSchedule;
       setData: React.Dispatch<React.SetStateAction<CallSchedule>>;
       processed: CallScheduleProcessed;
+      localData: LocalData;
+      setLocalData: React.Dispatch<React.SetStateAction<LocalData>>;
     }
   | undefined
 >(undefined);
@@ -22,10 +28,21 @@ export function useData(): [
   return [context.data, context.setData];
 }
 
+export function useLocalData(): [
+  LocalData,
+  React.Dispatch<React.SetStateAction<LocalData>>,
+] {
+  const context = useContext(DataContext);
+  if (!context) {
+    throw new Error('useLocalData must be used within a DataProvider');
+  }
+  return [context.localData, context.setLocalData];
+}
+
 export function useProcessedData(): CallScheduleProcessed {
   const context = useContext(DataContext);
   if (!context) {
-    throw new Error('useData must be used within a DataProvider');
+    throw new Error('useProcessedData must be used within a DataProvider');
   }
   return context.processed;
 }
