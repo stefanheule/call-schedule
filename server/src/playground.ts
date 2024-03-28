@@ -7,8 +7,8 @@ import {
   CallPool,
   CallSchedule,
   Day,
+  HospitalKind,
   PersonConfig,
-  ShiftConfig,
   Week,
 } from './shared/types';
 
@@ -26,33 +26,37 @@ async function main() {
 const people: {
   [name: string]: PersonConfig;
 } = {
+  MAD: {
+    name: 'MAD',
+    year: 'M',
+  },
   DK: {
     name: 'DK',
-    year: '5',
+    year: 'C',
   },
   LZ: {
     name: 'LZ',
-    year: '5',
+    year: 'C',
   },
   TW: {
     name: 'TW',
-    year: '5',
+    year: 'C',
   },
   CP: {
     name: 'CP',
-    year: '5',
+    year: 'C',
   },
   AA: {
     name: 'AA',
-    year: '4',
+    year: 'S',
   },
   DC: {
     name: 'DC',
-    year: '4',
+    year: 'S',
   },
   AJ: {
     name: 'AJ',
-    year: '4',
+    year: 'S',
   },
   LX: {
     name: 'LX',
@@ -279,55 +283,85 @@ async function importPreviousSchedule() {
     }
   }
 
-  const weekday: Omit<ShiftConfig, 'name'> = {
-    start: '17:00',
-    end: '+1 07:00',
-  };
-  const weekend: Omit<ShiftConfig, 'name'> = {
-    start: '17:00',
-    end: '+2 07:00',
-  };
+  const SOUTH_HOSPITALS: HospitalKind[] = ['HMC', 'VA'];
+  const NWHSCH_HOSPITALS: HospitalKind[] = ['NWH', 'SCH'];
   const data: CallSchedule = {
     firstDay: '2024-07-01',
     lastDay: '2025-06-30',
     weeks: [],
     shiftConfigs: {
-      south: {
-        name: 'South',
-        ...weekday,
+      weekday_south: {
+        kind: `weekday_south`,
+        name: `South`,
+        hospitals: SOUTH_HOSPITALS,
+        days: 2,
       },
-      south_weekend: {
-        name: 'South Weekend',
-        ...weekend,
+      weekend_uw: {
+        kind: 'weekend_uw',
+        name: 'UW',
+        hospitals: ['UW'],
+        days: 3,
       },
-      uw_weekend: {
-        name: 'UW Weekend',
-        ...weekend,
+      weekend_nwhsch: {
+        kind: 'weekend_nwhsch',
+        name: 'UW',
+        hospitals: NWHSCH_HOSPITALS,
+        days: 3,
       },
-      north_weekend: {
-        name: 'North Weekend',
-        ...weekend,
+      weekend_south: {
+        kind: 'weekend_south',
+        name: `South`,
+        hospitals: SOUTH_HOSPITALS,
+        days: 3,
+      },
+      day_nwhsch: {
+        kind: 'day_nwhsch',
+        name: `NWH/SCH Day`,
+        hospitals: NWHSCH_HOSPITALS,
+        days: 1,
+      },
+      day_uw: {
+        kind: 'day_uw',
+        name: `UW Day`,
+        hospitals: ['UW'],
+        days: 1,
+      },
+      south_24: {
+        kind: 'south_24',
+        name: `South 24`,
+        hospitals: SOUTH_HOSPITALS,
+        days: 2,
+      },
+      power_nwhsch: {
+        kind: 'power_nwhsch',
+        name: `Power NWH/SCH`,
+        hospitals: NWHSCH_HOSPITALS,
+        days: 3,
+      },
+      power_uw: {
+        kind: 'power_uw',
+        name: `Power UW`,
+        hospitals: ['UW'],
+        days: 3,
+      },
+      power_south: {
+        kind: 'power_south',
+        name: `Power South`,
+        hospitals: SOUTH_HOSPITALS,
+        days: 3,
+      },
+      thanksgiving_south: {
+        kind: 'thanksgiving_south',
+        name: `Thanksgiving South`,
+        hospitals: SOUTH_HOSPITALS,
+        days: 3,
       },
     },
     people,
-    holidays: {
-      '2024-07-04': 'Indep. Day',
-      '2024-09-02': 'Labor Day',
-      '2024-10-14': 'Indigenous Ppl',
-      '2024-11-11': 'Veterans Day',
-      '2024-11-28': 'Thanksgiving',
-      '2024-11-29': 'Thanksgiving 2',
-      '2024-12-25': 'Christmas',
-      '2025-01-01': 'New Year',
-      '2025-01-20': 'MLK Day',
-      '2025-02-17': "President's Day",
-      '2025-05-26': 'Memorial Day',
-      '2025-06-19': 'Juneteenth',
-    },
+    holidays: {},
     vacations: {
       LZ: [assertIsoDate('2024-07-10')],
     },
-    highlighted: [],
   };
 
   {
@@ -343,7 +377,7 @@ async function importPreviousSchedule() {
         days.push({
           date: sundayPlus(i),
           shifts: {
-            south: week.south[1 + i],
+            weekday_south: week.south[1 + i],
           },
         });
       }
@@ -351,9 +385,9 @@ async function importPreviousSchedule() {
       days.push({
         date: sundayPlus(5),
         shifts: {
-          south_weekend: week.south[6],
-          uw_weekend: week.uw[6],
-          north_weekend: week.north[6],
+          weekend_south: week.south[6],
+          weekend_uw: week.uw[6],
+          weekend_nwhsch: week.north[6],
         },
       });
       // Saturday (no shifts)
@@ -370,6 +404,87 @@ async function importPreviousSchedule() {
 
       // Next week
       sunday = sundayPlus(7);
+    }
+
+    function findDate(date: string): Day {
+      for (const week of data.weeks) {
+        week.days.forEach((day, idx) => {
+          const today = sundayPlus(idx);
+          if (today === date) {
+            return day;
+          }
+        });
+      }
+      throw new Error(`Tried to find ${date}, but doesn't exist.`);
+    }
+    function datePlusN(date: string, n: number): IsoDate {
+      const day = isoDateToDate(date as IsoDate);
+      day.setDate(day.getDate() + n);
+      return dateToIsoDate(day);
+    }
+
+    // Override holidays
+    data.holidays = {
+      '2024-07-04': 'Indep. Day',
+      '2024-09-02': 'Labor Day',
+      '2024-10-14': 'Indigenous Ppl',
+      '2024-11-11': 'Veterans Day',
+      '2024-11-28': 'Thanksgiving',
+      '2024-11-29': 'Thanksgiving 2',
+      '2024-12-25': 'Christmas',
+      '2025-01-01': 'New Year',
+      '2025-01-20': 'MLK Day',
+      '2025-02-17': "President's Day",
+      '2025-05-26': 'Memorial Day',
+      '2025-06-19': 'Juneteenth',
+    };
+
+    // Monday holidays
+    for (const [date, name] of [['2024-03-26', 'name']]) {
+      data.holidays[date] = name;
+      const sunday = findDate(datePlusN(date, -1));
+      const monday = findDate(date);
+      sunday.shifts = {
+        south_24: undefined,
+      };
+      monday.shifts = {
+        day_nwhsch: undefined,
+        day_uw: undefined,
+      };
+    }
+
+    // Wednesday/Thursday holidays
+    for (const [date, name] of [['2024-03-26', 'name']]) {
+      data.holidays[date] = name;
+      const weekday = findDate(date);
+      weekday.shifts = {
+        day_nwhsch: undefined,
+        day_uw: undefined,
+        south_24: undefined,
+      };
+    }
+
+    // Thanksgiving
+    {
+      const date = '2024-11-28';
+      data.holidays[date] = 'Thanksgiving';
+      data.holidays['2024-11-29'] = 'Thanksgiving';
+      const thursday = findDate(date);
+      const friday = findDate(datePlusN(date, 1));
+      const wednesday = findDate(datePlusN(date, -1));
+      wednesday.shifts = {
+        thanksgiving_south: undefined,
+      };
+      thursday.shifts = {
+        day_nwhsch: undefined,
+        day_uw: undefined,
+        south_24: undefined,
+      };
+      friday.shifts = {
+        power_south: undefined,
+        power_nwhsch: undefined,
+        power_uw: undefined,
+      };
     }
   }
 

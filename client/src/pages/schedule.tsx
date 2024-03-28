@@ -7,9 +7,13 @@ import {
   PersonConfig,
   ShiftId,
   WeekId,
+  YearOnSchedule,
   Year,
+  yearToString,
+  LocalData,
+  ShiftKind,
 } from '../shared/types';
-import { useData, useProcessedData } from './data-context';
+import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
 import React, { createContext, forwardRef, useContext, useState } from 'react';
 import { Button, Dialog } from '@mui/material';
@@ -59,16 +63,15 @@ export function RenderCallSchedule() {
 }
 
 function Highlight() {
-  const [data, setData] = useData();
+  const [data] = useData();
+  const [_, setLocalData] = useLocalData();
   const year2people = getYearToPeople(data);
   return (
     <Column spacing="5px">
       <Heading>Highlight</Heading>
       {Object.entries(year2people).map(([year, people]) => (
         <Row key={year}>
-          <Text style={{ width: '60px' }}>
-            {year == 'R' ? 'Research' : `PGY-${year}`}
-          </Text>
+          <Text style={{ width: '60px' }}>{yearToString(year as Year)}</Text>
           <Row spacing="5px">
             {people.map(person => (
               <RenderPerson
@@ -78,15 +81,10 @@ function Highlight() {
                   cursor: 'pointer',
                 }}
                 onClick={() => {
-                  setData((data: CallSchedule) => {
-                    if (data.highlighted.includes(person.id)) {
-                      data.highlighted = data.highlighted.filter(
-                        id => id !== person.id,
-                      );
-                    } else {
-                      data.highlighted.push(person.id);
-                    }
-                    return { ...data };
+                  setLocalData((localData: LocalData) => {
+                    localData.highlightedPeople[person.id] =
+                      !localData.highlightedPeople[person.id];
+                    return { ...localData };
                   });
                 }}
               />
@@ -202,7 +200,7 @@ function RenderDay({ id }: { id: DayId }) {
       <Column style={{ ...DAY_BOX_STYLE }}>
         {Object.entries(day.shifts).map(([shiftName]) => (
           <RenderShift
-            id={{ ...id, shiftName }}
+            id={{ ...id, shiftName: shiftName as ShiftKind }}
             key={`${day.date}-${shiftName}`}
           />
         ))}
@@ -271,21 +269,14 @@ function personToColor(
 }
 
 function yearToColor(year: string | undefined, dark: boolean = false): string {
-  // #a1c9f4 - A soft blue
-  // #ffb482 - A gentle orange
-  // #8de5a1 - A light green
-  // #ff9f9b - A pale red
-  // #d0bbff - A light purple
-  // #fadadd - A fresh pastel pink
   const color = mapEnumWithDefault(
     year as string,
     {
-      '1': '#fadadd',
-      '2': '#baffc9',
-      '3': '#ffffba',
-      '4': '#ffdfba',
-      '5': '#ffb3ba',
-      R: '#bae1ff',
+      R: '#baffc9', // green
+      '2': '#ffffba', // yellow
+      '3': '#ffdfba', // orange
+      S: '#ffb3ba', // red
+      M: '#bae1ff', // blue
     },
     '#ccc',
   );
@@ -327,6 +318,7 @@ function RenderPerson({
   onClick?: () => void;
 }) {
   const [data] = useData();
+  const [localData] = useLocalData();
   if (!person) {
     return null;
   }
@@ -335,7 +327,7 @@ function RenderPerson({
       color={personToColor(data, person)}
       style={style}
       onClick={onClick}
-      highlighted={data.highlighted.includes(person)}
+      highlighted={localData.highlightedPeople[person]}
     >
       <Text
         style={{
@@ -445,19 +437,19 @@ export const PersonPickerProvider = ({ children }: Children) => {
 
 function getYearToPeople(
   data: CallSchedule,
-): Record<Exclude<Year, '1'>, (PersonConfig & { id: string })[]> {
+): Record<YearOnSchedule, (PersonConfig & { id: string })[]> {
   const yearToPeople: Record<
-    Exclude<Year, '1'>,
+    YearOnSchedule,
     (PersonConfig & { id: string })[]
   > = {
     '2': [],
     '3': [],
-    '4': [],
-    '5': [],
+    S: [],
     R: [],
+    M: [],
   };
   for (const [id, person] of Object.entries(data.people)) {
-    if (person.year == '1') continue;
+    if (person.year == '1' || person.year == 'C') continue;
     yearToPeople[person.year].push({ ...person, id });
   }
   return yearToPeople;
@@ -489,7 +481,7 @@ function PersonPickerDialog() {
                     color: yearToColor(year, true),
                   }}
                 >
-                  {year == 'R' ? 'Research' : `PGY-${year}`}
+                  {yearToString(year as Year)}
                 </Text>
                 <Column spacing="3px">
                   {people.map(person => (

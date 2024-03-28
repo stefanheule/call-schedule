@@ -3,15 +3,37 @@ import { IsoDate, mapEnum } from 'check-type';
 // @check-type:entire-file
 
 export type ShiftConfig = {
+  kind: ShiftKind;
   name: string;
-  // default: 1am
-  start?: string;
-  // default: 11pm
-  end?: string;
+  hospitals: HospitalKind[];
+  /** How many days (1 for just today, 2 for today and tomorrow, etc) */
+  days: number;
 };
 
 export type Year = '1' | '2' | '3' | 'S' | 'C' | 'R' | 'M';
 export type YearOnSchedule = '2' | '3' | 'S' | 'R' | 'M';
+
+export const WEEKDAY_SHIFTS = ['weekday_south'] as const;
+export type WeekdayShiftKind = (typeof WEEKDAY_SHIFTS)[number];
+export const WEEKEND_SHIFTS = [
+  'weekend_south',
+  'weekend_uw',
+  'weekend_nwhsch',
+] as const;
+export type WeekendShiftKind = (typeof WEEKEND_SHIFTS)[number];
+export const SPECIAL_SHIFTS = [
+  'day_uw',
+  'day_nwhsch',
+  'south_24',
+  'power_uw',
+  'power_nwhsch',
+  'power_south',
+  'thanksgiving_south',
+] as const;
+export type SpecialShiftKind = (typeof SPECIAL_SHIFTS)[number];
+export type ShiftKind = WeekdayShiftKind | WeekendShiftKind | SpecialShiftKind;
+export type HospitalKind = 'UW' | 'VA' | 'HMC' | 'SCH' | 'NWH';
+export type RotationKind = HospitalKind | 'Alaska' | 'Research' | 'NF';
 
 export function yearToString(year: Year): string {
   return mapEnum(year, {
@@ -37,7 +59,7 @@ export type CallPool = 'north' | 'uw' | 'south';
 export type Person = string;
 
 export type ShiftId = DayId & {
-  shiftName: string;
+  shiftName: ShiftKind;
 };
 
 export function shiftIdToString(shiftId: ShiftId) {
@@ -60,7 +82,7 @@ export type Day = {
   date: IsoDate;
 
   shifts: {
-    [name: string]: Person | undefined;
+    [Symbol in ShiftKind]?: Person;
   };
 };
 
@@ -80,7 +102,7 @@ export type CallSchedule = {
   weeks: Week[];
 
   shiftConfigs: {
-    [name: string]: ShiftConfig;
+    [Property in ShiftKind]: ShiftConfig;
   };
 
   people: {
@@ -94,8 +116,15 @@ export type CallSchedule = {
   vacations: {
     [person: string]: Vacation[];
   };
+};
 
-  highlighted: string[];
+export type LocalData = {
+  highlightedPeople: {
+    [name: string]: boolean;
+  };
+  highlightedIssues: {
+    [name: string]: boolean;
+  };
 };
 
 export type CallScheduleProcessed = {
@@ -113,10 +142,11 @@ export type CallScheduleProcessed = {
     [key: string]: Issue;
   };
   shift2issue: {
-    [shift: string]: Issue[];
+    [shift: string]: string[];
   };
 };
 
 export type Issue = {
+  startDay: IsoDate;
   message: string;
 };
