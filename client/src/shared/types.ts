@@ -96,14 +96,16 @@ export type Week = {
 // Marks the start Monday
 export type Vacation = IsoDate;
 
+export type ShiftXXX = {
+  [Property in ShiftKind]: ShiftConfig;
+};
+
 export type CallSchedule = {
   firstDay: string;
   lastDay: string;
   weeks: Week[];
 
-  shiftConfigs: {
-    [Property in ShiftKind]: ShiftConfig;
-  };
+  shiftConfigs: ShiftXXX;
 
   people: {
     [name: string]: PersonConfig;
