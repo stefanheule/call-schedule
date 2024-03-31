@@ -304,7 +304,7 @@ async function importPreviousSchedule() {
       },
       weekend_nwhsch: {
         kind: 'weekend_nwhsch',
-        name: 'UW',
+        name: 'NWH/SCH',
         hospitals: NWHSCH_HOSPITALS,
         days: 3,
       },
@@ -408,12 +408,12 @@ async function importPreviousSchedule() {
 
     function findDate(date: string): Day {
       for (const week of data.weeks) {
-        week.days.forEach((day, idx) => {
-          const today = sundayPlus(idx);
-          if (today === date) {
+        for (let idx = 0; idx < week.days.length; idx++) {
+          const day = week.days[idx];
+          if (day.date === date) {
             return day;
           }
-        });
+        }
       }
       throw new Error(`Tried to find ${date}, but doesn't exist.`);
     }
@@ -440,7 +440,7 @@ async function importPreviousSchedule() {
     };
 
     // Monday holidays
-    for (const [date, name] of [['2024-03-26', 'name']]) {
+    for (const [date, name] of [['2024-08-26', 'name']]) {
       data.holidays[date] = name;
       const sunday = findDate(datePlusN(date, -1));
       const monday = findDate(date);
@@ -454,7 +454,7 @@ async function importPreviousSchedule() {
     }
 
     // Wednesday/Thursday holidays
-    for (const [date, name] of [['2024-03-26', 'name']]) {
+    for (const [date, name] of [['2024-08-26', 'name']]) {
       data.holidays[date] = name;
       const weekday = findDate(date);
       weekday.shifts = {
