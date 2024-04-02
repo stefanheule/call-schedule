@@ -12,6 +12,8 @@ import {
   yearToString,
   LocalData,
   ShiftKind,
+  MaybePerson,
+  Person,
 } from '../shared/types';
 import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
@@ -160,6 +162,10 @@ function RenderDay({ id }: { id: DayId }) {
   const date = isoDateToDate(day.date);
   const processed = useProcessedData();
   const isHoliday = data.holidays[day.date] !== undefined;
+
+  if (id.dayIndex == 4 && id.weekIndex === 0) {
+    console.log(day);
+  }
   return (
     <Column
       style={{
@@ -185,7 +191,7 @@ function RenderDay({ id }: { id: DayId }) {
       </Column>
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
       <Column style={{ ...DAY_BOX_STYLE, height: DAY_VACATION_HEIGHT }}>
-        {processed.day2hospital2people[day.date] &&
+        {/* {processed.day2hospital2people[day.date] &&
           Object.entries(processed.day2hospital2people[day.date]).map(
             ([hospital, people]) => (
               <RenderHospital
@@ -194,7 +200,7 @@ function RenderDay({ id }: { id: DayId }) {
                 key={`${day.date}-${hospital}`}
               />
             ),
-          )}
+          )} */}
       </Column>
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
       <Column style={{ ...DAY_BOX_STYLE }}>
@@ -223,9 +229,9 @@ function RenderHospital({
 function RenderShift({ id }: { id: ShiftId }) {
   const [data, setData] = useData();
   const personId =
-    data.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName];
+    data.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName] ?? '';
   const personPicker = usePersonPicker();
-  const name = data.shiftConfigs[id.shiftName]?.name ?? id.shiftName;
+  const name = data.shiftConfigs[id.shiftName].name;
   return (
     <Column
       style={{
@@ -261,7 +267,7 @@ function RenderShift({ id }: { id: ShiftId }) {
 
 function personToColor(
   data: CallSchedule,
-  person: string | undefined,
+  person: MaybePerson | undefined,
   dark: boolean = false,
 ): string {
   const personConfig = person ? data.people[person] : undefined;
@@ -313,7 +319,7 @@ function RenderPerson({
   style,
   onClick,
 }: {
-  person: string | undefined;
+  person: MaybePerson;
   style?: React.CSSProperties;
   onClick?: () => void;
 }) {
@@ -382,13 +388,13 @@ export const ColorPill = forwardRef(function ColorPillImp(
 
 type PersonPickerType = {
   requestDialog: (
-    callback: (person: string | undefined) => void,
-    currentPersonId: string | undefined,
+    callback: (person: MaybePerson) => void,
+    currentPersonId: MaybePerson,
   ) => void;
-  handleDialogResult: (person: string | undefined) => void;
+  handleDialogResult: (person: MaybePerson) => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
-  currentPerson: string | undefined;
+  currentPerson: MaybePerson;
 };
 
 const PersonPickerContext = createContext<PersonPickerType | undefined>(
@@ -401,21 +407,19 @@ export function usePersonPicker(): PersonPickerType {
 
 export const PersonPickerProvider = ({ children }: Children) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [onResult, setOnResult] = useState(() => (_: string | undefined) => {});
-  const [currentPerson, setCurrentPerson] = useState<undefined | string>(
-    undefined,
-  );
+  const [onResult, setOnResult] = useState(() => (_: MaybePerson) => {});
+  const [currentPerson, setCurrentPerson] = useState<MaybePerson>('');
 
   const requestDialog = (
-    callback: (person: string | undefined) => void,
-    currentPersonId: string | undefined,
+    callback: (person: MaybePerson) => void,
+    currentPersonId: MaybePerson,
   ) => {
     setIsOpen(true);
     setOnResult(() => callback);
     setCurrentPerson(currentPersonId);
   };
 
-  const handleDialogResult = (person: string | undefined) => {
+  const handleDialogResult = (person: MaybePerson) => {
     setIsOpen(false);
     onResult(person);
   };
@@ -437,10 +441,10 @@ export const PersonPickerProvider = ({ children }: Children) => {
 
 function getYearToPeople(
   data: CallSchedule,
-): Record<YearOnSchedule, (PersonConfig & { id: string })[]> {
+): Record<YearOnSchedule, (PersonConfig & { id: Person })[]> {
   const yearToPeople: Record<
     YearOnSchedule,
-    (PersonConfig & { id: string })[]
+    (PersonConfig & { id: Person })[]
   > = {
     '2': [],
     '3': [],
@@ -450,7 +454,7 @@ function getYearToPeople(
   };
   for (const [id, person] of Object.entries(data.people)) {
     if (person.year == '1' || person.year == 'C') continue;
-    yearToPeople[person.year].push({ ...person, id });
+    yearToPeople[person.year].push({ ...person, id: id as Person });
   }
   return yearToPeople;
 }
@@ -527,7 +531,7 @@ function PersonPickerDialog() {
           </Button>
           <Button
             variant="contained"
-            onClick={() => personPicker.handleDialogResult(undefined)}
+            onClick={() => personPicker.handleDialogResult('')}
           >
             Clear
           </Button>

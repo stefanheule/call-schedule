@@ -32,8 +32,12 @@ export const SPECIAL_SHIFTS = [
 ] as const;
 export type SpecialShiftKind = (typeof SPECIAL_SHIFTS)[number];
 export type ShiftKind = WeekdayShiftKind | WeekendShiftKind | SpecialShiftKind;
-export type HospitalKind = 'UW' | 'VA' | 'HMC' | 'SCH' | 'NWH';
-export type RotationKind = HospitalKind | 'Alaska' | 'Research' | 'NF';
+
+export const HOSPITALS = ['UW', 'VA', 'HMC', 'SCH', 'NWH'] as const;
+export type HospitalKind = (typeof HOSPITALS)[number];
+export const EXTRA_ROTATIONS = ['Alaska', 'Research', 'NF'] as const;
+export const ROTATIONS = [...HOSPITALS, ...EXTRA_ROTATIONS] as const;
+export type RotationKind = (typeof ROTATIONS)[number];
 
 export function yearToString(year: Year): string {
   return mapEnum(year, {
@@ -56,7 +60,29 @@ export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 
 export type CallPool = 'north' | 'uw' | 'south';
 
-export type Person = string;
+export const ALL_PEOPLE = [
+  'MAD',
+  'DK',
+  'LZ',
+  'TW',
+  'CP',
+  'AA',
+  'DC',
+  'AJ',
+  'LX',
+  'CC',
+  'MB',
+  'RB',
+  'MJ',
+  'TM',
+  'GN',
+  'KO',
+  'CPu',
+  'NR',
+] as const;
+export type Person = (typeof ALL_PEOPLE)[number];
+export type UnassignedPerson = '';
+export type MaybePerson = Person | UnassignedPerson;
 
 export type ShiftId = DayId & {
   shiftName: ShiftKind;
@@ -82,7 +108,7 @@ export type Day = {
   date: IsoDate;
 
   shifts: {
-    [Symbol in ShiftKind]?: Person;
+    [Symbol in ShiftKind]?: MaybePerson;
   };
 };
 
@@ -94,21 +120,19 @@ export type Week = {
 };
 
 // Marks the start Monday
-export type Vacation = IsoDate;
-
-export type ShiftXXX = {
-  [Property in ShiftKind]: ShiftConfig;
-};
+export type Vacation = string;
 
 export type CallSchedule = {
   firstDay: string;
   lastDay: string;
   weeks: Week[];
 
-  shiftConfigs: ShiftXXX;
+  shiftConfigs: {
+    [Property in ShiftKind]: ShiftConfig;
+  };
 
   people: {
-    [name: string]: PersonConfig;
+    [Property in Person]: PersonConfig;
   };
 
   holidays: {
@@ -116,8 +140,17 @@ export type CallSchedule = {
   };
 
   vacations: {
-    [person: string]: Vacation[];
+    [Property in Person]: Vacation[];
   };
+
+  rotations: {
+    [Property in Person]: RotationConfig[];
+  };
+};
+
+export type RotationConfig = {
+  rotation: RotationKind;
+  start: string;
 };
 
 export type LocalData = {
@@ -129,10 +162,18 @@ export type LocalData = {
   };
 };
 
+export type DayPersonInfo = {
+  rotation: RotationKind;
+  shift?: ShiftKind;
+  onVacation: boolean;
+  // true if it's a weekday and the person is not on vacation, or if they are on call (either today, or via a multi-day shift that includes today)
+  isWorking: boolean;
+};
+
 export type CallScheduleProcessed = {
-  day2hospital2people: {
+  day2person2info: {
     [day: string]: {
-      [hospital: string]: Person[];
+      [Property in Person]?: DayPersonInfo;
     };
   };
 
@@ -144,7 +185,7 @@ export type CallScheduleProcessed = {
     [key: string]: Issue;
   };
   shift2issue: {
-    [shift: string]: string[];
+    [Property in ShiftKind]?: string[];
   };
 };
 
