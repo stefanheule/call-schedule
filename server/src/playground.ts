@@ -4,18 +4,21 @@ dotenv.config({ path: __dirname + '/../.env' });
 import { globalSetup } from './common/error-reporting';
 import * as xlsx from 'node-xlsx';
 import {
+  ALL_PEOPLE,
   CallPool,
   CallSchedule,
   Day,
   HospitalKind,
+  MaybePerson,
+  Person,
   PersonConfig,
+  ROTATIONS,
   Week,
 } from './shared/types';
 
 import * as datefns from 'date-fns';
 import fs from 'fs';
 import { IsoDate, dateToIsoDate, isoDateToDate, mapEnum } from 'check-type';
-import { assertIsoDate } from './shared/check-type.generated';
 
 async function main() {
   await globalSetup();
@@ -24,7 +27,7 @@ async function main() {
 }
 
 const people: {
-  [name: string]: PersonConfig;
+  [Property in Person]: PersonConfig;
 } = {
   MAD: {
     name: 'MAD',
@@ -137,7 +140,7 @@ async function importPreviousSchedule() {
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
-  function consumeCall(pool: CallPool) {
+  function consumeCall(pool: CallPool): MaybePerson[] {
     const key = mapEnum(pool, {
       north: 'NWH/SCH',
       uw: 'UWMC',
@@ -225,14 +228,14 @@ async function importPreviousSchedule() {
           throw new Error(`Unknown person ${call[i]} at row ${rowIndex}`);
       }
     }
-    return call;
+    return call as MaybePerson[];
   }
 
   let weeks: Array<{
     sunday: string;
-    north: string[];
-    uw: string[];
-    south: string[];
+    north: MaybePerson[];
+    uw: MaybePerson[];
+    south: MaybePerson[];
   }> = [];
   for (rowIndex = 0; rowIndex < sheet.data.length; ) {
     // Header row
@@ -360,9 +363,57 @@ async function importPreviousSchedule() {
     people,
     holidays: {},
     vacations: {
-      LZ: [assertIsoDate('2024-07-10')],
+      LZ: ['2024-07-10'],
+      MAD: [],
+      DK: [],
+      TW: [],
+      CP: [],
+      AA: [],
+      DC: [],
+      AJ: [],
+      LX: [],
+      CC: [],
+      MB: [],
+      RB: [],
+      MJ: [],
+      TM: [],
+      GN: [],
+      KO: [],
+      CPu: [],
+      NR: [],
+    },
+    rotations: {
+      MAD: [],
+      DK: [],
+      LZ: [],
+      TW: [],
+      CP: [],
+      AA: [],
+      DC: [],
+      AJ: [],
+      LX: [],
+      CC: [],
+      MB: [],
+      RB: [],
+      MJ: [],
+      TM: [],
+      GN: [],
+      KO: [],
+      CPu: [],
+      NR: [],
     },
   };
+
+  // add dummy rotation info
+  let i = 0;
+  for (const person of ALL_PEOPLE) {
+    const p: Person = person;
+    data.rotations[p].push({
+      start: '2024-04-01',
+      rotation: ROTATIONS[i],
+    });
+    i = (i + 1) % ROTATIONS.length;
+  }
 
   {
     let sunday: IsoDate = '2024-06-30' as IsoDate;
@@ -430,7 +481,7 @@ async function importPreviousSchedule() {
       '2024-10-14': 'Indigenous Ppl',
       '2024-11-11': 'Veterans Day',
       '2024-11-28': 'Thanksgiving',
-      '2024-11-29': 'Thanksgiving 2',
+      '2024-11-29': 'Thanksgiving',
       '2024-12-25': 'Christmas',
       '2025-01-01': 'New Year',
       '2025-01-20': 'MLK Day',
@@ -439,51 +490,57 @@ async function importPreviousSchedule() {
       '2025-06-19': 'Juneteenth',
     };
 
-    // Monday holidays
-    for (const [date, name] of [['2024-08-26', 'name']]) {
-      data.holidays[date] = name;
-      const sunday = findDate(datePlusN(date, -1));
-      const monday = findDate(date);
-      sunday.shifts = {
-        south_24: undefined,
-      };
-      monday.shifts = {
-        day_nwhsch: undefined,
-        day_uw: undefined,
-      };
-    }
+    for (const [date, name] of Object.entries(data.holidays)) {
+      const dateObj = isoDateToDate(datePlusN(date, 0));
 
-    // Wednesday/Thursday holidays
-    for (const [date, name] of [['2024-08-26', 'name']]) {
-      data.holidays[date] = name;
-      const weekday = findDate(date);
-      weekday.shifts = {
-        day_nwhsch: undefined,
-        day_uw: undefined,
-        south_24: undefined,
-      };
+      // Monday holidays
+      if (dateObj.getDay() === 1) {
+        const sunday = findDate(datePlusN(date, -1));
+        const monday = findDate(date);
+        sunday.shifts = {
+          south_24: '',
+        };
+        monday.shifts = {
+          day_nwhsch: '',
+          day_uw: '',
+        };
+      }
+
+      // Wednesday/Thursday holidays
+      else if (dateObj.getDay() === 3 || dateObj.getDay() === 4) {
+        const weekday = findDate(date);
+        weekday.shifts = {
+          day_nwhsch: '',
+          day_uw: '',
+          south_24: '',
+        };
+      } else if (name === 'Thanksgiving') {
+        continue; // handled below
+      } else {
+        throw new Error(
+          `Don't know how to handle call for holiday ${name} on ${date}`,
+        );
+      }
     }
 
     // Thanksgiving
     {
       const date = '2024-11-28';
-      data.holidays[date] = 'Thanksgiving';
-      data.holidays['2024-11-29'] = 'Thanksgiving';
       const thursday = findDate(date);
       const friday = findDate(datePlusN(date, 1));
       const wednesday = findDate(datePlusN(date, -1));
       wednesday.shifts = {
-        thanksgiving_south: undefined,
+        thanksgiving_south: '',
       };
       thursday.shifts = {
-        day_nwhsch: undefined,
-        day_uw: undefined,
-        south_24: undefined,
+        day_nwhsch: '',
+        day_uw: '',
+        south_24: '',
       };
       friday.shifts = {
-        power_south: undefined,
-        power_nwhsch: undefined,
-        power_uw: undefined,
+        power_south: '',
+        power_nwhsch: '',
+        power_uw: '',
       };
     }
   }
