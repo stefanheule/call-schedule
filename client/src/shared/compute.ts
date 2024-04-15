@@ -1,11 +1,13 @@
-import { IsoDate, dateToIsoDate, isoDateToDate } from 'check-type';
+import { IsoDate, dateToIsoDate, isoDateToDate, uuid } from 'check-type';
 import {
   CallSchedule,
   CallScheduleProcessed,
   Person,
   ShiftKind,
+  WEEKDAY_SHIFTS,
 } from './types';
 import { assertIsoDate } from './check-type.generated';
+import * as datefns from 'date-fns';
 
 function nextDay(day: string | Date, n: number = 1): IsoDate {
   if (typeof day === 'string') {
@@ -37,16 +39,28 @@ function isOnVacation(
   return false;
 }
 
+function dateToDayOfWeek(
+  date: Date | string,
+): 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun' {
+  if (typeof date === 'string') date = isoDateToDate(assertIsoDate(date));
+  const d = date.getDay();
+  if (d == 0) return 'sun';
+  if (d == 1) return 'mon';
+  if (d == 2) return 'tue';
+  if (d == 3) return 'wed';
+  if (d == 4) return 'thu';
+  if (d == 5) return 'fri';
+  return 'sat';
+}
+
 export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   const result: CallScheduleProcessed = {
-    day2vacation: {},
     issues: {
       test: {
         startDay: '2024-07-10' as IsoDate,
         message: 'This is a test issue',
       },
     },
-    shift2issue: {},
     day2person2info: {},
   };
 
@@ -93,5 +107,41 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   }
 
+  // 1. no consecutive weekday night calls
+  forEveryDay(data, (day, date) => {
+    for (const person of Object.keys(data.people) as Person[]) {
+      const today = result.day2person2info[day][person];
+      const dayPlusOne = nextDay(day);
+      const tomorrow = result.day2person2info[dayPlusOne][person];
+      if (!today || !tomorrow) return;
+      if (!today.shift || !tomorrow.shift) return;
+      if (!WEEKDAY_SHIFTS.includes(today.shift)) return;
+      if (!WEEKDAY_SHIFTS.includes(tomorrow.shift)) return;
+      const key = generateIssueKey();
+      result.issues[key] = {
+        startDay: day,
+        message: `Consecutive weekday call for ${person} on ${day} and ${dayPlusOne}`,
+      };
+    }
+  });
+
   return result;
+}
+
+function generateIssueKey(): string {
+  return uuid();
+}
+
+function forEveryDay(
+  data: CallSchedule,
+  callback: (day: IsoDate, date: Date) => void,
+) {
+  let day = assertIsoDate(data.firstDay);
+  const lastDate = isoDateToDate(assertIsoDate(data.lastDay));
+  while (true) {
+    const date = isoDateToDate(assertIsoDate(day));
+    if (datefns.isAfter(date, lastDate)) break;
+    callback(day, date);
+    day = nextDay(day);
+  }
 }

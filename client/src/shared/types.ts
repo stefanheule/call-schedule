@@ -177,15 +177,8 @@ export type CallScheduleProcessed = {
     };
   };
 
-  day2vacation: {
-    [day: string]: string[];
-  };
-
   issues: {
     [key: string]: Issue;
-  };
-  shift2issue: {
-    [Property in ShiftKind]?: string[];
   };
 };
 
