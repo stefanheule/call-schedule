@@ -115,54 +115,76 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   }
 
-  // 1. no consecutive weekday night calls
+  // hard 0. no illegal calls
   forEveryDay(data, (day, _) => {
     for (const person of PEOPLE) {
-      const today = result.day2person2info[day][person];
+      const today = assertNonNull(result.day2person2info[day][person]);
+      if (!today.shift) continue;
+      if (today.rotation == 'Alaska' || today.rotation == 'NF') {
+        result.issues[generateIssueKey()] = {
+          kind: 'rotation-without-call',
+          startDay: day,
+          message: `${person} is on call for ${today.shift} during ${today.rotation}.`,
+        };
+      }
+    }
+  });
+
+  // hard 1. no consecutive weekday night calls
+  forEveryDay(
+    data,
+    (day, _) => {
       const dayPlusOne = nextDay(day);
-      const tomorrow = result.day2person2info[dayPlusOne]?.[person];
-      assertNonNull(today);
-      if (!today || !tomorrow) continue;
-      if (!today.shift || !tomorrow.shift) continue;
-      if (data.shiftConfigs[today.shift].days != 2) continue;
-      if (data.shiftConfigs[tomorrow.shift].days != 2) continue;
-      result.issues[generateIssueKey()] = {
-        kind: 'consecutive-weekday-call',
-        startDay: day,
-        message: `Consecutive weekday call for ${person} on ${day} and ${dayPlusOne}`,
-      };
-    }
-  });
+      for (const person of PEOPLE) {
+        const today = assertNonNull(result.day2person2info[day][person]);
+        const tomorrow = assertNonNull(
+          result.day2person2info[dayPlusOne][person],
+        );
+        if (!today.shift || !tomorrow.shift) continue;
+        if (data.shiftConfigs[today.shift].days != 2) continue;
+        if (data.shiftConfigs[tomorrow.shift].days != 2) continue;
+        result.issues[generateIssueKey()] = {
+          kind: 'consecutive-weekday-call',
+          startDay: day,
+          message: `Consecutive weekday call for ${person} on ${day} and ${dayPlusOne}`,
+        };
+      }
+    },
+    1,
+  );
 
-  // 2. no consecutive weekend calls
-  forEveryDay(data, (day, _) => {
-    if (dateToDayOfWeek(day) != 'fri') return;
-    for (const person of Object.keys(data.people) as Person[]) {
-      const today = result.day2person2info[day][person];
+  // hard 2. no consecutive weekend calls
+  forEveryDay(
+    data,
+    (day, _) => {
+      if (dateToDayOfWeek(day) != 'fri') return;
       const nextWeekendDay = nextDay(day, 7);
-      const nextWeekend = result.day2person2info[nextWeekendDay]?.[person];
-      assertNonNull(today);
-      if (!today || !nextWeekend) continue;
-      if (!today.shift || !nextWeekend.shift) continue;
-      if (data.shiftConfigs[today.shift].days != 3) continue;
-      if (data.shiftConfigs[today.shift].days != 3) continue;
-      result.issues[generateIssueKey()] = {
-        kind: 'consecutive-weekend-call',
-        startDay: day,
-        message: `Consecutive weekend call for ${person} on ${day} and ${nextWeekendDay}`,
-      };
-    }
-  });
+      for (const person of PEOPLE) {
+        const today = assertNonNull(result.day2person2info[day][person]);
+        const nextWeekend = assertNonNull(
+          result.day2person2info[nextWeekendDay][person],
+        );
+        if (!today.shift || !nextWeekend.shift) continue;
+        if (data.shiftConfigs[today.shift].days != 3) continue;
+        if (data.shiftConfigs[nextWeekend.shift].days != 3) continue;
+        result.issues[generateIssueKey()] = {
+          kind: 'consecutive-weekend-call',
+          startDay: day,
+          message: `Consecutive weekend call for ${person} on ${day} and ${nextWeekendDay}`,
+        };
+      }
+    },
+    7,
+  );
 
-  // 3. r2's should not be on call for first 2 weeks of july
+  // hard 3. r2's should not be on call for first 2 weeks of july
   forEveryDay(data, (day, _) => {
     if (day > '2024-07-14') return;
     for (const person of PEOPLE) {
       const p = data.people[person];
       if (p.year != '2') continue;
-      const today = result.day2person2info[day][person];
-      assertNonNull(today);
-      if (!today?.shift) continue;
+      const today = assertNonNull(result.day2person2info[day][person]);
+      if (!today.shift) continue;
       result.issues[generateIssueKey()] = {
         kind: 'r2-early-call',
         startDay: day,
@@ -171,10 +193,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   });
 
-  // 4. MAD shouldn't be on call for the first two weeks of their SCH/HMC rotations.
+  // hard 4. MAD shouldn't be on call for the first two weeks of their SCH/HMC rotations.
   for (const rotation of data.rotations.MAD) {
     if (rotation.rotation != 'HMC' && rotation.rotation != 'SCH') continue;
-    for (const i = 0; i < 14; i++) {
+    for (let i = 0; i < 14; i++) {
       const day = nextDay(rotation.start, i);
       const info = result.day2person2info[day]?.['MAD'];
       assertNonNull(info);
@@ -190,7 +212,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   }
 
-  // 5. 4 days off in a 28 day period
+  // hard 5. 4 days off in a 28 day period
   for (const person of PEOPLE) {
     let offCounter = 0;
     for (let i = 0; i < 28; i++) {
@@ -220,6 +242,80 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   }
 
+  // soft 1. every other weeknight call
+  forEveryDay(
+    data,
+    (day, _) => {
+      const dayPlusOne = nextDay(day, 2);
+      for (const person of PEOPLE) {
+        const today = assertNonNull(result.day2person2info[day][person]);
+        const tomorrow = assertNonNull(
+          result.day2person2info[dayPlusOne][person],
+        );
+        if (!today.shift || !tomorrow.shift) continue;
+        if (data.shiftConfigs[today.shift].days != 2) continue;
+        if (data.shiftConfigs[tomorrow.shift].days != 2) continue;
+        result.issues[generateIssueKey()] = {
+          kind: 'almost-consecutive-weekday-call',
+          startDay: day,
+          message: `Two weekday calls for ${person} on ${day} and ${dayPlusOne} only one day apart`,
+        };
+      }
+    },
+    2,
+  );
+
+  // soft 2. every other weekend call
+  forEveryDay(
+    data,
+    (day, _) => {
+      if (dateToDayOfWeek(day) != 'fri') return;
+      const nextWeekendDay = nextDay(day, 14);
+      const nextNextWeekendDay = nextDay(day, 28);
+      for (const person of PEOPLE) {
+        const today = assertNonNull(result.day2person2info[day][person]);
+        const nextWeekend = assertNonNull(
+          result.day2person2info[nextWeekendDay][person],
+        );
+        const nextNextWeekend = assertNonNull(
+          result.day2person2info[nextNextWeekendDay][person],
+        );
+        if (!today.shift || !nextWeekend.shift || !nextNextWeekend.shift)
+          continue;
+        if (data.shiftConfigs[today.shift].days != 3) continue;
+        if (data.shiftConfigs[nextWeekend.shift].days != 3) continue;
+        if (data.shiftConfigs[nextNextWeekend.shift].days != 3) continue;
+        result.issues[generateIssueKey()] = {
+          kind: 'every-other-weekend-call',
+          startDay: day,
+          message: `Every other weekend on call for 3 calls in a row for ${person} on ${day}, ${nextWeekendDay} and ${nextNextWeekendDay}`,
+        };
+      }
+    },
+    7 * 5,
+  );
+
+  // soft 3. no MAD call during AUA
+
+  // soft 4. no cross coverage
+  forEveryDay(data, (day, _) => {
+    for (const person of PEOPLE) {
+      const today = assertNonNull(result.day2person2info[day][person]);
+      if (!today.shift) continue;
+      const call = data.shiftConfigs[today.shift].hospitals;
+      if (today.rotation == 'Research') continue;
+      if (today.rotation == 'Alaska') continue;
+      if (today.rotation == 'NF') continue;
+      if (!call.includes(today.rotation)) {
+        result.issues[generateIssueKey()] = {
+          kind: 'cross-coverage',
+          startDay: day,
+          message: `Cross-coverage by ${person} on ${day}: Working at ${today.rotation}, but on call for ${today.shift}.`,
+        };
+      }
+    }
+  });
+
   return result;
 }
 
@@ -230,12 +326,16 @@ function generateIssueKey(): string {
 function forEveryDay(
   data: CallSchedule,
   callback: (day: IsoDate, date: Date) => void,
+  stopNDaysBeforeEnd?: number,
 ) {
   let day = assertIsoDate(data.firstDay);
   const lastDate = isoDateToDate(assertIsoDate(data.lastDay));
   while (true) {
     const date = isoDateToDate(assertIsoDate(day));
     if (datefns.isAfter(date, lastDate)) break;
+    if (stopNDaysBeforeEnd) {
+      if (nextDay(day, stopNDaysBeforeEnd) > data.lastDay) break;
+    }
     callback(day, date);
     day = nextDay(day);
   }
