@@ -19,6 +19,7 @@ import {
 import * as datefns from 'date-fns';
 import fs from 'fs';
 import { IsoDate, dateToIsoDate, isoDateToDate, mapEnum } from 'check-type';
+import { processCallSchedule } from './shared/compute';
 
 async function main() {
   await globalSetup();
@@ -550,6 +551,10 @@ async function importPreviousSchedule() {
     `${__dirname}/shared/init.json`,
     JSON.stringify(data, null, 2),
   );
+
+  const processed = processCallSchedule(data);
+
+  console.log(processed.issues)
 
   return data;
 }
