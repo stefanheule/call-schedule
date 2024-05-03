@@ -183,13 +183,19 @@ export type CallScheduleProcessed = {
 };
 
 const ISSUE_KINDS_HARD = [
+  'rotation-without-call',
   'consecutive-weekday-call',
   'consecutive-weekend-call',
   'r2-early-call',
   'mad-early-call',
   'less-than-4-off-in-28',
 ] as const;
-const ISSUE_KINDS_SOFT = [] as const;
+const ISSUE_KINDS_SOFT = [
+  'almost-consecutive-weekday-call',
+  'every-other-weekend-call',
+  'mad-during-aua',
+  'cross-coverage',
+] as const;
 const ISSUE_KINDS = [...ISSUE_KINDS_SOFT, ...ISSUE_KINDS_HARD];
 type IssueKind = (typeof ISSUE_KINDS)[number];
 
