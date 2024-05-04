@@ -10,6 +10,12 @@ export const DataContext = createContext<
       data: CallSchedule;
       setData: React.Dispatch<React.SetStateAction<CallSchedule>>;
       processed: CallScheduleProcessed;
+    }
+  | undefined
+>(undefined);
+
+export const LocalDataContext = createContext<
+  | {
       localData: LocalData;
       setLocalData: React.Dispatch<React.SetStateAction<LocalData>>;
     }
@@ -32,7 +38,7 @@ export function useLocalData(): [
   LocalData,
   React.Dispatch<React.SetStateAction<LocalData>>,
 ] {
-  const context = useContext(DataContext);
+  const context = useContext(LocalDataContext);
   if (!context) {
     throw new Error('useLocalData must be used within a DataProvider');
   }

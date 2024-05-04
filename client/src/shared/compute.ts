@@ -134,7 +134,11 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     for (const person of PEOPLE) {
       const today = assertNonNull(result.day2person2info[day][person]);
       if (!today.shift) continue;
-      if (today.rotation == 'Alaska' || today.rotation == 'NF') {
+      if (
+        today.rotation == 'Alaska' ||
+        today.rotation == 'NF' ||
+        today.rotation == 'OFF'
+      ) {
         result.issues[generateIssueKey()] = {
           kind: 'rotation-without-call',
           startDay: day,
@@ -339,6 +343,19 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   );
 
   // soft 3. no MAD call during AUA
+  forEveryDay(data, (day, _) => {
+    if (data.specialDays[day] != 'AUA') return;
+    const person = 'MAD' as const;
+    const today = assertNonNull(result.day2person2info[day][person]);
+    if (!today.shift) return;
+    result.issues[generateIssueKey()] = {
+      kind: 'mad-during-aua',
+      startDay: day,
+      message: `MAD is on ${today.shift} on ${day}, which is during AUA.`,
+      isHard: false,
+      elements: [elementIdForShift(day, today.shift)],
+    };
+  });
 
   // soft 4. no cross coverage
   forEveryDay(data, (day, _) => {
@@ -349,6 +366,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       if (today.rotation == 'Research') continue;
       if (today.rotation == 'Alaska') continue;
       if (today.rotation == 'NF') continue;
+      if (today.rotation == 'OFF') continue;
       if (!call.includes(today.rotation)) {
         result.issues[generateIssueKey()] = {
           kind: 'cross-coverage',
@@ -363,9 +381,9 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
 
   // Count issues
   for (const issue of Object.values(result.issues)) {
-    if (issue.kind in ISSUE_KINDS_HARD) {
+    if ((ISSUE_KINDS_HARD as readonly string[]).includes(issue.kind)) {
       result.issueCounts.hard += 1;
-    } else if (issue.kind in ISSUE_KINDS_SOFT) {
+    } else if ((ISSUE_KINDS_SOFT as readonly string[]).includes(issue.kind)) {
       result.issueCounts.soft += 1;
     }
   }
