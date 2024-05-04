@@ -207,5 +207,7 @@ type IssueKind = (typeof ISSUE_KINDS)[number];
 export type Issue = {
   kind: IssueKind;
   startDay: IsoDate;
+  elements: string[];
   message: string;
+  isHard: boolean;
 };

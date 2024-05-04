@@ -10,6 +10,13 @@ import {
 import { assertIsoDate } from './check-type.generated';
 import * as datefns from 'date-fns';
 
+export function elementIdForDay(date: string): string {
+  return `day-${date}`;
+}
+export function elementIdForShift(date: string, shift: ShiftKind): string {
+  return `shift-${shift}-on-day-${date}`;
+}
+
 function isoDateToDate(date: IsoDate): Date {
   const parts = date.split('-').map(x => parseInt(x));
   return new Date(parts[0], parts[1] - 1, parts[2]);
@@ -71,13 +78,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   const PEOPLE = Object.keys(data.people) as Person[];
 
   const result: CallScheduleProcessed = {
-    issues: {
-      test: {
-        kind: 'consecutive-weekday-call',
-        startDay: '2024-07-10' as IsoDate,
-        message: 'This is a test issue',
-      },
-    },
+    issues: {},
     day2person2info: {},
     issueCounts: {
       hard: 0,
@@ -138,6 +139,8 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           kind: 'rotation-without-call',
           startDay: day,
           message: `${person} is on call for ${today.shift} during ${today.rotation}.`,
+          isHard: true,
+          elements: [elementIdForShift(day, today.shift)],
         };
       }
     }
@@ -160,6 +163,11 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           kind: 'consecutive-weekday-call',
           startDay: day,
           message: `Consecutive weekday call for ${person} on ${day} and ${dayPlusOne}`,
+          isHard: true,
+          elements: [
+            elementIdForShift(day, today.shift),
+            elementIdForShift(dayPlusOne, tomorrow.shift),
+          ],
         };
       }
     },
@@ -184,6 +192,11 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           kind: 'consecutive-weekend-call',
           startDay: day,
           message: `Consecutive weekend call for ${person} on ${day} and ${nextWeekendDay}`,
+          isHard: true,
+          elements: [
+            elementIdForShift(day, today.shift),
+            elementIdForShift(nextWeekendDay, nextWeekend.shift),
+          ],
         };
       }
     },
@@ -202,6 +215,8 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         kind: 'r2-early-call',
         startDay: day,
         message: `R2 ${person} is on call ${day} for ${today.shift} (first two weeks in July)`,
+        isHard: true,
+        elements: [elementIdForShift(day, today.shift)],
       };
     }
   });
@@ -211,15 +226,17 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     if (rotation.rotation != 'HMC' && rotation.rotation != 'SCH') continue;
     for (let i = 0; i < 14; i++) {
       const day = nextDay(rotation.start, i);
-      const info = result.day2person2info[day]?.['MAD'];
-      assertNonNull(info);
-      if (info?.shift) {
+      const today = result.day2person2info[day]?.['MAD'];
+      assertNonNull(today);
+      if (today?.shift) {
         result.issues[generateIssueKey()] = {
           kind: 'mad-early-call',
           startDay: day,
-          message: `MAD is on call ${day} for ${info.shift} (day ${
+          message: `MAD is on call ${day} for ${today.shift} (day ${
             i + 1
           } of their ${rotation.rotation} rotation)`,
+          isHard: true,
+          elements: [elementIdForShift(day, today.shift)],
         };
       }
     }
@@ -244,6 +261,8 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           kind: 'less-than-4-off-in-28',
           startDay: dayOne,
           message: `Less than 4 days off between ${dayOne} and ${dayTwo} (28 day period) for ${person}`,
+          isHard: true,
+          elements: [elementIdForDay(dayOne), elementIdForDay(dayTwo)],
         };
         skip = 27;
       }
@@ -272,6 +291,11 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           kind: 'almost-consecutive-weekday-call',
           startDay: day,
           message: `Two weekday calls for ${person} on ${day} and ${dayPlusOne} only one day apart`,
+          isHard: false,
+          elements: [
+            elementIdForShift(day, today.shift),
+            elementIdForShift(dayPlusOne, tomorrow.shift),
+          ],
         };
       }
     },
@@ -302,6 +326,12 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           kind: 'every-other-weekend-call',
           startDay: day,
           message: `Every other weekend on call for 3 calls in a row for ${person} on ${day}, ${nextWeekendDay} and ${nextNextWeekendDay}`,
+          isHard: false,
+          elements: [
+            elementIdForShift(day, today.shift),
+            elementIdForShift(nextWeekendDay, nextWeekend.shift),
+            elementIdForShift(nextNextWeekendDay, nextNextWeekend.shift),
+          ],
         };
       }
     },
@@ -324,6 +354,8 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           kind: 'cross-coverage',
           startDay: day,
           message: `Cross-coverage by ${person} on ${day}: Working at ${today.rotation}, but on call for ${today.shift}.`,
+          isHard: false,
+          elements: [elementIdForShift(day, today.shift)],
         };
       }
     }
