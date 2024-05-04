@@ -180,9 +180,14 @@ export type CallScheduleProcessed = {
   issues: {
     [key: string]: Issue;
   };
+
+  issueCounts: {
+    hard: number;
+    soft: number;
+  };
 };
 
-const ISSUE_KINDS_HARD = [
+export const ISSUE_KINDS_HARD = [
   'rotation-without-call',
   'consecutive-weekday-call',
   'consecutive-weekend-call',
@@ -190,7 +195,7 @@ const ISSUE_KINDS_HARD = [
   'mad-early-call',
   'less-than-4-off-in-28',
 ] as const;
-const ISSUE_KINDS_SOFT = [
+export const ISSUE_KINDS_SOFT = [
   'almost-consecutive-weekday-call',
   'every-other-weekend-call',
   'mad-during-aua',
