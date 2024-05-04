@@ -13,14 +13,19 @@ import {
   Person,
   PersonConfig,
   ROTATIONS,
+  RotationKind,
+  RotationSchedule,
   Week,
 } from './shared/types';
 
 import * as datefns from 'date-fns';
 import fs from 'fs';
 import { IsoDate, dateToIsoDate, isoDateToDate, mapEnum } from 'check-type';
-import { processCallSchedule } from './shared/compute';
-import { assertCallSchedule, assertCallScheduleProcessed } from './shared/check-type.generated';
+import { nextDay, processCallSchedule } from './shared/compute';
+import {
+  assertCallSchedule,
+  assertCallScheduleProcessed,
+} from './shared/check-type.generated';
 
 async function main() {
   await globalSetup();
@@ -66,6 +71,7 @@ const people: {
   LX: {
     name: 'LX',
     year: 'R',
+    dueDate: '2024-10-15', // TODO: verify
   },
   CC: {
     name: 'CC',
@@ -104,6 +110,116 @@ const people: {
     year: '2',
   },
 };
+
+async function importRotationSchedule(): Promise<RotationSchedule> {
+  const workSheetsFromFile = xlsx.parse(
+    `${__dirname}/../../input-files/ay25.xlsx`,
+  );
+  const sheet = workSheetsFromFile[0];
+
+  let rowIndex = 0;
+
+  const result: RotationSchedule = {
+    MAD: [],
+    DK: [],
+    LZ: [],
+    TW: [],
+    CP: [],
+    AA: [],
+    DC: [],
+    AJ: [],
+    MB: [],
+    RB: [],
+    MJ: [],
+    TM: [],
+    GN: [],
+    KO: [],
+    CPu: [],
+    NR: [],
+    // Manual config for the two research residents
+    LX: [
+      {
+        start: '2024-07-01',
+        rotation: 'Research',
+        chief: false,
+      },
+      {
+        start: '2024-07-29',
+        rotation: 'NF',
+        chief: false,
+      },
+      {
+        start: '2024-08-05',
+        rotation: 'Research',
+        chief: false,
+      },
+    ],
+    CC: [
+      {
+        start: '2024-07-01',
+        rotation: 'Research',
+        chief: false,
+      },
+      {
+        start: '2024-10-28',
+        rotation: 'NF',
+        chief: false,
+      },
+      {
+        start: '2024-11-04',
+        rotation: 'Research',
+        chief: false,
+      },
+    ],
+  };
+
+  for (rowIndex = 3; rowIndex < sheet.data.length; rowIndex += 1) {
+    if (sheet.data[rowIndex][0] == 'Research') continue; // configured manually
+    if (sheet.data[rowIndex][0] == 'U1-Intern') break;
+    const per = sheet.data[rowIndex][1] as string;
+    const person = ALL_PEOPLE.find(
+      p =>
+        per &&
+        (people[p].name.toLowerCase().endsWith(per.toLowerCase()) || (per == 'Madigan' && p == 'MAD')),
+    );
+    if (person) {
+      const personConfig = people[person];
+      for (let col = 3; col <= 3 + 52; col++) {
+        const startDay = nextDay('2024-07-01', (col - 3) * 7);
+        const rotationString = sheet.data[rowIndex][col] as string;
+        if (rotationString) {
+          const parts = rotationString.split(' ');
+          let rotation: RotationKind | undefined = undefined;
+          let hospital = parts[0];
+          if (hospital == 'UWMC') hospital = 'UW';
+          if (ROTATIONS.includes(hospital as RotationKind)) {
+            rotation = hospital as RotationKind;
+          }
+          if (hospital == 'VM') rotation = 'OFF';
+          if (hospital == 'NF4') rotation = 'NF';
+          if (hospital == 'Andro/URPS') rotation = 'OFF'; // TODO: fix
+          if (hospital == 'WWAMI') rotation = 'Alaska';
+          if (hospital == 'RESEARCH') rotation = 'Research';
+          if (!rotation) {
+            console.log(
+              `Couldn't understand rotation string: ${rotationString}. hospital: ${hospital}`,
+            );
+            continue;
+          }
+          result[person].push({
+            start: startDay,
+            rotation,
+            chief:
+              personConfig.year == 'C' ||
+              rotationString.toLocaleLowerCase().includes('chief'),
+          });
+        }
+      }
+    }
+  }
+  console.log(result);
+  return result;
+}
 
 async function importPreviousSchedule() {
   const workSheetsFromFile = xlsx.parse(
@@ -419,16 +535,7 @@ async function importPreviousSchedule() {
     },
   };
 
-  // add dummy rotation info
-  let i = 0;
-  for (const person of ALL_PEOPLE) {
-    const p: Person = person;
-    data.rotations[p].push({
-      start: '2024-04-01',
-      rotation: ROTATIONS[i],
-    });
-    i = (i + 1) % ROTATIONS.length;
-  }
+  data.rotations = await importRotationSchedule();
 
   {
     let sunday: IsoDate = '2024-06-30' as IsoDate;
