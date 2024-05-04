@@ -241,6 +241,7 @@ function RenderDay({ id }: { id: DayId }) {
   const date = isoDateToDate(day.date);
   const processed = useProcessedData();
   const isHoliday = data.holidays[day.date] !== undefined;
+  const isSpecial = data.specialDays[day.date] !== undefined;
   const showRotations = id.dayIndex == 0 || (id.dayIndex == 1 && id.weekIndex == 0);
   return (
     <Column
@@ -256,7 +257,7 @@ function RenderDay({ id }: { id: DayId }) {
     >
       <Column
         style={{
-          color: isHoliday ? 'red' : 'black',
+          color: isHoliday ? 'red' : isSpecial ? 'blue' : 'black',
           backgroundColor: isHoliday ? '#fee' : undefined,
           ...DAY_BOX_STYLE,
         }}
