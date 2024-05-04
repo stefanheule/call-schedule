@@ -35,7 +35,7 @@ export type ShiftKind = WeekdayShiftKind | WeekendShiftKind | SpecialShiftKind;
 
 export const HOSPITALS = ['UW', 'VA', 'HMC', 'SCH', 'NWH'] as const;
 export type HospitalKind = (typeof HOSPITALS)[number];
-export const EXTRA_ROTATIONS = ['Alaska', 'Research', 'NF'] as const;
+export const EXTRA_ROTATIONS = ['Alaska', 'Research', 'NF', 'OFF'] as const;
 export const ROTATIONS = [...HOSPITALS, ...EXTRA_ROTATIONS] as const;
 export type RotationKind = (typeof ROTATIONS)[number];
 
@@ -139,6 +139,10 @@ export type CallSchedule = {
     [date: string]: string;
   };
 
+  specialDays: {
+    [date: string]: string;
+  };
+
   vacations: {
     [Property in Person]: Vacation[];
   };
@@ -155,9 +159,6 @@ export type RotationConfig = {
 
 export type LocalData = {
   highlightedPeople: {
-    [name: string]: boolean;
-  };
-  highlightedIssues: {
     [name: string]: boolean;
   };
 };
