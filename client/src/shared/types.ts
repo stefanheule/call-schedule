@@ -54,6 +54,7 @@ export function yearToString(year: Year): string {
 export type PersonConfig = {
   name: string;
   year: Year;
+  dueDate?: string;
 };
 
 export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
@@ -122,6 +123,10 @@ export type Week = {
 // Marks the start Monday
 export type Vacation = string;
 
+export type RotationSchedule = {
+  [Property in Person]: RotationConfig[];
+};
+
 export type CallSchedule = {
   firstDay: string;
   lastDay: string;
@@ -147,12 +152,10 @@ export type CallSchedule = {
     [Property in Person]: Vacation[];
   };
 
-  rotations: {
-    [Property in Person]: RotationConfig[];
-  };
+  rotations: RotationSchedule;
 };
 
-export type RotationConfig = {
+export type RotationConfig = RotationDetails & {
   rotation: RotationKind;
   start: string;
 };
@@ -163,18 +166,33 @@ export type LocalData = {
   };
 };
 
+export type RotationDetails = {
+  chief: boolean;
+};
+
 export type DayPersonInfo = {
   rotation: RotationKind;
+  rotationDetails: RotationDetails;
   shift?: ShiftKind;
   onVacation: boolean;
   // true if it's a weekday and the person is not on vacation, or if they are on call (either today, or via a multi-day shift that includes today)
   isWorking: boolean;
 };
 
+export type HospitalDayInfo = RotationDetails & {
+  person: Person;
+}
+
 export type CallScheduleProcessed = {
   day2person2info: {
     [day: string]: {
       [Property in Person]?: DayPersonInfo;
+    };
+  };
+
+  day2hospital2people: {
+    [day: string]: {
+      [Property in RotationKind]?: HospitalDayInfo[];
     };
   };
 

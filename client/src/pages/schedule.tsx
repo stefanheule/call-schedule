@@ -15,6 +15,8 @@ import {
   MaybePerson,
   Person,
   Issue,
+  RotationDetails,
+  ROTATIONS,
 } from '../shared/types';
 import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
@@ -46,6 +48,7 @@ export function RenderCallSchedule() {
               style={{
                 overflowY: 'scroll',
                 height: '100%',
+                width: '1400px',
               }}
             >
               {Array.from({ length: 53 }).map((_, i) => (
@@ -191,6 +194,7 @@ function RenderWeek({ id }: { id: WeekId }) {
 const DAY_WIDTH = 110;
 const DAY_PADDING = 5;
 const DAY_VACATION_HEIGHT = '20px';
+const DAY_HOSPITALS_HEIGHT = '180px';
 const DAY_BORDER = `1px solid black`;
 const DAY_BOX_STYLE: React.CSSProperties = {
   padding: `2px ${DAY_PADDING}px`,
@@ -216,8 +220,12 @@ function RenderLegend() {
         <Text>.</Text>
       </Column>
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
-      <Column style={{ ...DAY_BOX_STYLE, height: DAY_VACATION_HEIGHT }}>
+      <Column style={{ ...DAY_BOX_STYLE, minHeight: DAY_VACATION_HEIGHT }}>
         <Text>Vacations</Text>
+      </Column>
+      <Column style={{ borderBottom: DAY_BORDER }}></Column>
+      <Column style={{ ...DAY_BOX_STYLE, minHeight: DAY_HOSPITALS_HEIGHT }}>
+        <Text>Rotations</Text>
       </Column>
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
       <Column style={{ ...DAY_BOX_STYLE }}>
@@ -233,10 +241,7 @@ function RenderDay({ id }: { id: DayId }) {
   const date = isoDateToDate(day.date);
   const processed = useProcessedData();
   const isHoliday = data.holidays[day.date] !== undefined;
-
-  if (id.dayIndex == 4 && id.weekIndex === 0) {
-    console.log(day);
-  }
+  const showRotations = id.dayIndex == 0 || (id.dayIndex == 1 && id.weekIndex == 0);
   return (
     <Column
       id={elementIdForDay(day.date)}
@@ -262,18 +267,42 @@ function RenderDay({ id }: { id: DayId }) {
         </Text>
       </Column>
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
-      <Column style={{ ...DAY_BOX_STYLE, height: DAY_VACATION_HEIGHT }}>
-        {/* {processed.day2hospital2people[day.date] &&
-          Object.entries(processed.day2hospital2people[day.date]).map(
-            ([hospital, people]) => (
-              <RenderHospital
-                hospital={hospital}
-                people={people}
-                key={`${day.date}-${hospital}`}
-              />
-            ),
-          )} */}
-      </Column>
+      <Column
+        style={{ ...DAY_BOX_STYLE, minHeight: DAY_VACATION_HEIGHT }}
+      ></Column>
+      <Column style={{ borderBottom: DAY_BORDER }}></Column>
+      {showRotations && (
+        <Column
+          style={{
+            ...DAY_BOX_STYLE,
+            minHeight: DAY_HOSPITALS_HEIGHT,
+            position: 'relative',
+            width: id.dayIndex == 0 ? '750px' : '600px',
+            background: 'white',
+            zIndex: 100,
+          }}
+        >
+          {processed.day2hospital2people[day.date] &&
+            Object.entries(processed.day2hospital2people[day.date])
+              // .filter(([hospital]) => hospital != 'Research')
+              .sort(
+                ([a], [b]) =>
+                  ROTATIONS.indexOf(a as 'VA') - ROTATIONS.indexOf(b as 'VA'),
+              )
+              .map(([hospital, people]) => (
+                <RenderHospital
+                  hospital={hospital}
+                  people={people}
+                  key={`${day.date}-${hospital}`}
+                />
+              ))}
+        </Column>
+      )}
+      {!showRotations && (
+        <Column
+          style={{ ...DAY_BOX_STYLE, minHeight: DAY_HOSPITALS_HEIGHT }}
+        ></Column>
+      )}
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
       <Column style={{ ...DAY_BOX_STYLE }}>
         {Object.entries(day.shifts).map(([shiftName]) => (
@@ -292,10 +321,22 @@ function RenderHospital({
   people,
 }: {
   hospital: string;
-  people: string[] | undefined;
+  people: Array<RotationDetails & { person: Person }>;
 }) {
-  console.log(people);
-  return null;
+  const [data] = useData();
+  return (
+    <Row style={{}} spacing="6px">
+      <Text>{hospital}:</Text>
+      {people.map(person => (
+        <Row key={person.person}>
+          <RenderPerson key={person.person} person={person.person} />
+          {person.chief && data.people[person.person].year != 'C' && (
+            <Text>(C)</Text>
+          )}
+        </Row>
+      ))}
+    </Row>
+  );
 }
 
 function RenderShift({ id }: { id: ShiftId }) {
