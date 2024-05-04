@@ -482,7 +482,6 @@ async function importPreviousSchedule() {
     people,
     holidays: {},
     specialDays: {
-      '2024-07-01': 'test',
       '2024-10-27': 'Western AUA',
       '2024-10-28': 'Western AUA',
       '2024-10-29': 'Western AUA',
@@ -495,7 +494,7 @@ async function importPreviousSchedule() {
       '2025-04-29': 'AUA',
     },
     vacations: {
-      LZ: ['2024-07-10'],
+      LZ: ['2024-07-08'],
       MAD: [],
       DK: [],
       TW: [],

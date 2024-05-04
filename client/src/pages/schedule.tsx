@@ -16,7 +16,7 @@ import {
   Person,
   Issue,
   RotationDetails,
-  ROTATIONS,
+  Hospital2People,
 } from '../shared/types';
 import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
@@ -193,8 +193,8 @@ function RenderWeek({ id }: { id: WeekId }) {
 
 const DAY_WIDTH = 110;
 const DAY_PADDING = 5;
-const DAY_VACATION_HEIGHT = '20px';
-const DAY_HOSPITALS_HEIGHT = '180px';
+const DAY_VACATION_HEIGHT = '22px';
+const DAY_HOSPITALS_HEIGHT = '90px';
 const DAY_BORDER = `1px solid black`;
 const DAY_BOX_STYLE: React.CSSProperties = {
   padding: `2px ${DAY_PADDING}px`,
@@ -242,7 +242,8 @@ function RenderDay({ id }: { id: DayId }) {
   const processed = useProcessedData();
   const isHoliday = data.holidays[day.date] !== undefined;
   const isSpecial = data.specialDays[day.date] !== undefined;
-  const showRotations = id.dayIndex == 0 || (id.dayIndex == 1 && id.weekIndex == 0);
+  const showRotations =
+    id.dayIndex == 0 || (id.dayIndex == 1 && id.weekIndex == 0);
   return (
     <Column
       id={elementIdForDay(day.date)}
@@ -258,19 +259,26 @@ function RenderDay({ id }: { id: DayId }) {
       <Column
         style={{
           color: isHoliday ? 'red' : isSpecial ? 'blue' : 'black',
-          backgroundColor: isHoliday ? '#fee' : undefined,
+          backgroundColor: isHoliday ? '#fee' : isSpecial ? '#eef' : undefined,
           ...DAY_BOX_STYLE,
         }}
       >
         <Text>{datefns.format(date, 'EEE, M/d')}</Text>
-        <Text color={isHoliday ? undefined : 'white'}>
-          {data.holidays[day.date] ?? '.'}
+        <Text color={isHoliday || isSpecial ? undefined : 'white'}>
+          {data.holidays[day.date] ?? data.specialDays[day.date] ?? '.'}
         </Text>
       </Column>
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
-      <Column
-        style={{ ...DAY_BOX_STYLE, minHeight: DAY_VACATION_HEIGHT }}
-      ></Column>
+      <Column style={{ ...DAY_BOX_STYLE, minHeight: DAY_VACATION_HEIGHT }}>
+        <Row>
+          {processed.day2person2info[day.date] &&
+            Object.entries(processed.day2person2info[day.date])
+              .filter(([person, info]) => info.onVacation)
+              .map(([person]) => (
+                <RenderPerson key={person} person={person as Person} />
+              ))}
+        </Row>
+      </Column>
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
       {showRotations && (
         <Column
@@ -283,20 +291,7 @@ function RenderDay({ id }: { id: DayId }) {
             zIndex: 100,
           }}
         >
-          {processed.day2hospital2people[day.date] &&
-            Object.entries(processed.day2hospital2people[day.date])
-              // .filter(([hospital]) => hospital != 'Research')
-              .sort(
-                ([a], [b]) =>
-                  ROTATIONS.indexOf(a as 'VA') - ROTATIONS.indexOf(b as 'VA'),
-              )
-              .map(([hospital, people]) => (
-                <RenderHospital
-                  hospital={hospital}
-                  people={people}
-                  key={`${day.date}-${hospital}`}
-                />
-              ))}
+          <RenderHospitals info={processed.day2hospital2people[day.date]} />
         </Column>
       )}
       {!showRotations && (
@@ -314,6 +309,30 @@ function RenderDay({ id }: { id: DayId }) {
         ))}
       </Column>
     </Column>
+  );
+}
+
+function RenderHospitals({ info }: { info?: Hospital2People }) {
+  if (!info) return null;
+  return (
+    <Row>
+      <Column
+        style={{
+          width: '300px',
+        }}
+      >
+        <RenderHospital hospital="UW" people={info.UW ?? []} />
+        <RenderHospital hospital="HMC" people={info.HMC ?? []} />
+        <RenderHospital hospital="VA" people={info.VA ?? []} />
+        <RenderHospital hospital="SCH" people={info.SCH ?? []} />
+      </Column>
+      <Column>
+        <RenderHospital hospital="NWH" people={info.NWH ?? []} />
+        <RenderHospital hospital="Research" people={info.Research ?? []} />
+        <RenderHospital hospital="NF" people={info.NF ?? []} />
+        <RenderHospital hospital="Alaska" people={info.Alaska ?? []} />
+      </Column>
+    </Row>
   );
 }
 
