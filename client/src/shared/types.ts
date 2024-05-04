@@ -181,7 +181,11 @@ export type DayPersonInfo = {
 
 export type HospitalDayInfo = RotationDetails & {
   person: Person;
-}
+};
+
+export type Hospital2People = {
+  [Property in RotationKind]?: HospitalDayInfo[];
+};
 
 export type CallScheduleProcessed = {
   day2person2info: {
@@ -191,9 +195,7 @@ export type CallScheduleProcessed = {
   };
 
   day2hospital2people: {
-    [day: string]: {
-      [Property in RotationKind]?: HospitalDayInfo[];
-    };
+    [day: string]: Hospital2People;
   };
 
   issues: {
