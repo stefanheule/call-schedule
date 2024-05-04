@@ -1,18 +1,25 @@
-import {
-  IsoDate,
-  assertNonNull,
-  dateToIsoDate,
-  isoDateToDate,
-  uuid,
-} from 'check-type';
+import { IsoDate, assertNonNull, uuid } from 'check-type';
 import {
   CallSchedule,
   CallScheduleProcessed,
+  ISSUE_KINDS_HARD,
+  ISSUE_KINDS_SOFT,
   Person,
   ShiftKind,
 } from './types';
 import { assertIsoDate } from './check-type.generated';
 import * as datefns from 'date-fns';
+
+function isoDateToDate(date: IsoDate): Date {
+  const parts = date.split('-').map(x => parseInt(x));
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
+function dateToIsoDate(date: Date): IsoDate {
+  return `${date.getFullYear()}-${date.getMonth() + 1 > 9 ? '' : '0'}${
+    date.getMonth() + 1
+  }-${date.getDate() > 9 ? '' : '0'}${date.getDate()}` as IsoDate;
+}
 
 function nextDay(day: string | Date, n: number = 1): IsoDate {
   if (typeof day === 'string') {
@@ -59,6 +66,8 @@ export function dateToDayOfWeek(
 }
 
 export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
+  const start = Date.now();
+
   const PEOPLE = Object.keys(data.people) as Person[];
 
   const result: CallScheduleProcessed = {
@@ -70,6 +79,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       },
     },
     day2person2info: {},
+    issueCounts: {
+      hard: 0,
+      soft: 0,
+    },
   };
 
   // Figure out where everyone is working
@@ -315,6 +328,17 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       }
     }
   });
+
+  // Count issues
+  for (const issue of Object.values(result.issues)) {
+    if (issue.kind in ISSUE_KINDS_HARD) {
+      result.issueCounts.hard += 1;
+    } else if (issue.kind in ISSUE_KINDS_SOFT) {
+      result.issueCounts.soft += 1;
+    }
+  }
+
+  console.log('Processing took', Date.now() - start, 'ms');
 
   return result;
 }

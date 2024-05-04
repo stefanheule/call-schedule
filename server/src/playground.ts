@@ -20,6 +20,7 @@ import * as datefns from 'date-fns';
 import fs from 'fs';
 import { IsoDate, dateToIsoDate, isoDateToDate, mapEnum } from 'check-type';
 import { processCallSchedule } from './shared/compute';
+import { assertCallSchedule, assertCallScheduleProcessed } from './shared/check-type.generated';
 
 async function main() {
   await globalSetup();
@@ -185,6 +186,7 @@ async function importPreviousSchedule() {
 
       switch (call[i]) {
         case 'MADIGAN':
+          call[i] = 'MAD';
           break;
         // old 2 -> new 2
         case 'MB':
@@ -554,7 +556,8 @@ async function importPreviousSchedule() {
 
   const processed = processCallSchedule(data);
 
-  console.log(processed.issues)
+  assertCallSchedule(data);
+  assertCallScheduleProcessed(processed);
 
   return data;
 }

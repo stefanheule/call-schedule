@@ -14,15 +14,19 @@ import {
   ShiftKind,
   MaybePerson,
   Person,
+  Issue,
 } from '../shared/types';
 import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
 import React, { createContext, forwardRef, useContext, useState } from 'react';
 import { Button, Dialog } from '@mui/material';
+import { FixedSizeList } from 'react-window';
+import AutoSizer from 'react-virtualized-auto-sizer';
 
 const DAY_SPACING = `2px`;
 
 export function RenderCallSchedule() {
+  const processed = useProcessedData();
   return (
     <PersonPickerProvider>
       <Column
@@ -47,6 +51,20 @@ export function RenderCallSchedule() {
               {Array.from({ length: 53 }).map((_, i) => (
                 <RenderWeek key={i} id={{ weekIndex: i }} />
               ))}
+              {/* <AutoSizer>
+                {({ height, width }) => (
+                  <FixedSizeList
+                    height={height}
+                    itemCount={53}
+                    itemSize={35}
+                    width={width}
+                  >
+                    {({ index }) => (
+                      <RenderWeek key={index} id={{ weekIndex: index }} />
+                    )}
+                  </FixedSizeList>
+                )}
+              </AutoSizer> */}
             </Column>
             <Column
               style={{
@@ -54,13 +72,27 @@ export function RenderCallSchedule() {
               }}
             >
               <Highlight />
-              <Heading>Errors</Heading>
+              <Heading>
+                Rule violations (hard: {processed.issueCounts.hard}, soft:{' '}
+                {processed.issueCounts.soft})
+              </Heading>
+              {Object.entries(processed.issues).map(([id, issue]) => (
+                <RuleViolation key={id} id={id} issue={issue} />
+              ))}
             </Column>
           </Row>
         </DefaultTextSize>
       </Column>
       <PersonPickerDialog />
     </PersonPickerProvider>
+  );
+}
+
+function RuleViolation({ id, issue }: { id: string; issue: Issue }) {
+  return (
+    <Row spacing="5px">
+      <Text>{issue.message}</Text>
+    </Row>
   );
 }
 
@@ -184,7 +216,7 @@ function RenderDay({ id }: { id: DayId }) {
           ...DAY_BOX_STYLE,
         }}
       >
-        <Text>{datefns.format(date, 'EEEE, M/d')}</Text>
+        <Text>{datefns.format(date, 'EEE, M/d')}</Text>
         <Text color={isHoliday ? undefined : 'white'}>
           {data.holidays[day.date] ?? '.'}
         </Text>
