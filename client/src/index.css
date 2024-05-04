@@ -11,3 +11,13 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+@keyframes blink {
+  0% { border-color: transparent; }
+  50% { border-color: red; background-color: #faa; }
+  100% { border-color: transparent; }
+}
+
+.blink-twice {
+  animation: blink 0.5s ease-in-out 3;
+}

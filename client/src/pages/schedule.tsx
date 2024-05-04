@@ -20,8 +20,8 @@ import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
 import React, { createContext, forwardRef, useContext, useState } from 'react';
 import { Button, Dialog } from '@mui/material';
-import { FixedSizeList } from 'react-window';
-import AutoSizer from 'react-virtualized-auto-sizer';
+import { WarningOutlined, ErrorOutlined } from '@mui/icons-material';
+import { elementIdForDay, elementIdForShift } from '../shared/compute';
 
 const DAY_SPACING = `2px`;
 
@@ -68,17 +68,26 @@ export function RenderCallSchedule() {
             </Column>
             <Column
               style={{
+                height: '100%',
                 marginLeft: `10px`,
               }}
             >
               <Highlight />
-              <Heading>
-                Rule violations (hard: {processed.issueCounts.hard}, soft:{' '}
-                {processed.issueCounts.soft})
-              </Heading>
-              {Object.entries(processed.issues).map(([id, issue]) => (
-                <RuleViolation key={id} id={id} issue={issue} />
-              ))}
+              <Column
+                style={{
+                  marginLeft: `10px`,
+                  overflowY: 'scroll',
+                  height: '100%',
+                }}
+              >
+                <Heading>
+                  Rule violations (hard: {processed.issueCounts.hard}, soft:{' '}
+                  {processed.issueCounts.soft})
+                </Heading>
+                {Object.entries(processed.issues).map(([id, issue]) => (
+                  <RuleViolation key={id} id={id} issue={issue} />
+                ))}
+              </Column>
             </Column>
           </Row>
         </DefaultTextSize>
@@ -88,9 +97,39 @@ export function RenderCallSchedule() {
   );
 }
 
-function RuleViolation({ id, issue }: { id: string; issue: Issue }) {
+function RuleViolation({ issue }: { id: string; issue: Issue }) {
   return (
-    <Row spacing="5px">
+    <Row
+      spacing="5px"
+      style={{
+        border: '1px solid #ccc',
+        padding: '1px 4px',
+        marginBottom: '2px',
+        borderRadius: '5px',
+        cursor: 'pointer',
+      }}
+      onClick={() => {
+        const firstElement = document.getElementById(`day-${issue.startDay}`);
+        if (firstElement) {
+          firstElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        for (const element of issue.elements) {
+          const el = document.getElementById(element);
+          if (el) el.classList.add('blink-twice');
+        }
+        setTimeout(() => {
+          for (const element of issue.elements) {
+            const el = document.getElementById(element);
+            if (el) el.classList.remove('blink-twice');
+          }
+        }, 3000);
+      }}
+    >
+      {!issue.isHard ? (
+        <WarningOutlined style={{ color: '#FFCC00', height: 18 }} />
+      ) : (
+        <ErrorOutlined style={{ color: 'hsl(0, 70%, 50%)', height: 18 }} />
+      )}
       <Text>{issue.message}</Text>
     </Row>
   );
@@ -200,6 +239,7 @@ function RenderDay({ id }: { id: DayId }) {
   }
   return (
     <Column
+      id={elementIdForDay(day.date)}
       style={{
         border: DAY_BORDER,
         boxSizing: 'border-box',
@@ -260,12 +300,13 @@ function RenderHospital({
 
 function RenderShift({ id }: { id: ShiftId }) {
   const [data, setData] = useData();
-  const personId =
-    data.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName] ?? '';
+  const day = data.weeks[id.weekIndex].days[id.dayIndex];
+  const personId = day.shifts[id.shiftName] ?? '';
   const personPicker = usePersonPicker();
   const name = data.shiftConfigs[id.shiftName].name;
   return (
     <Column
+      id={elementIdForShift(day.date, id.shiftName)}
       style={{
         boxSizing: 'border-box',
         border: `1px solid #ccc`,
