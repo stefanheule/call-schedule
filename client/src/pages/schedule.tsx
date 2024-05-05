@@ -387,14 +387,14 @@ function RenderDay({
         <Row style={{ opacity: secondaryInfoOpacity }}>
           {processed.day2person2info[day.date] &&
             Object.entries(processed.day2person2info[day.date])
-              .filter(([person, info]) => info.onVacation)
+              .filter(([_, info]) => info.onVacation)
               .map(([person]) => (
                 <RenderPerson key={person} person={person as Person} />
               ))}
         </Row>
       </Column>
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
-      <Column style={{ ...DAY_BOX_STYLE, padding: '3px', }}>
+      <Column style={{ ...DAY_BOX_STYLE, padding: '3px' }}>
         {Object.entries(day.shifts).map(([shiftName]) => (
           <RenderShift
             id={{ ...id, shiftName: shiftName as ShiftKind }}

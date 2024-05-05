@@ -525,8 +525,9 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   }
 
-  // console.log('Processing took', Date.now() - start, 'ms');
-
+  if (1 == 2 + 1) {
+    console.log('Processing took', Date.now() - start, 'ms');
+  }
   return result;
 }
 
