@@ -76,6 +76,7 @@ export function RenderCallSchedule() {
               }}
             >
               <Highlight />
+              <RenderCallCounts />
               <Column
                 style={{
                   paddingRight: `10px`,
@@ -99,6 +100,34 @@ export function RenderCallSchedule() {
       </Column>
       <PersonPickerDialog />
     </PersonPickerProvider>
+  );
+}
+
+function RenderCallCounts() {
+  const processed = useProcessedData();
+  const [data] = useData();
+  return (
+    <Column>
+      <Heading>Call counts</Heading>
+      <Column>
+        {Object.entries(processed.callCounts)
+          .filter(([person]) => data.people[person as Person].year != 'C')
+          .map(([person, counts]) => (
+            <Row key={person} spacing={'5px'}>
+              <RenderPerson
+                person={person as Person}
+                style={{
+                  width: '23px',
+                }}
+              />
+              <Text>
+                {counts.weekday} weekday / {counts.weekend} weekend /{' '}
+                {counts.holiday} holiday / {counts.nf} NF
+              </Text>
+            </Row>
+          ))}
+      </Column>
+    </Column>
   );
 }
 
