@@ -6,7 +6,10 @@ import {
   ISSUE_KINDS_HARD,
   ISSUE_KINDS_SOFT,
   Person,
+  SPECIAL_SHIFTS,
   ShiftKind,
+  WEEKDAY_SHIFTS,
+  WEEKEND_SHIFTS,
 } from './types';
 import { assertIsoDate } from './check-type.generated';
 import * as datefns from 'date-fns';
@@ -86,6 +89,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       hard: 0,
       soft: 0,
     },
+    callCounts: {},
   };
 
   // Figure out where everyone is working
@@ -486,6 +490,38 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       result.issueCounts.hard += 1;
     } else if ((ISSUE_KINDS_SOFT as readonly string[]).includes(issue.kind)) {
       result.issueCounts.soft += 1;
+    }
+  }
+
+  // Count calls
+  for (const [day, person2info] of Object.entries(result.day2person2info)) {
+    for (const [p, info] of Object.entries(person2info)) {
+      const person = p as Person;
+      let callCount = result.callCounts[person];
+      if (!callCount) {
+        callCount = {
+          weekday: 0,
+          nf: 0,
+          weekend: 0,
+          holiday: 0,
+        };
+        result.callCounts[person] = callCount;
+      }
+      if (info.shift) {
+        if ((WEEKDAY_SHIFTS as readonly string[]).includes(info.shift)) {
+          callCount.weekday += 1;
+        }
+        if ((WEEKEND_SHIFTS as readonly string[]).includes(info.shift)) {
+          callCount.weekend += 1;
+        }
+        if ((SPECIAL_SHIFTS as readonly string[]).includes(info.shift)) {
+          callCount.holiday += 1;
+        }
+      }
+      const dayOfWeek = dateToDayOfWeek(day);
+      if (info.rotation == 'NF' && dayOfWeek != 'fri' && dayOfWeek != 'sun') {
+        callCount.nf += 1;
+      }
     }
   }
 

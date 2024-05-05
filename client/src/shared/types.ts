@@ -210,6 +210,17 @@ export type CallScheduleProcessed = {
     hard: number;
     soft: number;
   };
+
+  callCounts: {
+    [Property in Person]?: CallCount;
+  }
+};
+
+export type CallCount = {
+  weekday: number;
+  nf: number;
+  weekend: number;
+  holiday: number;
 };
 
 export const ISSUE_KINDS_HARD = [
