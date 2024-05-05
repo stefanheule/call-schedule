@@ -213,7 +213,7 @@ export type CallScheduleProcessed = {
 
   callCounts: {
     [Property in Person]?: CallCount;
-  }
+  };
 };
 
 export type CallCount = {
@@ -238,8 +238,8 @@ export const ISSUE_KINDS_SOFT = [
   'cross-coverage',
   'third-trimester',
 ] as const;
-const ISSUE_KINDS = [...ISSUE_KINDS_SOFT, ...ISSUE_KINDS_HARD];
-type IssueKind = (typeof ISSUE_KINDS)[number];
+export const ISSUE_KINDS = [...ISSUE_KINDS_SOFT, ...ISSUE_KINDS_HARD];
+export type IssueKind = (typeof ISSUE_KINDS)[number];
 
 export type Issue = {
   kind: IssueKind;

@@ -57,7 +57,6 @@ async function inferSchedule(data: CallSchedule) {
       }
     }
   }
-  let count = 0;
   for (const week of data.weeks) {
     for (const day of week.days) {
       if (day.date < data.firstDay || day.date > data.lastDay) continue;
@@ -91,8 +90,6 @@ async function inferSchedule(data: CallSchedule) {
         );
         day.shifts[shift] = randomWinner[0];
         peopleOnCallToday.push(randomWinner[0]);
-        count += 1;
-        // if (count > 10) return data;
       }
     }
   }
