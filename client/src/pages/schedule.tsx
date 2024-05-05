@@ -1,5 +1,5 @@
 import { assertNonNull, isoDateToDate, mapEnumWithDefault } from 'check-type';
-import { Children, Column, Row } from '../common/flex';
+import { Children, Column, ElementSpacer, Row } from '../common/flex';
 import { DefaultTextSize, Heading, Text } from '../common/text';
 import {
   CallSchedule,
@@ -78,7 +78,7 @@ export function RenderCallSchedule() {
               <Highlight />
               <Column
                 style={{
-                  marginLeft: `10px`,
+                  paddingRight: `10px`,
                   overflowY: 'scroll',
                   height: '100%',
                 }}
@@ -87,9 +87,11 @@ export function RenderCallSchedule() {
                   Rule violations (hard: {processed.issueCounts.hard}, soft:{' '}
                   {processed.issueCounts.soft})
                 </Heading>
-                {Object.entries(processed.issues).map(([id, issue]) => (
-                  <RuleViolation key={id} id={id} issue={issue} />
-                ))}
+                {Object.entries(processed.issues)
+                  .sort((a, b) => a[1].startDay.localeCompare(b[1].startDay))
+                  .map(([id, issue]) => (
+                    <RuleViolation key={id} id={id} issue={issue} />
+                  ))}
               </Column>
             </Column>
           </Row>
@@ -194,7 +196,7 @@ function RenderWeek({ id }: { id: WeekId }) {
 const DAY_WIDTH = 110;
 const DAY_PADDING = 5;
 const DAY_VACATION_HEIGHT = '22px';
-const DAY_HOSPITALS_HEIGHT = '90px';
+const DAY_HOSPITALS_HEIGHT = '75px';
 const DAY_BORDER = `1px solid black`;
 const DAY_BOX_STYLE: React.CSSProperties = {
   padding: `2px ${DAY_PADDING}px`,
@@ -366,18 +368,14 @@ function RenderShift({ id }: { id: ShiftId }) {
   const personPicker = usePersonPicker();
   const name = data.shiftConfigs[id.shiftName].name;
   return (
-    <Column
+    <Row
       id={elementIdForShift(day.date, id.shiftName)}
       style={{
         boxSizing: 'border-box',
         border: `1px solid #ccc`,
         marginBottom: `1px`,
         cursor: 'pointer',
-        minHeight: '44px',
-        padding: '3px',
-        // position: 'relative',
-        // left: `${-DAY_PADDING}px`,
-        // width: `${DAY_WIDTH-2}px`,
+        padding: '1px 3px',
       }}
       onClick={() => {
         personPicker.requestDialog(
@@ -392,10 +390,9 @@ function RenderShift({ id }: { id: ShiftId }) {
       }}
     >
       <Text>{name}</Text>
-      <Row>
-        <RenderPerson person={personId} />
-      </Row>
-    </Column>
+      <ElementSpacer />
+      <RenderPerson person={personId} />
+    </Row>
   );
 }
 
@@ -451,9 +448,13 @@ function shadeColor(color: string, percent: number) {
 function RenderPerson({
   person,
   style,
+  large,
+  selected,
   onClick,
 }: {
   person: MaybePerson;
+  large?: boolean;
+  selected?: boolean;
   style?: React.CSSProperties;
   onClick?: () => void;
 }) {
@@ -467,12 +468,17 @@ function RenderPerson({
       color={personToColor(data, person)}
       style={style}
       onClick={onClick}
-      highlighted={localData.highlightedPeople[person]}
+      highlighted={
+        selected === undefined ? localData.highlightedPeople[person] : selected
+      }
     >
       <Text
         style={{
           textAlign: 'center',
-          padding: `0 2px`,
+          padding: `0 -1px`,
+          height: large ? '20px' : '13px',
+          position: 'relative',
+          top: '-2px',
         }}
       >
         {person}
@@ -634,18 +640,28 @@ function PersonPickerDialog() {
                     // >
                     //   {person.name}
                     // </Text>
-                    <Button
-                      key={person.name}
-                      variant={
-                        personPicker.currentPerson === person.id
-                          ? 'contained'
-                          : 'outlined'
-                      }
-                      size="small"
-                      onClick={() => personPicker.handleDialogResult(person.id)}
-                    >
-                      {person.name} ({person.id})
-                    </Button>
+                    // <Button
+                    //   key={person.name}
+                    //   variant={
+                    //     personPicker.currentPerson === person.id
+                    //       ? 'contained'
+                    //       : 'outlined'
+                    //   }
+                    //   size="small"
+                    //   onClick={() => personPicker.handleDialogResult(person.id)}
+                    // >
+                    //   {person.name} ({person.id})
+                    // </Button>
+                    <Row key={person.name}>
+                      <RenderPerson
+                        person={person.id}
+                        large
+                        selected={personPicker.currentPerson === person.id}
+                        onClick={() =>
+                          personPicker.handleDialogResult(person.id)
+                        }
+                      />
+                    </Row>
                   ))}
                 </Column>
               </Column>

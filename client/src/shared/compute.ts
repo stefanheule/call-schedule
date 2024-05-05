@@ -115,6 +115,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         },
         onVacation,
         isWorking: isWeekday(day) && !onVacation,
+        shifts: [],
       };
 
       if (day == data.lastDay) break;
@@ -154,7 +155,28 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   }
 
-  function shiftName(info: DayPersonInfo): string {
+  // Collect multi-day shifts
+  forEveryDay(data, (day, _) => {
+    for (const person of PEOPLE) {
+      const today = assertNonNull(result.day2person2info[day][person]);
+      if (!today.shift) continue;
+      const shiftConfig = data.shiftConfigs[today.shift];
+      for (let i = 0; i < shiftConfig.days; i++) {
+        const nextD = nextDay(day, i);
+        if (nextD > data.lastDay) break;
+        const nextDayInfo = assertNonNull(
+          result.day2person2info[nextD][person],
+        );
+        nextDayInfo.shifts.push({
+          shift: today.shift,
+          day,
+        });
+      }
+    }
+  });
+
+  function shiftName(info: DayPersonInfo | ShiftKind): string {
+    if (typeof info == 'string') return data.shiftConfigs[info].name;
     if (!info.shift) throw new Error('No shift');
     return data.shiftConfigs[info.shift].name;
   }
@@ -182,28 +204,50 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   });
 
-  // hard 1. no consecutive weekday night calls
+  // hard 1. no consecutive call calls
+  // forEveryDay(
+  //   data,
+  //   (day, _) => {
+  //     const dayPlusOne = nextDay(day);
+  //     for (const person of PEOPLE) {
+  //       const today = assertNonNull(result.day2person2info[day][person]);
+  //       const tomorrow = assertNonNull(
+  //         result.day2person2info[dayPlusOne][person],
+  //       );
+  //       if (!today.shift || !tomorrow.shift) continue;
+  //       // if (data.shiftConfigs[today.shift].days != 2) continue;
+  //       // if (data.shiftConfigs[tomorrow.shift].days != 2) continue;
+  //       result.issues[generateIssueKey()] = {
+  //         kind: 'consecutive-weekday-call',
+  //         startDay: day,
+  //         message: `Consecutive call for ${person} on ${day} and ${dayPlusOne}`,
+  //         isHard: true,
+  //         elements: [
+  //           elementIdForShift(day, today.shift),
+  //           elementIdForShift(dayPlusOne, tomorrow.shift),
+  //         ],
+  //       };
+  //     }
+  //   },
+  //   1,
+  // );
   forEveryDay(
     data,
     (day, _) => {
-      const dayPlusOne = nextDay(day);
       for (const person of PEOPLE) {
         const today = assertNonNull(result.day2person2info[day][person]);
-        const tomorrow = assertNonNull(
-          result.day2person2info[dayPlusOne][person],
+        if (today.shifts.length <= 1) continue;
+        // if (data.shiftConfigs[today.shift].days != 2) continue;
+        // if (data.shiftConfigs[tomorrow.shift].days != 2) continue;
+        const texts = today.shifts.map(
+          s => `${shiftName(s.shift)} on ${s.day}`,
         );
-        if (!today.shift || !tomorrow.shift) continue;
-        if (data.shiftConfigs[today.shift].days != 2) continue;
-        if (data.shiftConfigs[tomorrow.shift].days != 2) continue;
         result.issues[generateIssueKey()] = {
-          kind: 'consecutive-weekday-call',
+          kind: 'consecutive-call',
           startDay: day,
-          message: `Consecutive weekday call for ${person} on ${day} and ${dayPlusOne}`,
+          message: `Consecutive call for ${person}: ${texts.join(', ')}`,
           isHard: true,
-          elements: [
-            elementIdForShift(day, today.shift),
-            elementIdForShift(dayPlusOne, tomorrow.shift),
-          ],
+          elements: today.shifts.map(s => elementIdForShift(s.day, s.shift)),
         };
       }
     },
@@ -222,8 +266,8 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           result.day2person2info[nextWeekendDay][person],
         );
         if (!today.shift || !nextWeekend.shift) continue;
-        if (data.shiftConfigs[today.shift].days != 3) continue;
-        if (data.shiftConfigs[nextWeekend.shift].days != 3) continue;
+        // if (data.shiftConfigs[today.shift].days != 3) continue;
+        // if (data.shiftConfigs[nextWeekend.shift].days != 3) continue;
         result.issues[generateIssueKey()] = {
           kind: 'consecutive-weekend-call',
           startDay: day,
@@ -312,7 +356,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   }
 
-  // soft 1. every other weeknight call
+  // soft 1. every other weeknight call // TODO: should weekends count for this?
   forEveryDay(
     data,
     (day, _) => {
@@ -420,19 +464,19 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     for (const person of PEOPLE) {
       const config = data.people[person];
       if (!config.dueDate) continue;
-      if (day >= nextDay(config.dueDate, -84) && day <= config.dueDate)
-        continue;
-      const today = assertNonNull(result.day2person2info[day][person]);
-      if (!today.shift) continue;
-      result.issues[generateIssueKey()] = {
-        kind: 'cross-coverage',
-        startDay: day,
-        message: `On-call during 3rd trimester: ${person} on call ${day} for ${shiftName(
-          today,
-        )}.`,
-        isHard: false,
-        elements: [elementIdForShift(day, today.shift)],
-      };
+      if (day >= nextDay(config.dueDate, -84) && day <= config.dueDate) {
+        const today = assertNonNull(result.day2person2info[day][person]);
+        if (!today.shift) continue;
+        result.issues[generateIssueKey()] = {
+          kind: 'third-trimester',
+          startDay: day,
+          message: `On-call during 3rd trimester: ${person} on call ${day} for ${shiftName(
+            today,
+          )}.`,
+          isHard: false,
+          elements: [elementIdForShift(day, today.shift)],
+        };
+      }
     }
   });
 
@@ -445,7 +489,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   }
 
-  console.log('Processing took', Date.now() - start, 'ms');
+  // console.log('Processing took', Date.now() - start, 'ms');
 
   return result;
 }
