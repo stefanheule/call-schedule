@@ -24,11 +24,16 @@ import React, { createContext, forwardRef, useContext, useState } from 'react';
 import { Button, Dialog } from '@mui/material';
 import { WarningOutlined, ErrorOutlined } from '@mui/icons-material';
 import { elementIdForDay, elementIdForShift } from '../shared/compute';
+import { Checkbox } from '@mui/material';
 
 const DAY_SPACING = `2px`;
 
 export function RenderCallSchedule() {
+  const [showRotations, setShowRotations] = useState(true);
   const processed = useProcessedData();
+
+  // ...
+
   return (
     <PersonPickerProvider>
       <Column
@@ -39,20 +44,26 @@ export function RenderCallSchedule() {
         <DefaultTextSize defaultSize={'12px'}>
           <Row
             crossAxisAlignment="start"
+            mainAxisAlignment="start"
             style={{
               height: '100%',
             }}
           >
             <Column
-              spacing="5px"
               style={{
                 overflowY: 'scroll',
                 height: '100%',
-                width: '1400px',
+                minWidth: '880px',
               }}
             >
               {Array.from({ length: 53 }).map((_, i) => (
-                <RenderWeek key={i} id={{ weekIndex: i }} />
+                <Column key={i}>
+                  <RenderWeek
+                    id={{ weekIndex: i }}
+                    showRotations={showRotations}
+                  />
+                  <ElementSpacer />
+                </Column>
               ))}
               {/* <AutoSizer>
                 {({ height, width }) => (
@@ -75,6 +86,16 @@ export function RenderCallSchedule() {
                 marginLeft: `10px`,
               }}
             >
+              <Column>
+                <Heading>Options</Heading>
+                <Row>
+                  <Checkbox
+                    checked={showRotations}
+                    onChange={() => setShowRotations(!showRotations)}
+                  />
+                  Show rotations
+                </Row>
+              </Column>
               <Highlight />
               <RenderCallCounts />
               <Column
@@ -203,7 +224,13 @@ function Highlight() {
   );
 }
 
-function RenderWeek({ id }: { id: WeekId }) {
+function RenderWeek({
+  id,
+  showRotations,
+}: {
+  id: WeekId;
+  showRotations: boolean;
+}) {
   const [data] = useData();
   const week = data.weeks[id.weekIndex];
   return (
@@ -214,9 +241,13 @@ function RenderWeek({ id }: { id: WeekId }) {
         boxSizing: 'border-box',
       }}
     >
-      <RenderLegend />
+      <RenderLegend showRotations={showRotations} />
       {week.days.map((day, dayIndex) => (
-        <RenderDay id={{ ...id, dayIndex }} key={day.date} />
+        <RenderDay
+          id={{ ...id, dayIndex }}
+          key={day.date}
+          showRotations={showRotations}
+        />
       ))}
     </Row>
   );
@@ -224,14 +255,15 @@ function RenderWeek({ id }: { id: WeekId }) {
 
 const DAY_WIDTH = 110;
 const DAY_PADDING = 5;
-const DAY_VACATION_HEIGHT = '22px';
+const DAY_VACATION_HEIGHT = '17px';
 const DAY_HOSPITALS_HEIGHT = '75px';
 const DAY_BORDER = `1px solid black`;
 const DAY_BOX_STYLE: React.CSSProperties = {
   padding: `2px ${DAY_PADDING}px`,
 };
+const secondaryInfoOpacity = 0.65;
 
-function RenderLegend() {
+function RenderLegend({ showRotations }: { showRotations: boolean }) {
   return (
     <Column
       style={{
@@ -250,13 +282,22 @@ function RenderLegend() {
         <Text>.</Text>
         <Text>.</Text>
       </Column>
+      {showRotations && (
+        <>
+          <Column style={{ borderBottom: DAY_BORDER }}></Column>
+          <Column
+            style={{
+              ...DAY_BOX_STYLE,
+              minHeight: DAY_HOSPITALS_HEIGHT,
+            }}
+          >
+            <Text>Rotations</Text>
+          </Column>
+        </>
+      )}
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
       <Column style={{ ...DAY_BOX_STYLE, minHeight: DAY_VACATION_HEIGHT }}>
         <Text>Vacations</Text>
-      </Column>
-      <Column style={{ borderBottom: DAY_BORDER }}></Column>
-      <Column style={{ ...DAY_BOX_STYLE, minHeight: DAY_HOSPITALS_HEIGHT }}>
-        <Text>Rotations</Text>
       </Column>
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
       <Column style={{ ...DAY_BOX_STYLE }}>
@@ -266,15 +307,22 @@ function RenderLegend() {
   );
 }
 
-function RenderDay({ id }: { id: DayId }) {
+function RenderDay({
+  id,
+  showRotations,
+}: {
+  id: DayId;
+  showRotations: boolean;
+}) {
   const [data] = useData();
   const day = data.weeks[id.weekIndex].days[id.dayIndex];
   const date = isoDateToDate(day.date);
   const processed = useProcessedData();
   const isHoliday = data.holidays[day.date] !== undefined;
   const isSpecial = data.specialDays[day.date] !== undefined;
-  const showRotations =
+  const showRotationsToday =
     id.dayIndex == 0 || (id.dayIndex == 1 && id.weekIndex == 0);
+  const backgroundColor = isHoliday ? '#fee' : isSpecial ? '#eef' : undefined;
   return (
     <Column
       id={elementIdForDay(day.date)}
@@ -285,23 +333,58 @@ function RenderDay({ id }: { id: DayId }) {
         width: `${DAY_WIDTH}px`,
         minHeight: `100px`,
         opacity: day.date < data.firstDay || day.date > data.lastDay ? 0.5 : 1,
+        backgroundColor,
       }}
     >
       <Column
         style={{
           color: isHoliday ? 'red' : isSpecial ? 'blue' : 'black',
-          backgroundColor: isHoliday ? '#fee' : isSpecial ? '#eef' : undefined,
           ...DAY_BOX_STYLE,
         }}
       >
-        <Text>{datefns.format(date, 'EEE, M/d')}</Text>
-        <Text color={isHoliday || isSpecial ? undefined : 'white'}>
+        <Text
+          style={{
+            fontWeight: isHoliday || isSpecial ? 'bold' : 'normal',
+          }}
+        >
+          {datefns.format(date, 'EEE, M/d')}
+        </Text>
+        <Text
+          color={isHoliday || isSpecial ? undefined : 'white'}
+          style={{
+            fontWeight: isHoliday || isSpecial ? 'bold' : 'normal',
+          }}
+        >
           {data.holidays[day.date] ?? data.specialDays[day.date] ?? '.'}
         </Text>
       </Column>
+      {showRotations && (
+        <>
+          <Column style={{ borderBottom: DAY_BORDER }}></Column>
+          {showRotationsToday && (
+            <Column
+              style={{
+                ...DAY_BOX_STYLE,
+                minHeight: DAY_HOSPITALS_HEIGHT,
+                position: 'relative',
+                width: id.dayIndex == 0 ? '750px' : '600px',
+                background: 'white',
+                zIndex: 100,
+              }}
+            >
+              <RenderHospitals info={processed.day2hospital2people[day.date]} />
+            </Column>
+          )}
+          {!showRotationsToday && (
+            <Column
+              style={{ ...DAY_BOX_STYLE, minHeight: DAY_HOSPITALS_HEIGHT }}
+            ></Column>
+          )}
+        </>
+      )}
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
       <Column style={{ ...DAY_BOX_STYLE, minHeight: DAY_VACATION_HEIGHT }}>
-        <Row>
+        <Row style={{ opacity: secondaryInfoOpacity }}>
           {processed.day2person2info[day.date] &&
             Object.entries(processed.day2person2info[day.date])
               .filter(([person, info]) => info.onVacation)
@@ -311,27 +394,7 @@ function RenderDay({ id }: { id: DayId }) {
         </Row>
       </Column>
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
-      {showRotations && (
-        <Column
-          style={{
-            ...DAY_BOX_STYLE,
-            minHeight: DAY_HOSPITALS_HEIGHT,
-            position: 'relative',
-            width: id.dayIndex == 0 ? '750px' : '600px',
-            background: 'white',
-            zIndex: 100,
-          }}
-        >
-          <RenderHospitals info={processed.day2hospital2people[day.date]} />
-        </Column>
-      )}
-      {!showRotations && (
-        <Column
-          style={{ ...DAY_BOX_STYLE, minHeight: DAY_HOSPITALS_HEIGHT }}
-        ></Column>
-      )}
-      <Column style={{ borderBottom: DAY_BORDER }}></Column>
-      <Column style={{ ...DAY_BOX_STYLE }}>
+      <Column style={{ ...DAY_BOX_STYLE, padding: '3px', }}>
         {Object.entries(day.shifts).map(([shiftName]) => (
           <RenderShift
             id={{ ...id, shiftName: shiftName as ShiftKind }}
@@ -346,7 +409,11 @@ function RenderDay({ id }: { id: DayId }) {
 function RenderHospitals({ info }: { info?: Hospital2People }) {
   if (!info) return null;
   return (
-    <Row>
+    <Row
+      style={{
+        opacity: secondaryInfoOpacity,
+      }}
+    >
       <Column
         style={{
           width: '300px',
@@ -405,6 +472,8 @@ function RenderShift({ id }: { id: ShiftId }) {
         marginBottom: `1px`,
         cursor: 'pointer',
         padding: '1px 3px',
+        backgroundColor: 'white',
+        borderRadius: '3px',
       }}
       onClick={() => {
         personPicker.requestDialog(
