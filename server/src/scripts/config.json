@@ -1,6 +1,6 @@
 {
-  "codeDir": "/home/stefan/www/purplemoon",
-  "codeStagingDir": "/home/stefan/www/purplemoon-staging",
-  "dataDir": "/home/stefan/www-live/purplemoon-data",
+  "codeDir": "/home/stefan/www/call-schedule",
+  "codeStagingDir": "/home/stefan/www/call-schedule-staging",
+  "dataDir": "/home/stefan/www-live/call-schedule-data",
   "dataSubDirectories": []
 }

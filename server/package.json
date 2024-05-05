@@ -8,7 +8,7 @@
     "start-private": "tsx watch src/server-private.ts",
     "build": "rm -rf build && tsc && yarn sentry:sourcemaps",
     "postbuild": "cp package.json build/package.json && cp yarn.lock build/yarn.lock",
-    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org stefanheule --project purplemoon-server ./build && sentry-cli sourcemaps upload --org stefanheule --project purplemoon-server ./build"
+    "sentry:sourcemaps": "sentry-cli sourcemaps inject --org stefanheule --project call-schedule-server ./build && sentry-cli sourcemaps upload --org stefanheule --project call-schedule-server ./build"
   },
   "dependencies": {
     "@sentry/cli": "^2.23.0",
