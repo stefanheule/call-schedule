@@ -177,6 +177,10 @@ export type DayPersonInfo = {
   onVacation: boolean;
   // true if it's a weekday and the person is not on vacation, or if they are on call (either today, or via a multi-day shift that includes today)
   isWorking: boolean;
+  shifts: {
+    shift: ShiftKind;
+    day: string;
+  }[];
 };
 
 export type HospitalDayInfo = RotationDetails & {
@@ -210,7 +214,7 @@ export type CallScheduleProcessed = {
 
 export const ISSUE_KINDS_HARD = [
   'rotation-without-call',
-  'consecutive-weekday-call',
+  'consecutive-call',
   'consecutive-weekend-call',
   'r2-early-call',
   'mad-early-call',
@@ -221,6 +225,7 @@ export const ISSUE_KINDS_SOFT = [
   'every-other-weekend-call',
   'mad-during-aua',
   'cross-coverage',
+  'third-trimester',
 ] as const;
 const ISSUE_KINDS = [...ISSUE_KINDS_SOFT, ...ISSUE_KINDS_HARD];
 type IssueKind = (typeof ISSUE_KINDS)[number];

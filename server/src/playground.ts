@@ -15,12 +15,19 @@ import {
   ROTATIONS,
   RotationKind,
   RotationSchedule,
+  ShiftKind,
   Week,
 } from './shared/types';
 
 import * as datefns from 'date-fns';
 import fs from 'fs';
-import { IsoDate, dateToIsoDate, isoDateToDate, mapEnum } from 'check-type';
+import {
+  IsoDate,
+  assertNonNull,
+  dateToIsoDate,
+  isoDateToDate,
+  mapEnum,
+} from 'check-type';
 import { nextDay, processCallSchedule } from './shared/compute';
 import {
   assertCallSchedule,
@@ -30,7 +37,72 @@ import {
 async function main() {
   await globalSetup();
 
-  await importPreviousSchedule();
+  let data = await importPreviousSchedule();
+  data = await inferSchedule(data);
+
+  // Write to file in data/init.json
+  fs.writeFileSync(
+    `${__dirname}/shared/init.json`,
+    JSON.stringify(data, null, 2),
+  );
+}
+
+async function inferSchedule(data: CallSchedule) {
+  const processed = processCallSchedule(data);
+  // Clear schedule.
+  for (const week of data.weeks) {
+    for (const day of week.days) {
+      for (const s of Object.keys(day.shifts)) {
+        day.shifts[s as ShiftKind] = '';
+      }
+    }
+  }
+  let count = 0;
+  for (const week of data.weeks) {
+    for (const day of week.days) {
+      if (day.date < data.firstDay || day.date > data.lastDay) continue;
+      const dayInfo = processed.day2person2info[day.date];
+      const peopleOnCallToday: string[] = [];
+      for (const s of Object.keys(day.shifts)) {
+        const shift = s as ShiftKind;
+        const people: Person[] = ALL_PEOPLE.filter(p => {
+          const info = assertNonNull(dayInfo[p]);
+          const year = data.people[p].year;
+          return (
+            !info.onVacation &&
+            year !== 'C' &&
+            year != '1' &&
+            !peopleOnCallToday.includes(p)
+          );
+        });
+
+        const person2rating = new Map<Person, number>();
+        for (const p of people) {
+          day.shifts[shift] = p;
+          person2rating.set(p, rate(data));
+        }
+        const min = Math.min(...Array.from(person2rating.values()));
+        const best = Array.from(person2rating.entries()).filter(
+          ([, rating]) => rating === min,
+        );
+        const randomWinner = best[Math.floor(Math.random() * best.length)];
+        console.log(
+          `For ${day.date} picking a rating=${randomWinner[1]}: ${randomWinner[0]}`,
+        );
+        day.shifts[shift] = randomWinner[0];
+        peopleOnCallToday.push(randomWinner[0]);
+        count += 1;
+        // if (count > 10) return data;
+      }
+    }
+  }
+
+  return data;
+}
+
+function rate(data: CallSchedule) {
+  const processed = processCallSchedule(data);
+  return processed.issueCounts.hard * 100 + processed.issueCounts.soft * 10;
 }
 
 const people: {
@@ -180,7 +252,8 @@ async function importRotationSchedule(): Promise<RotationSchedule> {
     const person = ALL_PEOPLE.find(
       p =>
         per &&
-        (people[p].name.toLowerCase().endsWith(per.toLowerCase()) || (per == 'Madigan' && p == 'MAD')),
+        (people[p].name.toLowerCase().endsWith(per.toLowerCase()) ||
+          (per == 'Madigan' && p == 'MAD')),
     );
     if (person) {
       const personConfig = people[person];
@@ -217,7 +290,6 @@ async function importRotationSchedule(): Promise<RotationSchedule> {
       }
     }
   }
-  console.log(result);
   return result;
 }
 
@@ -666,12 +738,6 @@ async function importPreviousSchedule() {
       };
     }
   }
-
-  // Write to file in data/init.json
-  fs.writeFileSync(
-    `${__dirname}/shared/init.json`,
-    JSON.stringify(data, null, 2),
-  );
 
   const processed = processCallSchedule(data);
 
