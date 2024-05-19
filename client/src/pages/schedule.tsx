@@ -25,17 +25,94 @@ import { Button, Dialog } from '@mui/material';
 import { WarningOutlined, ErrorOutlined } from '@mui/icons-material';
 import { elementIdForDay, elementIdForShift } from '../shared/compute';
 import { Checkbox } from '@mui/material';
+import { useHotkeys } from 'react-hotkeys-hook';
+import Snackbar from '@mui/material/Snackbar';
+import IconButton from '@mui/material/IconButton';
+import CloseIcon from '@mui/icons-material/Close';
 
 const DAY_SPACING = `2px`;
 
 export function RenderCallSchedule() {
   const [showRotations, setShowRotations] = useState(true);
+  const [copyPasteSnackbar, setCopyPasteSnackbar] = useState('');
+  const [, setLocalData] = useLocalData();
+  const [, setData] = useData();
   const processed = useProcessedData();
+
+  useHotkeys(
+    ['ctrl+z', 'command+z'],
+    () => {
+      setLocalData((localData: LocalData) => {
+        const lastAction = localData.history.pop();
+        setData((data: CallSchedule) => {
+          if (lastAction) {
+            localData.undoHistory.push(lastAction);
+            const day =
+              data.weeks[lastAction.shift.weekIndex].days[
+                lastAction.shift.dayIndex
+              ];
+            day.shifts[lastAction.shift.shiftName] = lastAction.previous;
+            setCopyPasteSnackbar(`Undo shift assignment for ${day.date}.`);
+          } else {
+            setCopyPasteSnackbar(`Cannot undo, no action in history.`);
+            return data;
+          }
+          return { ...data };
+        });
+        if (!lastAction) return localData;
+        return { ...localData };
+      });
+    },
+    [],
+  );
+
+  useHotkeys(
+    ['ctrl+y', 'command+y', 'ctrl+shift+z', 'command+shift+z'],
+    () => {
+      setLocalData((localData: LocalData) => {
+        const lastAction = localData.undoHistory.pop();
+        setData((data: CallSchedule) => {
+          if (lastAction) {
+            localData.history.push(lastAction);
+            const day =
+              data.weeks[lastAction.shift.weekIndex].days[
+                lastAction.shift.dayIndex
+              ];
+            day.shifts[lastAction.shift.shiftName] = lastAction.next;
+            setCopyPasteSnackbar(`Redo shift assignment for ${day.date}.`);
+          } else {
+            setCopyPasteSnackbar(`Cannot redo, no action in history.`);
+            return data;
+          }
+          return { ...data };
+        });
+        if (!lastAction) return localData;
+        return { ...localData };
+      });
+    },
+    [],
+  );
 
   // ...
 
   return (
     <PersonPickerProvider>
+      <Snackbar
+        open={copyPasteSnackbar != ''}
+        onClose={() => setCopyPasteSnackbar('')}
+        message={copyPasteSnackbar}
+        autoHideDuration={5000}
+        action={
+          <IconButton
+            aria-label="close"
+            color="inherit"
+            sx={{ p: 0.5 }}
+            onClick={() => setCopyPasteSnackbar('')}
+          >
+            <CloseIcon />
+          </IconButton>
+        }
+      />
       <Column
         style={{
           height: '100%',
@@ -459,7 +536,7 @@ function RenderHospital({
 
 function RenderShift({ id }: { id: ShiftId }) {
   const [data, setData] = useData();
-  const [localData, setLocalData] = useLocalData();
+  const [, setLocalData] = useLocalData();
   const day = data.weeks[id.weekIndex].days[id.dayIndex];
   const personId = day.shifts[id.shiftName] ?? '';
   const personPicker = usePersonPicker();
