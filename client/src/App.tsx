@@ -11,6 +11,8 @@ import { processCallSchedule } from './shared/compute';
 function Ui() {
   const [localData, setLocalData] = React.useState<LocalData>({
     highlightedPeople: {},
+    history: [],
+    undoHistory: [],
   });
   return (
     <LocalDataContext.Provider value={{ localData, setLocalData }}>
