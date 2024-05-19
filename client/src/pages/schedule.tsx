@@ -459,6 +459,7 @@ function RenderHospital({
 
 function RenderShift({ id }: { id: ShiftId }) {
   const [data, setData] = useData();
+  const [localData, setLocalData] = useLocalData();
   const day = data.weeks[id.weekIndex].days[id.dayIndex];
   const personId = day.shifts[id.shiftName] ?? '';
   const personPicker = usePersonPicker();
@@ -476,15 +477,24 @@ function RenderShift({ id }: { id: ShiftId }) {
         borderRadius: '3px',
       }}
       onClick={() => {
-        personPicker.requestDialog(
-          person =>
-            setData((d: CallSchedule) => {
-              d.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName] =
-                person;
-              return { ...d };
-            }),
-          personId,
-        );
+        personPicker.requestDialog(person => {
+          const previous =
+            data.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName];
+          setData((d: CallSchedule) => {
+            d.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName] =
+              person;
+            return { ...d };
+          });
+          setLocalData((d: LocalData) => {
+            d.history.push({
+              previous,
+              next: person,
+              shift: id,
+            });
+            d.undoHistory = [];
+            return { ...d };
+          });
+        }, personId);
       }}
     >
       <Text>{name}</Text>
@@ -754,6 +764,9 @@ function PersonPickerDialog() {
                       <RenderPerson
                         person={person.id}
                         large
+                        style={{
+                          cursor: 'pointer',
+                        }}
                         selected={personPicker.currentPerson === person.id}
                         onClick={() =>
                           personPicker.handleDialogResult(person.id)
