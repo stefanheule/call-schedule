@@ -165,7 +165,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       const today = assertNonNull(result.day2person2info[day][person]);
       if (!today.shift) continue;
       const shiftConfig = data.shiftConfigs[today.shift];
-      for (let i = 0; i < shiftConfig.days; i++) {
+      // Almost all shifts are at least 2 days, but there are some holiday day shifts.
+      // To make sure we don't let people be on day shift and then on call again the next day,
+      // we just pretend day shifts are 2 days also.
+      for (let i = 0; i < Math.max(2, shiftConfig.days); i++) {
         const nextD = nextDay(day, i);
         if (nextD > data.lastDay) break;
         const nextDayInfo = assertNonNull(
@@ -246,9 +249,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         const texts = today.shifts.map(
           s => `${shiftName(s.shift)} on ${s.day}`,
         );
+        const startDay = today.shifts.map(s => s.day).sort()[0] as IsoDate;
         result.issues[generateIssueKey()] = {
           kind: 'consecutive-call',
-          startDay: day,
+          startDay,
           message: `Consecutive call for ${person}: ${texts.join(', ')}`,
           isHard: true,
           elements: today.shifts.map(s => elementIdForShift(s.day, s.shift)),
@@ -371,12 +375,12 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           result.day2person2info[dayPlusOne][person],
         );
         if (!today.shift || !tomorrow.shift) continue;
-        if (data.shiftConfigs[today.shift].days != 2) continue;
-        if (data.shiftConfigs[tomorrow.shift].days != 2) continue;
+        // if (data.shiftConfigs[today.shift].days != 2) continue;
+        // if (data.shiftConfigs[tomorrow.shift].days != 2) continue;
         result.issues[generateIssueKey()] = {
-          kind: 'almost-consecutive-weekday-call',
+          kind: 'almost-consecutive-call',
           startDay: day,
-          message: `Two weekday calls only 1 day apart: ${person} on call ${day} and ${dayPlusOne}`,
+          message: `Two calls only 1 day apart: ${person} on call ${day} and ${dayPlusOne}`,
           isHard: false,
           elements: [
             elementIdForShift(day, today.shift),

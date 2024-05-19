@@ -160,10 +160,18 @@ export type RotationConfig = RotationDetails & {
   start: string;
 };
 
+export type Action = {
+  previous: MaybePerson | undefined;
+  next: MaybePerson | undefined;
+  shift: ShiftId;
+};
+
 export type LocalData = {
   highlightedPeople: {
     [name: string]: boolean;
   };
+  history: Action[];
+  undoHistory: Action[];
 };
 
 export type RotationDetails = {
@@ -232,7 +240,7 @@ export const ISSUE_KINDS_HARD = [
   'less-than-4-off-in-28',
 ] as const;
 export const ISSUE_KINDS_SOFT = [
-  'almost-consecutive-weekday-call',
+  'almost-consecutive-call',
   'every-other-weekend-call',
   'mad-during-aua',
   'cross-coverage',
