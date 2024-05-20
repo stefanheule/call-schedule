@@ -20,7 +20,13 @@ import {
 } from './shared/types';
 
 import * as datefns from 'date-fns';
-import { IsoDate, dateToIsoDate, isoDateToDate, mapEnum } from 'check-type';
+import {
+  IsoDate,
+  IsoDatetime,
+  dateToIsoDate,
+  isoDateToDate,
+  mapEnum,
+} from 'check-type';
 import {
   clearSchedule,
   nextDay,
@@ -43,12 +49,15 @@ async function main() {
 
   const storage: StoredCallSchedules = {
     versions: [
-      scheduleToStoredSchedule(
-        JSON.parse(
-          fs.readFileSync(`${__dirname}/shared/init.json`, 'utf-8'),
-        ) as CallSchedule,
-        `Example`,
-      ),
+      {
+        ...scheduleToStoredSchedule(
+          JSON.parse(
+            fs.readFileSync(`${__dirname}/shared/init.json`, 'utf-8'),
+          ) as CallSchedule,
+          `Example`,
+        ),
+        ts: `2024-05-18T15:49:50-07:00` as IsoDatetime,
+      },
       scheduleToStoredSchedule(data, `Empty initial schedule`),
     ],
   };

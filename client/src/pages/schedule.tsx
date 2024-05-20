@@ -29,6 +29,7 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import Snackbar from '@mui/material/Snackbar';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
+import { useNavigate } from 'react-router-dom';
 
 const DAY_SPACING = `2px`;
 
@@ -38,6 +39,7 @@ export function RenderCallSchedule() {
   const [, setLocalData] = useLocalData();
   const [, setData] = useData();
   const processed = useProcessedData();
+  const navigate = useNavigate();
 
   useHotkeys(
     ['ctrl+z', 'command+z'],
@@ -165,12 +167,21 @@ export function RenderCallSchedule() {
             >
               <Column>
                 <Heading>Options</Heading>
-                <Row>
-                  <Checkbox
-                    checked={showRotations}
-                    onChange={() => setShowRotations(!showRotations)}
-                  />
-                  Show rotations
+                <Row spacing="8px">
+                  <Row>
+                    <Checkbox
+                      checked={showRotations}
+                      onChange={() => setShowRotations(!showRotations)}
+                    />
+                    Show rotations
+                  </Row>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => navigate('/history')}
+                  >
+                    History
+                  </Button>
                 </Row>
               </Column>
               <Highlight />

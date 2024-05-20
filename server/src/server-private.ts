@@ -103,7 +103,7 @@ async function main() {
             res.send({
               schedules: storage.versions.map(v => ({
                 name: v.name,
-                assignedShifts: v.assignedShifts,
+                shiftCounts: v.shiftCounts,
                 issueCounts: v.issueCounts,
                 ts: v.ts,
               })),

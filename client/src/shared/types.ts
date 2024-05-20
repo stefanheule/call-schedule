@@ -221,7 +221,7 @@ export type CallScheduleProcessed = {
 
   issueCounts: IssueCount;
 
-  assignedShifts: number;
+  shiftCounts: ShiftCount;
 
   callCounts: {
     [Property in Person]?: CallCount;
@@ -263,9 +263,14 @@ export type Issue = {
 
 // API / storage
 
+export type ShiftCount = {
+  total: number;
+  assigned: number;
+};
+
 export type StoredCallScheduleMetaData = {
-  name?: string;
-  assignedShifts: number;
+  name: string;
+  shiftCounts: ShiftCount;
   issueCounts: IssueCount;
   ts: IsoDatetime;
 };
@@ -286,7 +291,7 @@ export type LoadCallScheduleResponse = CallSchedule;
 
 export type SaveCallScheduleRequest = {
   callSchedule: CallSchedule;
-  name?: string;
+  name: string;
 };
 
 export type SaveCallScheduleResponse = {
