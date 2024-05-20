@@ -1,5 +1,6 @@
-import { IsoDate, assertNonNull, uuid } from 'check-type';
+import { IsoDate, assertNonNull, dateToIsoDatetime, uuid } from 'check-type';
 import {
+  ALL_PEOPLE,
   CallSchedule,
   CallScheduleProcessed,
   DayPersonInfo,
@@ -8,11 +9,84 @@ import {
   Person,
   SPECIAL_SHIFTS,
   ShiftKind,
+  StoredCallSchedule,
   WEEKDAY_SHIFTS,
   WEEKEND_SHIFTS,
 } from './types';
 import { assertIsoDate } from './check-type.generated';
 import * as datefns from 'date-fns';
+
+export function clearSchedule(data: CallSchedule): CallSchedule {
+  for (const week of data.weeks) {
+    for (const day of week.days) {
+      for (const s of Object.keys(day.shifts)) {
+        day.shifts[s as ShiftKind] = '';
+      }
+    }
+  }
+  return data;
+}
+
+export function inferSchedule(data: CallSchedule): CallSchedule {
+  const processed = processCallSchedule(data);
+  for (const week of data.weeks) {
+    for (const day of week.days) {
+      if (day.date < data.firstDay || day.date > data.lastDay) continue;
+      const dayInfo = processed.day2person2info[day.date];
+      const peopleOnCallToday: string[] = [];
+      for (const s of Object.keys(day.shifts)) {
+        const shift = s as ShiftKind;
+        const people: Person[] = ALL_PEOPLE.filter(p => {
+          const info = assertNonNull(dayInfo[p]);
+          const year = data.people[p].year;
+          return (
+            !info.onVacation &&
+            year !== 'C' &&
+            year != '1' &&
+            !peopleOnCallToday.includes(p)
+          );
+        });
+
+        const person2rating = new Map<Person, number>();
+        for (const p of people) {
+          day.shifts[shift] = p;
+          person2rating.set(p, rate(data));
+        }
+        const min = Math.min(...Array.from(person2rating.values()));
+        const best = Array.from(person2rating.entries()).filter(
+          ([, rating]) => rating === min,
+        );
+        const randomWinner = best[Math.floor(Math.random() * best.length)];
+        console.log(
+          `For ${day.date} picking a rating=${randomWinner[1]}: ${randomWinner[0]}`,
+        );
+        day.shifts[shift] = randomWinner[0];
+        peopleOnCallToday.push(randomWinner[0]);
+      }
+    }
+  }
+
+  return data;
+}
+
+function rate(data: CallSchedule) {
+  const processed = processCallSchedule(data);
+  return processed.issueCounts.hard * 100 + processed.issueCounts.soft * 10;
+}
+
+export function scheduleToStoredSchedule(
+  data: CallSchedule,
+  name?: string,
+): StoredCallSchedule {
+  const processed = processCallSchedule(data);
+  return {
+    name,
+    ts: dateToIsoDatetime(new Date()),
+    callSchedule: data,
+    issueCounts: processed.issueCounts,
+    assignedShifts: processed.assignedShifts,
+  };
+}
 
 export function elementIdForDay(date: string): string {
   return `day-${date}`;
@@ -90,6 +164,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       soft: 0,
     },
     callCounts: {},
+    assignedShifts: 0,
   };
 
   // Figure out where everyone is working
@@ -525,6 +600,14 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       const dayOfWeek = dateToDayOfWeek(day);
       if (info.rotation == 'NF' && dayOfWeek != 'fri' && dayOfWeek != 'sun') {
         callCount.nf += 1;
+      }
+    }
+  }
+
+  for (const week of data.weeks) {
+    for (const day of week.days) {
+      for (const shift of Object.values(day.shifts)) {
+        if (shift !== '' && shift !== undefined) result.assignedShifts += 1;
       }
     }
   }

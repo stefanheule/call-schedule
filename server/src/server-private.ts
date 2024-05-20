@@ -17,29 +17,17 @@ import {
   assertCallSchedule,
   assertLoadCallScheduleRequest,
   assertSaveCallScheduleRequest,
-  assertStoredCallSchedules,
 } from './shared/check-type.generated';
 import { Request, Response } from 'express';
-import fs from 'fs';
-import { dateToIsoDatetime, exceptionToString } from 'check-type';
+import { exceptionToString } from 'check-type';
 import initialData from './shared/init.json';
+import { scheduleToStoredSchedule } from './shared/compute';
+import { loadStorage, storeStorage } from './storage';
 
 export const AXIOS_PROPS = {
   isLocal: true,
   isFrontend: false,
 };
-
-let STORAGE_LOCATION = 'storage.json';
-if (isLocal()) {
-  STORAGE_LOCATION = path.resolve(`${__dirname}/../../storage.json`);
-  console.log({ STORAGE_LOCATION });
-}
-
-async function loadStorage(): Promise<StoredCallSchedules> {
-  return assertStoredCallSchedules(
-    JSON.parse(fs.readFileSync('storage.json', 'utf8')),
-  );
-}
 
 async function main() {
   await setupExpressServer({
@@ -54,7 +42,7 @@ async function main() {
         ) => {
           try {
             const request = assertLoadCallScheduleRequest(req.body);
-            const storage = await loadStorage();
+            const storage = loadStorage();
             if (request.ts) {
               const result = storage.versions.find(v => v.ts === request.ts);
               if (!result)
@@ -86,19 +74,16 @@ async function main() {
         ) => {
           try {
             const request = assertSaveCallScheduleRequest(req.body);
-            const storage = await loadStorage();
-            const ts = dateToIsoDatetime(new Date());
-            const newStorage = {
-              versions: [
-                ...storage.versions,
-                {
-                  ts,
-                  callSchedule: request,
-                },
-              ],
+            const storage = loadStorage();
+            const nextVersion = scheduleToStoredSchedule(
+              request.callSchedule,
+              request.name,
+            );
+            const newStorage: StoredCallSchedules = {
+              versions: [...storage.versions, nextVersion],
             };
-            fs.writeFileSync('storage.json', JSON.stringify(newStorage));
-            res.send({ ts });
+            storeStorage(newStorage);
+            res.send({ ts: nextVersion.ts });
           } catch (e) {
             console.log(e);
             res.status(500).send(`exception: ${exceptionToString(e)}`);
@@ -114,10 +99,12 @@ async function main() {
           res: Response<ListCallSchedulesResponse | string>,
         ) => {
           try {
-            const storage = await loadStorage();
+            const storage = loadStorage();
             res.send({
               schedules: storage.versions.map(v => ({
                 name: v.name,
+                assignedShifts: v.assignedShifts,
+                issueCounts: v.issueCounts,
                 ts: v.ts,
               })),
             });

@@ -199,6 +199,11 @@ export type Hospital2People = {
   [Property in RotationKind]?: HospitalDayInfo[];
 };
 
+export type IssueCount = {
+  hard: number;
+  soft: number;
+};
+
 export type CallScheduleProcessed = {
   day2person2info: {
     [day: string]: {
@@ -214,10 +219,9 @@ export type CallScheduleProcessed = {
     [key: string]: Issue;
   };
 
-  issueCounts: {
-    hard: number;
-    soft: number;
-  };
+  issueCounts: IssueCount;
+
+  assignedShifts: number;
 
   callCounts: {
     [Property in Person]?: CallCount;
@@ -261,6 +265,8 @@ export type Issue = {
 
 export type StoredCallScheduleMetaData = {
   name?: string;
+  assignedShifts: number;
+  issueCounts: IssueCount;
   ts: IsoDatetime;
 };
 
