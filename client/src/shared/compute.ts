@@ -76,7 +76,7 @@ function rate(data: CallSchedule) {
 
 export function scheduleToStoredSchedule(
   data: CallSchedule,
-  name?: string,
+  name: string,
 ): StoredCallSchedule {
   const processed = processCallSchedule(data);
   return {
@@ -84,7 +84,7 @@ export function scheduleToStoredSchedule(
     ts: dateToIsoDatetime(new Date()),
     callSchedule: data,
     issueCounts: processed.issueCounts,
-    assignedShifts: processed.assignedShifts,
+    shiftCounts: processed.shiftCounts,
   };
 }
 
@@ -164,7 +164,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       soft: 0,
     },
     callCounts: {},
-    assignedShifts: 0,
+    shiftCounts: {
+      total: 0,
+      assigned: 0,
+    },
   };
 
   // Figure out where everyone is working
@@ -607,7 +610,9 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   for (const week of data.weeks) {
     for (const day of week.days) {
       for (const shift of Object.values(day.shifts)) {
-        if (shift !== '' && shift !== undefined) result.assignedShifts += 1;
+        result.shiftCounts.total += 1;
+        if (shift !== '' && shift !== undefined)
+          result.shiftCounts.assigned += 1;
       }
     }
   }
