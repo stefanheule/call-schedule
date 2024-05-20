@@ -1,4 +1,4 @@
-import { IsoDate, mapEnum } from 'check-type';
+import { IsoDate, IsoDatetime, mapEnum } from 'check-type';
 
 // @check-type:entire-file
 
@@ -255,4 +255,42 @@ export type Issue = {
   elements: string[];
   message: string;
   isHard: boolean;
+};
+
+// API / storage
+
+export type StoredCallScheduleMetaData = {
+  name?: string;
+  ts: IsoDatetime;
+};
+
+export type StoredCallSchedule = StoredCallScheduleMetaData & {
+  callSchedule: CallSchedule;
+};
+
+export type StoredCallSchedules = {
+  versions: StoredCallSchedule[];
+};
+
+export type LoadCallScheduleRequest = {
+  ts?: IsoDatetime;
+};
+
+export type LoadCallScheduleResponse = CallSchedule;
+
+export type SaveCallScheduleRequest = {
+  callSchedule: CallSchedule;
+  name?: string;
+};
+
+export type SaveCallScheduleResponse = {
+  ts: IsoDatetime;
+};
+
+export type ListCallSchedulesRequest = {
+  kind: 'list';
+};
+
+export type ListCallSchedulesResponse = {
+  schedules: StoredCallScheduleMetaData[];
 };
