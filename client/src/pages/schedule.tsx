@@ -17,13 +17,14 @@ import {
   Issue,
   RotationDetails,
   Hospital2People,
+  SHIFT_ORDER,
 } from '../shared/types';
 import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
 import React, { createContext, forwardRef, useContext, useState } from 'react';
 import { Button, Dialog } from '@mui/material';
 import { WarningOutlined, ErrorOutlined } from '@mui/icons-material';
-import { elementIdForDay, elementIdForShift } from '../shared/compute';
+import { elementIdForDay, elementIdForShift, nextDay } from '../shared/compute';
 import { Checkbox } from '@mui/material';
 import { useHotkeys } from 'react-hotkeys-hook';
 import Snackbar from '@mui/material/Snackbar';
@@ -460,7 +461,9 @@ function RenderDay({
                 zIndex: 100,
               }}
             >
-              <RenderHospitals info={processed.day2hospital2people[day.date]} />
+              <RenderHospitals
+                info={processed.day2hospital2people[nextDay(day.date)]}
+              />
             </Column>
           )}
           {!showRotationsToday && (
@@ -483,12 +486,18 @@ function RenderDay({
       </Column>
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
       <Column style={{ ...DAY_BOX_STYLE, padding: '3px' }}>
-        {Object.entries(day.shifts).map(([shiftName]) => (
-          <RenderShift
-            id={{ ...id, shiftName: shiftName as ShiftKind }}
-            key={`${day.date}-${shiftName}`}
-          />
-        ))}
+        {Object.entries(day.shifts)
+          .sort(
+            (a, b) =>
+              SHIFT_ORDER.indexOf(a[0] as ShiftKind) -
+              SHIFT_ORDER.indexOf(b[0] as ShiftKind),
+          )
+          .map(([shiftName]) => (
+            <RenderShift
+              id={{ ...id, shiftName: shiftName as ShiftKind }}
+              key={`${day.date}-${shiftName}`}
+            />
+          ))}
       </Column>
     </Column>
   );

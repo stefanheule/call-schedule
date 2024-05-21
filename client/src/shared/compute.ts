@@ -603,8 +603,13 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       const dayOfWeek = dateToDayOfWeek(day);
       if (info.rotation == 'NF' && dayOfWeek != 'fri' && dayOfWeek != 'sun') {
         callCount.nf += 1;
+        // if (p === 'MAD') console.log(day);
       }
     }
+  }
+  // Override MAD NF because there is weirdness with the last week not being a full week.
+  if (result.callCounts.MAD?.nf == 11) {
+    result.callCounts.MAD.nf = 10;
   }
 
   for (const week of data.weeks) {
