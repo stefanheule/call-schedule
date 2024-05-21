@@ -175,6 +175,8 @@ export type CallSchedule = {
   };
 
   rotations: RotationSchedule;
+
+  isPublic?: boolean;
 };
 
 export type RotationConfig = RotationDetails & {
