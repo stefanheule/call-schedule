@@ -243,6 +243,10 @@ export type CallScheduleProcessed = {
     [key: string]: Issue;
   };
 
+  element2issueKind: {
+    [elementIdForShift: string]: 'soft' | 'hard' | undefined;
+  };
+
   issueCounts: IssueCount;
 
   shiftCounts: ShiftCount;

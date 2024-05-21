@@ -26,7 +26,13 @@ import {
 } from '../shared/types';
 import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
-import React, { createContext, forwardRef, useContext, useState } from 'react';
+import React, {
+  createContext,
+  forwardRef,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 import { Button, Dialog, TextField } from '@mui/material';
 import { WarningOutlined, ErrorOutlined } from '@mui/icons-material';
 import { elementIdForDay, elementIdForShift, nextDay } from '../shared/compute';
@@ -52,6 +58,14 @@ export function RenderCallSchedule() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    window.onbeforeunload = confirmExit;
+    function confirmExit() {
+      if (localData.unsavedChanges == 0) return null;
+      return `There are unsaved changes, are you sure you want to exit?`;
+    }
+  }, [localData]);
 
   useHotkeys(
     ['ctrl+z', 'command+z'],
@@ -390,14 +404,17 @@ function RuleViolation({ issue }: { id: string; issue: Issue }) {
       }}
     >
       {!issue.isHard ? (
-        <WarningOutlined style={{ color: '#FFCC00', height: 18 }} />
+        <WarningOutlined style={{ color: WARNING_COLOR, height: 18 }} />
       ) : (
-        <ErrorOutlined style={{ color: 'hsl(0, 70%, 50%)', height: 18 }} />
+        <ErrorOutlined style={{ color: ERROR_COLOR, height: 18 }} />
       )}
       <Text>{issue.message}</Text>
     </Row>
   );
 }
+
+const WARNING_COLOR = '#FFCC00';
+const ERROR_COLOR = 'hsl(0, 70%, 50%)';
 
 function Highlight() {
   const [data] = useData();
@@ -683,16 +700,24 @@ function RenderShift({ id }: { id: ShiftId }) {
   const personId = day.shifts[id.shiftName] ?? '';
   const personPicker = usePersonPicker();
   const name = data.shiftConfigs[id.shiftName].name;
+  const processed = useProcessedData();
+  const elId = elementIdForShift(day.date, id.shiftName);
+  const hasIssue = processed.element2issueKind[elId];
   return (
     <Row
-      id={elementIdForShift(day.date, id.shiftName)}
+      id={elId}
       style={{
         boxSizing: 'border-box',
         border: `1px solid #ccc`,
         marginBottom: `1px`,
         cursor: 'pointer',
         padding: '1px 3px',
-        backgroundColor: 'white',
+        backgroundColor:
+          hasIssue === undefined
+            ? 'white'
+            : hasIssue === 'hard'
+              ? '#faa'
+              : 'rgb(255, 252, 170)',
         borderRadius: '3px',
       }}
       onClick={() => {

@@ -169,6 +169,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       total: 0,
       assigned: 0,
     },
+    element2issueKind: {},
   };
 
   // Figure out where everyone is working
@@ -615,12 +616,27 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     result.callCounts.MAD.nf = 10;
   }
 
+  // count shifts
   for (const week of data.weeks) {
     for (const day of week.days) {
       for (const shift of Object.values(day.shifts)) {
         result.shiftCounts.total += 1;
         if (shift !== '' && shift !== undefined)
           result.shiftCounts.assigned += 1;
+      }
+    }
+  }
+
+  // process issues into map
+  for (const issue of Object.values(result.issues)) {
+    for (const id of issue.elements) {
+      const prev = result.element2issueKind[id]
+      const next = issue.isHard ? 'hard' : 'soft';
+
+      if (prev == 'hard' || next == 'hard') {
+        result.element2issueKind[id] = 'hard';
+      } else {
+        result.element2issueKind[id] = 'soft';
       }
     }
   }
