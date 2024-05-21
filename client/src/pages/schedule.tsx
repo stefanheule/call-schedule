@@ -580,6 +580,10 @@ function RenderDay({
           color={isHoliday || isSpecial ? undefined : 'white'}
           style={{
             fontWeight: isHoliday || isSpecial ? 'bold' : 'normal',
+            textOverflow: 'ellipsis',
+            textWrap: 'nowrap',
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
           }}
         >
           {data.holidays[day.date] ?? data.specialDays[day.date] ?? '.'}
@@ -606,7 +610,11 @@ function RenderDay({
           )}
           {!showRotationsToday && (
             <Column
-              style={{ ...DAY_BOX_STYLE, minHeight: DAY_HOSPITALS_HEIGHT }}
+              style={{
+                ...DAY_BOX_STYLE,
+                minHeight: DAY_HOSPITALS_HEIGHT,
+                background: 'white',
+              }}
             ></Column>
           )}
         </>
