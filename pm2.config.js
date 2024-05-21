@@ -5,7 +5,7 @@ module.exports = {
       script: 'yarn client start',
     },
     {
-      name: 'cs-server',
+      name: 'CALL_SCHEDULE_PUBLIC=no cs-server',
       script: 'yarn server start',
     },
     {

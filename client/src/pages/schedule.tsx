@@ -237,11 +237,15 @@ export function RenderCallSchedule() {
                       width: '150px',
                     }}
                   >
-                    {localData.unsavedChanges > 0 &&
+                    {data.isPublic !== true &&
+                      localData.unsavedChanges > 0 &&
                       `Save ${localData.unsavedChanges} change${
                         localData.unsavedChanges > 2 ? 's' : ''
                       }`}
-                    {localData.unsavedChanges == 0 && `Saved`}
+                    {data.isPublic !== true &&
+                      localData.unsavedChanges == 0 &&
+                      `Saved`}
+                    {data.isPublic === true && `View only version`}
                   </Button>
                   <Dialog
                     open={saveDialogOpen}

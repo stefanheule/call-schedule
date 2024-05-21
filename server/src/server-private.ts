@@ -3,7 +3,11 @@ dotenv.config({ path: __dirname + '/../.env' });
 
 import express from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import { CLIENT_PORT, SERVER_PRIVATE_PORT } from './shared/ports';
+import {
+  CLIENT_PORT,
+  SERVER_PRIVATE_PORT,
+  SERVER_PUBLIC_PORT,
+} from './shared/ports';
 import path from 'path';
 import { setupExpressServer } from './common/express';
 import { isLocal } from './common/error-reporting';
@@ -29,10 +33,12 @@ export const AXIOS_PROPS = {
   isFrontend: false,
 };
 
+const IS_PUBLIC = process.env['CALL_SCHEDULE_PUBLIC'] === 'yes' || true;
+
 async function main() {
   await setupExpressServer({
-    name: 'call-schedule-private',
-    port: SERVER_PRIVATE_PORT,
+    name: IS_PUBLIC ? 'call-schedule-public' : 'call-schedule-private',
+    port: IS_PUBLIC ? SERVER_PUBLIC_PORT : SERVER_PRIVATE_PORT,
     routeSetup: async app => {
       app.post(
         '/api/load-call-schedule',
@@ -43,20 +49,21 @@ async function main() {
           try {
             const request = assertLoadCallScheduleRequest(req.body);
             const storage = loadStorage();
+            let result;
             if (request.ts) {
-              const result = storage.versions.find(v => v.ts === request.ts);
+              result = storage.versions.find(v => v.ts === request.ts);
               if (!result)
                 throw new Error(`Cannot find version with ts ${request.ts}`);
-              res.send(result.callSchedule);
             } else {
               if (storage.versions.length == 0) {
                 res.send(assertCallSchedule(initialData));
                 return;
               }
-              res.send(
-                storage.versions[storage.versions.length - 1].callSchedule,
-              );
+              result = storage.versions[storage.versions.length - 1];
             }
+
+            result.callSchedule.isPublic = IS_PUBLIC;
+            res.send(result.callSchedule);
             return;
           } catch (e) {
             console.log(e);
@@ -73,6 +80,10 @@ async function main() {
           res: Response<SaveCallScheduleResponse | string>,
         ) => {
           try {
+            if (IS_PUBLIC) {
+              res.status(500).send(`Cannot save on public server`);
+              return;
+            }
             const request = assertSaveCallScheduleRequest(req.body);
             const storage = loadStorage();
             const nextVersion = scheduleToStoredSchedule(
