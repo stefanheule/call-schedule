@@ -3,7 +3,7 @@
 # https://git-scm.com/docs/gitignore
 # https://eslint.org/docs/user-guide/configuring/ignoring-code#ignorepatterns-in-config-files
 
-storage.json
+data/
 
 # Generated files
 **/check-type.generated.ts
