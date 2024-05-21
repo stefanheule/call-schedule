@@ -38,6 +38,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
 import { rpcSaveCallSchedules } from './rpc';
 import { LoadingIndicator } from '../common/loading';
+import { VList } from 'virtua';
 
 const DAY_SPACING = `2px`;
 
@@ -148,12 +149,11 @@ export function RenderCallSchedule() {
           >
             <Column
               style={{
-                overflowY: 'scroll',
                 height: '100%',
                 minWidth: '880px',
               }}
             >
-              {Array.from({ length: 53 }).map((_, i) => (
+              {/* {Array.from({ length: 53 }).map((_, i) => (
                 <Column key={i}>
                   <RenderWeek
                     id={{ weekIndex: i }}
@@ -161,7 +161,18 @@ export function RenderCallSchedule() {
                   />
                   <ElementSpacer />
                 </Column>
-              ))}
+              ))} */}
+              <VList style={{ height: '100%' }}>
+                {Array.from({ length: 53 }).map((_, i) => (
+                  <Column key={i}>
+                    <RenderWeek
+                      id={{ weekIndex: i }}
+                      showRotations={showRotations}
+                    />
+                    <ElementSpacer />
+                  </Column>
+                ))}
+              </VList>
               {/* <AutoSizer>
                 {({ height, width }) => (
                   <FixedSizeList
