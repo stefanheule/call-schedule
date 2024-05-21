@@ -40,6 +40,7 @@ function Ui() {
     highlightedPeople: {},
     history: [],
     undoHistory: [],
+    unsavedChanges: 0,
   });
   return (
     <LocalDataContext.Provider value={{ localData, setLocalData }}>

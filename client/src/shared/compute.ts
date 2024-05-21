@@ -4,6 +4,7 @@ import {
   CallSchedule,
   CallScheduleProcessed,
   DayPersonInfo,
+  HospitalKind,
   ISSUE_KINDS_HARD,
   ISSUE_KINDS_SOFT,
   Person,
@@ -531,7 +532,9 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       if (today.rotation == 'Alaska') continue;
       if (today.rotation == 'NF') continue;
       if (today.rotation == 'OFF') continue;
-      if (!call.includes(today.rotation)) {
+      const rotationHospitals: HospitalKind[] =
+        today.rotation == 'Andro' ? ['UW', 'NWH'] : [today.rotation];
+      if (call.every(c => !rotationHospitals.includes(c))) {
         result.issues[generateIssueKey()] = {
           kind: 'cross-coverage',
           startDay: day,
