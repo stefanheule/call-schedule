@@ -33,7 +33,7 @@ export const AXIOS_PROPS = {
   isFrontend: false,
 };
 
-const IS_PUBLIC = process.env['CALL_SCHEDULE_PUBLIC'] === 'yes' || true;
+const IS_PUBLIC = process.env['CALL_SCHEDULE_PUBLIC'] === 'yes';
 
 async function main() {
   await setupExpressServer({
