@@ -2,5 +2,7 @@
   "codeDir": "/home/stefan/www/call-schedule",
   "codeStagingDir": "/home/stefan/www/call-schedule-staging",
   "dataDir": "/home/stefan/www-live/call-schedule-data",
-  "dataSubDirectories": []
+  "dataSubDirectories": [
+    "storage"
+  ]
 }
