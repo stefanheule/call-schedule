@@ -108,7 +108,7 @@ const people: {
   LX: {
     name: 'LX',
     year: 'R',
-    dueDate: '2024-10-15', // TODO: verify
+    dueDate: '2024-10-22',
   },
   CC: {
     name: 'CC',
@@ -235,7 +235,7 @@ async function importRotationSchedule(): Promise<RotationSchedule> {
           }
           if (hospital == 'VM') rotation = 'OFF';
           if (hospital == 'NF4') rotation = 'NF';
-          if (hospital == 'Andro/URPS') rotation = 'OFF'; // TODO: fix
+          if (hospital == 'Andro/URPS') rotation = 'Andro';
           if (hospital == 'WWAMI') rotation = 'Alaska';
           if (hospital == 'RESEARCH') rotation = 'Research';
           if (!rotation) {

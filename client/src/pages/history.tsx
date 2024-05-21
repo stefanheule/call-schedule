@@ -135,7 +135,11 @@ function RenderSchedules({
                 </Text>
               </Column>
               <Column>
-                <Text>{schedule.name}</Text>
+                <Text>
+                  {schedule.name == ''
+                    ? 'Manual save without name'
+                    : schedule.name}
+                </Text>
                 <Text
                   style={{
                     fontSize: '12px',

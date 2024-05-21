@@ -1,4 +1,9 @@
-import { assertNonNull, isoDateToDate, mapEnumWithDefault } from 'check-type';
+import {
+  assertNonNull,
+  dateToIsoDatetime,
+  isoDateToDate,
+  mapEnumWithDefault,
+} from 'check-type';
 import { Children, Column, ElementSpacer, Row } from '../common/flex';
 import { DefaultTextSize, Heading, Text } from '../common/text';
 import {
@@ -22,7 +27,7 @@ import {
 import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
 import React, { createContext, forwardRef, useContext, useState } from 'react';
-import { Button, Dialog } from '@mui/material';
+import { Button, Dialog, TextField } from '@mui/material';
 import { WarningOutlined, ErrorOutlined } from '@mui/icons-material';
 import { elementIdForDay, elementIdForShift, nextDay } from '../shared/compute';
 import { Checkbox } from '@mui/material';
@@ -31,16 +36,21 @@ import Snackbar from '@mui/material/Snackbar';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
+import { rpcSaveCallSchedules } from './rpc';
+import { LoadingIndicator } from '../common/loading';
 
 const DAY_SPACING = `2px`;
 
 export function RenderCallSchedule() {
   const [showRotations, setShowRotations] = useState(true);
   const [copyPasteSnackbar, setCopyPasteSnackbar] = useState('');
-  const [, setLocalData] = useLocalData();
-  const [, setData] = useData();
+  const [localData, setLocalData] = useLocalData();
+  const [data, setData] = useData();
   const processed = useProcessedData();
   const navigate = useNavigate();
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useHotkeys(
     ['ctrl+z', 'command+z'],
@@ -55,6 +65,9 @@ export function RenderCallSchedule() {
                 lastAction.shift.dayIndex
               ];
             day.shifts[lastAction.shift.shiftName] = lastAction.previous;
+            if (localData.unsavedChanges === 0) {
+              localData.firstUnsavedChange = dateToIsoDatetime(new Date());
+            }
             setCopyPasteSnackbar(`Undo shift assignment for ${day.date}.`);
           } else {
             setCopyPasteSnackbar(`Cannot undo, no action in history.`);
@@ -82,6 +95,10 @@ export function RenderCallSchedule() {
                 lastAction.shift.dayIndex
               ];
             day.shifts[lastAction.shift.shiftName] = lastAction.next;
+            if (localData.unsavedChanges === 0) {
+              localData.firstUnsavedChange = dateToIsoDatetime(new Date());
+            }
+            localData.unsavedChanges += 1;
             setCopyPasteSnackbar(`Redo shift assignment for ${day.date}.`);
           } else {
             setCopyPasteSnackbar(`Cannot redo, no action in history.`);
@@ -183,6 +200,98 @@ export function RenderCallSchedule() {
                   >
                     History
                   </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    disabled={localData.unsavedChanges == 0}
+                    onClick={() => {
+                      setSaveName('');
+                      setSaveDialogOpen(true);
+                    }}
+                    style={{
+                      width: '150px',
+                    }}
+                  >
+                    {localData.unsavedChanges > 0 &&
+                      `Save ${localData.unsavedChanges} change${
+                        localData.unsavedChanges > 2 ? 's' : ''
+                      }`}
+                    {localData.unsavedChanges == 0 && `Saved`}
+                  </Button>
+                  <Dialog
+                    open={saveDialogOpen}
+                    maxWidth="xl"
+                    onClose={() => setSaveDialogOpen(false)}
+                  >
+                    <Column
+                      style={{ padding: '20px', minWidth: '450px' }}
+                      spacing="10px"
+                    >
+                      <Row>
+                        <Heading>Save current changes</Heading>
+                      </Row>
+                      <Text
+                        style={{
+                          fontSize: '16px',
+                        }}
+                      >
+                        Optionally name the current version.
+                      </Text>
+                      <Row>
+                        <TextField
+                          size="small"
+                          value={saveName}
+                          onChange={ev => setSaveName(ev.target.value)}
+                        />
+                      </Row>
+                      <Row
+                        style={{ marginTop: '10px' }}
+                        mainAxisAlignment="end"
+                        spacing="10px"
+                      >
+                        <Button
+                          variant="outlined"
+                          onClick={() => setSaveDialogOpen(false)}
+                          disabled={isSaving}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="contained"
+                          disabled={isSaving}
+                          onClick={async () => {
+                            try {
+                              setIsSaving(true);
+                              const result = await rpcSaveCallSchedules({
+                                name: saveName,
+                                callSchedule: data,
+                              });
+                              setLocalData({
+                                ...localData,
+                                unsavedChanges: 0,
+                              });
+                              console.log({ result });
+                              setCopyPasteSnackbar(`Saved successfully`);
+                              setSaveDialogOpen(false);
+                            } catch (e) {
+                              console.log(e);
+                              setCopyPasteSnackbar(
+                                `Failed to save, please try again`,
+                              );
+                            } finally {
+                              setIsSaving(false);
+                            }
+                          }}
+                        >
+                          {isSaving ? (
+                            <LoadingIndicator color="secondary" />
+                          ) : (
+                            `Save now`
+                          )}
+                        </Button>
+                      </Row>
+                    </Column>
+                  </Dialog>
                 </Row>
               </Column>
               <Highlight />
@@ -345,7 +454,7 @@ function RenderWeek({
 const DAY_WIDTH = 110;
 const DAY_PADDING = 5;
 const DAY_VACATION_HEIGHT = '17px';
-const DAY_HOSPITALS_HEIGHT = '75px';
+const DAY_HOSPITALS_HEIGHT = '90px';
 const DAY_BORDER = `1px solid black`;
 const DAY_BOX_STYLE: React.CSSProperties = {
   padding: `2px ${DAY_PADDING}px`,
@@ -410,7 +519,8 @@ function RenderDay({
   const isHoliday = data.holidays[day.date] !== undefined;
   const isSpecial = data.specialDays[day.date] !== undefined;
   const showRotationsToday =
-    id.dayIndex == 0 || (id.dayIndex == 1 && id.weekIndex == 0);
+    (id.dayIndex == 0 && id.weekIndex !== 0) ||
+    (id.dayIndex == 1 && id.weekIndex == 0);
   const backgroundColor = isHoliday ? '#fee' : isSpecial ? '#eef' : undefined;
   return (
     <Column
@@ -520,9 +630,10 @@ function RenderHospitals({ info }: { info?: Hospital2People }) {
         <RenderHospital hospital="HMC" people={info.HMC ?? []} />
         <RenderHospital hospital="VA" people={info.VA ?? []} />
         <RenderHospital hospital="SCH" people={info.SCH ?? []} />
+        <RenderHospital hospital="NWH" people={info.NWH ?? []} />
       </Column>
       <Column>
-        <RenderHospital hospital="NWH" people={info.NWH ?? []} />
+        <RenderHospital hospital="Andro" people={info.Andro ?? []} />
         <RenderHospital hospital="Research" people={info.Research ?? []} />
         <RenderHospital hospital="NF" people={info.NF ?? []} />
         <RenderHospital hospital="Alaska" people={info.Alaska ?? []} />
@@ -589,6 +700,10 @@ function RenderShift({ id }: { id: ShiftId }) {
               shift: id,
             });
             d.undoHistory = [];
+            if (d.unsavedChanges === 0) {
+              d.firstUnsavedChange = dateToIsoDatetime(new Date());
+            }
+            d.unsavedChanges += 1;
             return { ...d };
           });
         }, personId);

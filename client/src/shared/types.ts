@@ -47,11 +47,17 @@ export const SHIFT_ORDER: ShiftKind[] = [
   'weekday_south',
   'weekend_south',
   'thanksgiving_south',
-]
+];
 
 export const HOSPITALS = ['UW', 'VA', 'HMC', 'SCH', 'NWH'] as const;
 export type HospitalKind = (typeof HOSPITALS)[number];
-export const EXTRA_ROTATIONS = ['Alaska', 'Research', 'NF', 'OFF'] as const;
+export const EXTRA_ROTATIONS = [
+  'Alaska',
+  'Research',
+  'NF',
+  'Andro',
+  'OFF',
+] as const;
 export const ROTATIONS = [...HOSPITALS, ...EXTRA_ROTATIONS] as const;
 export type RotationKind = (typeof ROTATIONS)[number];
 
@@ -188,6 +194,8 @@ export type LocalData = {
   };
   history: Action[];
   undoHistory: Action[];
+  unsavedChanges: number;
+  firstUnsavedChange?: IsoDatetime;
 };
 
 export type RotationDetails = {
