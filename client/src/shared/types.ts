@@ -32,6 +32,22 @@ export const SPECIAL_SHIFTS = [
 ] as const;
 export type SpecialShiftKind = (typeof SPECIAL_SHIFTS)[number];
 export type ShiftKind = WeekdayShiftKind | WeekendShiftKind | SpecialShiftKind;
+export const SHIFT_ORDER: ShiftKind[] = [
+  // NWH/SCH
+  'weekend_nwhsch',
+  'day_nwhsch',
+  'power_nwhsch',
+  // UW
+  'weekend_uw',
+  'day_uw',
+  'power_uw',
+  'south_24',
+  // South
+  'power_south',
+  'weekday_south',
+  'weekend_south',
+  'thanksgiving_south',
+]
 
 export const HOSPITALS = ['UW', 'VA', 'HMC', 'SCH', 'NWH'] as const;
 export type HospitalKind = (typeof HOSPITALS)[number];

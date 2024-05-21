@@ -104,7 +104,7 @@ function RenderSchedules({
                     ts: schedule.ts,
                   });
                   setData(result);
-                  navigate('/')
+                  navigate('/');
                 } catch (e) {
                   console.log(e);
                   setIsLoading(false);
