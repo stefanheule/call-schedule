@@ -630,7 +630,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   // process issues into map
   for (const issue of Object.values(result.issues)) {
     for (const id of issue.elements) {
-      const prev = result.element2issueKind[id]
+      const prev = result.element2issueKind[id];
       const next = issue.isHard ? 'hard' : 'soft';
 
       if (prev == 'hard' || next == 'hard') {
