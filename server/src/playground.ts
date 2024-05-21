@@ -519,8 +519,6 @@ async function importPreviousSchedule() {
     people,
     holidays: {},
     specialDays: {
-      '2024-07-06': 'Chief Board Review',
-      '2024-07-13': 'Chief Board Review',
       '2024-10-27': 'Western AUA',
       '2024-10-28': 'Western AUA',
       '2024-10-29': 'Western AUA',
