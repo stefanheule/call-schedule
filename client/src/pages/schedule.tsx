@@ -491,7 +491,7 @@ function RenderWeek({
 
 const DAY_WIDTH = 110;
 const DAY_PADDING = 5;
-const DAY_VACATION_HEIGHT = '17px';
+const DAY_VACATION_HEIGHT = '37px';
 const DAY_HOSPITALS_HEIGHT = '90px';
 const DAY_BORDER = `1px solid black`;
 const DAY_BOX_STYLE: React.CSSProperties = {
@@ -633,7 +633,7 @@ function RenderDay({
       )}
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
       <Column style={{ ...DAY_BOX_STYLE, minHeight: DAY_VACATION_HEIGHT }}>
-        <Row style={{ opacity: secondaryInfoOpacity }}>
+        <Row style={{ opacity: secondaryInfoOpacity, flexWrap: 'wrap' }}>
           {processed.day2person2info[day.date] &&
             Object.entries(processed.day2person2info[day.date])
               .filter(([_, info]) => info.onVacation)
