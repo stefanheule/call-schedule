@@ -7,6 +7,7 @@ import {
   HospitalKind,
   ISSUE_KINDS_HARD,
   ISSUE_KINDS_SOFT,
+  MaybePerson,
   Person,
   SPECIAL_SHIFTS,
   ShiftKind,
@@ -28,41 +29,75 @@ export function clearSchedule(data: CallSchedule): CallSchedule {
   return data;
 }
 
+export function inferShift(
+  data: CallSchedule,
+  processed: CallScheduleProcessed,
+  date: IsoDate,
+  shift: ShiftKind,
+  config?: { enableLog?: boolean },
+): [MaybePerson, CallScheduleProcessed] {
+  const dayInfo = processed.day2person2info[date];
+  const dayAndWeek = processed.day2weekAndDay[date];
+  const day = data.weeks[dayAndWeek.weekIndex].days[dayAndWeek.dayIndex];
+  const people: Person[] = ALL_PEOPLE.filter(p => {
+    const info = assertNonNull(dayInfo[p]);
+    const year = data.people[p].year;
+    return !info.onVacation && year !== 'C' && year != '1';
+  });
+
+  if (people.length == 0) {
+    if (config?.enableLog) {
+      console.log(`No candidates left for ${date}.`);
+    }
+    return ['', processed];
+  }
+
+  const person2rating = new Map<
+    Person,
+    {
+      rating: number;
+      processed: CallScheduleProcessed;
+    }
+  >();
+  for (const p of people) {
+    day.shifts[shift] = p;
+    const processed = processCallSchedule(data);
+    person2rating.set(p, {
+      rating: rate(data, processed),
+      processed,
+    });
+  }
+  const min = Math.min(
+    ...Array.from(person2rating.values()).map(x => x.rating),
+  );
+  const best = Array.from(person2rating.entries()).filter(
+    ([, v]) => v.rating === min,
+  );
+  const randomWinner = best[Math.floor(Math.random() * best.length)];
+  if (config?.enableLog) {
+    console.log(
+      `For ${date} picking a rating=${randomWinner[1].rating}: ${randomWinner[0]}`,
+    );
+  }
+  return [randomWinner[0], randomWinner[1].processed];
+}
+
 export function inferSchedule(data: CallSchedule): CallSchedule {
-  const processed = processCallSchedule(data);
+  let processed = processCallSchedule(data);
   for (const week of data.weeks) {
     for (const day of week.days) {
       if (day.date < data.firstDay || day.date > data.lastDay) continue;
-      const dayInfo = processed.day2person2info[day.date];
-      const peopleOnCallToday: string[] = [];
       for (const s of Object.keys(day.shifts)) {
         const shift = s as ShiftKind;
-        const people: Person[] = ALL_PEOPLE.filter(p => {
-          const info = assertNonNull(dayInfo[p]);
-          const year = data.people[p].year;
-          return (
-            !info.onVacation &&
-            year !== 'C' &&
-            year != '1' &&
-            !peopleOnCallToday.includes(p)
-          );
-        });
-
-        const person2rating = new Map<Person, number>();
-        for (const p of people) {
-          day.shifts[shift] = p;
-          person2rating.set(p, rate(data));
-        }
-        const min = Math.min(...Array.from(person2rating.values()));
-        const best = Array.from(person2rating.entries()).filter(
-          ([, rating]) => rating === min,
+        [day.shifts[shift], processed] = inferShift(
+          data,
+          processed,
+          day.date,
+          shift,
+          {
+            enableLog: true,
+          },
         );
-        const randomWinner = best[Math.floor(Math.random() * best.length)];
-        console.log(
-          `For ${day.date} picking a rating=${randomWinner[1]}: ${randomWinner[0]}`,
-        );
-        day.shifts[shift] = randomWinner[0];
-        peopleOnCallToday.push(randomWinner[0]);
       }
     }
   }
@@ -70,8 +105,7 @@ export function inferSchedule(data: CallSchedule): CallSchedule {
   return data;
 }
 
-function rate(data: CallSchedule) {
-  const processed = processCallSchedule(data);
+function rate(_data: CallSchedule, processed: CallScheduleProcessed) {
   return processed.issueCounts.hard * 100 + processed.issueCounts.soft * 10;
 }
 
@@ -127,9 +161,22 @@ function isOnVacation(
   day: string,
 ): boolean {
   const vacations = data.vacations[person];
-  for (const vacationMonday of vacations) {
-    const vacationStart = nextDay(vacationMonday, -2);
-    const vacationEnd = nextDay(vacationMonday, 6);
+  for (const vacation of vacations) {
+    let vacationStart, vacationEnd;
+    if (typeof vacation == 'string') {
+      const vacationMonday = vacation;
+      vacationStart = nextDay(vacationMonday, -2);
+      vacationEnd = nextDay(vacationMonday, 6);
+    } else {
+      vacationStart = vacation.start;
+      vacationEnd = nextDay(vacationStart, vacation.length);
+      if (dateToDayOfWeek(vacationStart) == 'mon') {
+        vacationStart = nextDay(vacationStart, -2);
+      }
+      if (dateToDayOfWeek(vacationEnd) == 'fri') {
+        vacationEnd = nextDay(vacationEnd, 2);
+      }
+    }
     if (day >= vacationStart && day <= vacationEnd) {
       return true;
     }
@@ -170,6 +217,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       assigned: 0,
     },
     element2issueKind: {},
+    day2weekAndDay: {},
   };
 
   // Figure out where everyone is working
@@ -208,8 +256,12 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   }
 
   // Set isWorking to true for on-call
-  for (const week of data.weeks) {
-    for (const day of week.days) {
+  data.weeks.forEach((week, weekIndex) => {
+    week.days.forEach((day, dayIndex) => {
+      result.day2weekAndDay[day.date] = {
+        weekIndex,
+        dayIndex,
+      };
       for (const [s, person] of Object.entries(day.shifts)) {
         const shift = s as ShiftKind;
         if (person === '' || person === undefined) continue;
@@ -222,8 +274,8 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           info.isWorking = true;
         }
       }
-    }
-  }
+    });
+  });
 
   // Compute day2hospital2people
   for (const [day, person2info] of Object.entries(result.day2person2info)) {
