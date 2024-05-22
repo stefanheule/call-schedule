@@ -16,6 +16,7 @@ import {
   RotationKind,
   RotationSchedule,
   StoredCallSchedules,
+  VacationSchedule,
   Week,
 } from './shared/types';
 
@@ -36,6 +37,7 @@ import {
 import {
   assertCallSchedule,
   assertCallScheduleProcessed,
+  assertPerson,
 } from './shared/check-type.generated';
 import { storeStorage } from './storage';
 import fs from 'fs';
@@ -148,14 +150,46 @@ const people: {
   },
 };
 
-async function importRotationSchedule(): Promise<RotationSchedule> {
+async function importRotationSchedule(): Promise<
+  [RotationSchedule, VacationSchedule]
+> {
   const workSheetsFromFile = xlsx.parse(
-    `${__dirname}/../../input-files/ay25.xlsx`,
+    `${__dirname}/../../input-files/vacation scheduling.xlsx`,
   );
   const sheet = workSheetsFromFile[0];
 
   let rowIndex = 0;
 
+  const vacations: VacationSchedule = {
+    MAD: [],
+    DK: [],
+    LZ: [],
+    TW: [],
+    CP: [],
+    AA: [],
+    DC: [],
+    AJ: [],
+    // Manual split week config
+    MB: [
+      {
+        start: '2024-07-29',
+        length: 2,
+      },
+      {
+        start: '2024-09-11',
+        length: 3,
+      },
+    ],
+    RB: [],
+    MJ: [],
+    TM: [],
+    GN: [],
+    KO: [],
+    CPu: [],
+    NR: [],
+    LX: [],
+    CC: [],
+  };
   const result: RotationSchedule = {
     MAD: [],
     DK: [],
@@ -210,7 +244,20 @@ async function importRotationSchedule(): Promise<RotationSchedule> {
     ],
   };
 
-  for (rowIndex = 3; rowIndex < sheet.data.length; rowIndex += 1) {
+  // Import vacations
+  for (rowIndex = 0; rowIndex < 7; rowIndex += 1) {
+    for (let col = 3; col <= 3 + 52; col++) {
+      const startDay = nextDay('2024-07-01', (col - 3) * 7);
+      const per = sheet.data[rowIndex][1] as string;
+      if (per === undefined || per == '') continue;
+      if (per.includes('(S1)') || per.includes('(S2)')) continue;
+      const person = assertPerson(per.substring(0, -1));
+      vacations[person].push(startDay);
+    }
+  }
+
+  // Import rotations
+  for (rowIndex = 3 + 7; rowIndex < sheet.data.length; rowIndex += 1) {
     if (sheet.data[rowIndex][0] == 'Research') continue; // configured manually
     if (sheet.data[rowIndex][0] == 'U1-Intern') break;
     const per = sheet.data[rowIndex][1] as string;
@@ -255,7 +302,7 @@ async function importRotationSchedule(): Promise<RotationSchedule> {
       }
     }
   }
-  return result;
+  return [result, vacations];
 }
 
 async function importPreviousSchedule() {
@@ -535,7 +582,7 @@ async function importPreviousSchedule() {
       '2025-06-14': 'Graduation',
     },
     vacations: {
-      LZ: ['2024-07-08'],
+      LZ: [],
       MAD: [],
       DK: [],
       TW: [],
@@ -576,7 +623,7 @@ async function importPreviousSchedule() {
     },
   };
 
-  data.rotations = await importRotationSchedule();
+  [data.rotations, data.vacations] = await importRotationSchedule();
 
   {
     let sunday: IsoDate = '2024-06-30' as IsoDate;

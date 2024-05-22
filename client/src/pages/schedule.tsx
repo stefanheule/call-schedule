@@ -229,7 +229,9 @@ export function RenderCallSchedule() {
                   <Button
                     variant="outlined"
                     size="small"
-                    disabled={localData.unsavedChanges == 0}
+                    disabled={
+                      localData.unsavedChanges == 0 || data.isPublic === true
+                    }
                     onClick={() => {
                       setSaveName('');
                       setSaveDialogOpen(true);
@@ -1013,29 +1015,6 @@ function PersonPickerDialog() {
                 </Text>
                 <Column spacing="3px">
                   {people.map(person => (
-                    // <Text
-                    //   key={person.name}
-                    //   style={{
-                    //     cursor: 'pointer',
-                    //   }}
-                    //   onClick={() =>
-                    //     personPicker.handleDialogResult(person.name)
-                    //   }
-                    // >
-                    //   {person.name}
-                    // </Text>
-                    // <Button
-                    //   key={person.name}
-                    //   variant={
-                    //     personPicker.currentPerson === person.id
-                    //       ? 'contained'
-                    //       : 'outlined'
-                    //   }
-                    //   size="small"
-                    //   onClick={() => personPicker.handleDialogResult(person.id)}
-                    // >
-                    //   {person.name} ({person.id})
-                    // </Button>
                     <Row key={person.name}>
                       <RenderPerson
                         person={person.id}
@@ -1061,16 +1040,27 @@ function PersonPickerDialog() {
           spacing="10px"
         >
           <Button
-            variant="contained"
+            variant="outlined"
+            size="small"
             onClick={() => personPicker.setIsOpen(false)}
           >
             Cancel
           </Button>
           <Button
             variant="contained"
+            size="small"
             onClick={() => personPicker.handleDialogResult('')}
           >
-            Clear
+            Clear assigned person
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={() => {
+              personPicker.handleDialogResult('')
+            }}
+          >
+            Auto-assign
           </Button>
         </Row>
       </Column>

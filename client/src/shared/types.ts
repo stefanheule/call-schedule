@@ -143,10 +143,19 @@ export type Week = {
 };
 
 // Marks the start Monday
-export type Vacation = string;
+export type Vacation =
+  | string
+  | {
+      start: string;
+      length: number;
+    };
 
 export type RotationSchedule = {
   [Property in Person]: RotationConfig[];
+};
+
+export type VacationSchedule = {
+  [Property in Person]: Vacation[];
 };
 
 export type CallSchedule = {
@@ -170,9 +179,7 @@ export type CallSchedule = {
     [date: string]: string;
   };
 
-  vacations: {
-    [Property in Person]: Vacation[];
-  };
+  vacations: VacationSchedule;
 
   rotations: RotationSchedule;
 
@@ -255,6 +262,13 @@ export type CallScheduleProcessed = {
 
   callCounts: {
     [Property in Person]?: CallCount;
+  };
+
+  day2weekAndDay: {
+    [key: string]: {
+      dayIndex: number;
+      weekIndex: number;
+    };
   };
 };
 
