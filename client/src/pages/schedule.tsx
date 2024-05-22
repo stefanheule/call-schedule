@@ -180,6 +180,7 @@ export function RenderCallSchedule() {
                 {Array.from({ length: 53 }).map((_, i) => (
                   <Column key={i}>
                     <RenderWeek
+                      setWarningSnackbar={setCopyPasteSnackbar}
                       id={{ weekIndex: i }}
                       showRotations={showRotations}
                     />
@@ -457,9 +458,11 @@ function Highlight() {
 function RenderWeek({
   id,
   showRotations,
+  setWarningSnackbar,
 }: {
   id: WeekId;
   showRotations: boolean;
+  setWarningSnackbar: (v: string) => void;
 }) {
   const [data] = useData();
   const week = data.weeks[id.weekIndex];
@@ -476,6 +479,7 @@ function RenderWeek({
         <RenderDay
           id={{ ...id, dayIndex }}
           key={day.date}
+          setWarningSnackbar={setWarningSnackbar}
           showRotations={showRotations}
         />
       ))}
@@ -540,9 +544,11 @@ function RenderLegend({ showRotations }: { showRotations: boolean }) {
 function RenderDay({
   id,
   showRotations,
+  setWarningSnackbar,
 }: {
   id: DayId;
   showRotations: boolean;
+  setWarningSnackbar: (v: string) => void;
 }) {
   const [data] = useData();
   const day = data.weeks[id.weekIndex].days[id.dayIndex];
@@ -645,6 +651,7 @@ function RenderDay({
           .map(([shiftName]) => (
             <RenderShift
               id={{ ...id, shiftName: shiftName as ShiftKind }}
+              setWarningSnackbar={setWarningSnackbar}
               key={`${day.date}-${shiftName}`}
             />
           ))}
@@ -705,7 +712,13 @@ function RenderHospital({
   );
 }
 
-function RenderShift({ id }: { id: ShiftId }) {
+function RenderShift({
+  id,
+  setWarningSnackbar,
+}: {
+  id: ShiftId;
+  setWarningSnackbar: (v: string) => void;
+}) {
   const [data, setData] = useData();
   const [, setLocalData] = useLocalData();
   const day = data.weeks[id.weekIndex].days[id.dayIndex];
@@ -734,6 +747,9 @@ function RenderShift({ id }: { id: ShiftId }) {
       }}
       onClick={() => {
         personPicker.requestDialog(person => {
+          setWarningSnackbar(
+            `You won't be able to save your changes, this is a read-only version of the call schedule application`,
+          );
           const previous =
             data.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName];
           setData((d: CallSchedule) => {
