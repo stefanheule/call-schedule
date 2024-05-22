@@ -688,7 +688,7 @@ async function importPreviousSchedule() {
     data.holidays = {
       '2024-07-04': 'Indep. Day',
       '2024-09-02': 'Labor Day',
-      // '2024-10-14': 'Indigenous Ppl',
+      '2024-10-14': 'Indigenous Ppl',
       '2024-11-11': 'Veterans Day',
       '2024-11-28': 'Thanksgiving',
       '2024-11-29': 'Thanksgiving',
