@@ -170,7 +170,7 @@ async function importRotationSchedule(): Promise<
     DC: [],
     AJ: [],
     // Manual split week config
-    MB: [
+    KO: [
       {
         start: '2024-07-29',
         length: 2,
@@ -184,7 +184,7 @@ async function importRotationSchedule(): Promise<
     MJ: [],
     TM: [],
     GN: [],
-    KO: [],
+    MB: [],
     CPu: [],
     NR: [],
     LX: [],
@@ -248,10 +248,10 @@ async function importRotationSchedule(): Promise<
   for (rowIndex = 0; rowIndex < 7; rowIndex += 1) {
     for (let col = 3; col <= 3 + 52; col++) {
       const startDay = nextDay('2024-07-01', (col - 3) * 7);
-      const per = sheet.data[rowIndex][1] as string;
+      const per = sheet.data[rowIndex][col] as string;
       if (per === undefined || per == '') continue;
       if (per.includes('(S1)') || per.includes('(S2)')) continue;
-      const person = assertPerson(per.substring(0, -1));
+      const person = assertPerson(per.replace(/[0-9]/, '').replace('*', ''));
       vacations[person].push(startDay);
     }
   }
@@ -688,7 +688,7 @@ async function importPreviousSchedule() {
     data.holidays = {
       '2024-07-04': 'Indep. Day',
       '2024-09-02': 'Labor Day',
-      '2024-10-14': 'Indigenous Ppl',
+      // '2024-10-14': 'Indigenous Ppl',
       '2024-11-11': 'Veterans Day',
       '2024-11-28': 'Thanksgiving',
       '2024-11-29': 'Thanksgiving',
