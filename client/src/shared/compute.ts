@@ -375,6 +375,9 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     (day, _) => {
       for (const person of PEOPLE) {
         const today = assertNonNull(result.day2person2info[day][person]);
+        if (day == '2025-01-01' && person == 'MB') {
+          console.log(today);
+        }
         if (today.shifts.length <= 1) continue;
         // if (data.shiftConfigs[today.shift].days != 2) continue;
         // if (data.shiftConfigs[tomorrow.shift].days != 2) continue;
