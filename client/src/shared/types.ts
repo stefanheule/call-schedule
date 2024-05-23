@@ -60,6 +60,14 @@ export const EXTRA_ROTATIONS = [
 ] as const;
 export const ROTATIONS = [...HOSPITALS, ...EXTRA_ROTATIONS] as const;
 export type RotationKind = (typeof ROTATIONS)[number];
+export const NO_CALL_ROTATION = ['OFF', 'Alaska', 'NF'] as const;
+export type NoCallRotationKind = (typeof NO_CALL_ROTATION)[number];
+
+export function isNoCallRotation(
+  rotation: RotationKind,
+): rotation is NoCallRotationKind {
+  return NO_CALL_ROTATION.includes(rotation as NoCallRotationKind);
+}
 
 export function yearToString(year: Year): string {
   return mapEnum(year, {
@@ -221,6 +229,7 @@ export type DayPersonInfo = {
   shifts: {
     shift: ShiftKind;
     day: string;
+    isFakeEntry: boolean;
   }[];
 };
 
@@ -268,6 +277,17 @@ export type CallScheduleProcessed = {
     [key: string]: {
       dayIndex: number;
       weekIndex: number;
+    };
+  };
+
+  day2shift2unavailablePeople: {
+    [day: string]: {
+      [Property in ShiftKind]?: {
+        [Property in Person]?: {
+          reason: string;
+          soft: boolean;
+        };
+      };
     };
   };
 };

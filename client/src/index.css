@@ -13,9 +13,9 @@ code {
 }
 
 @keyframes blink {
-  0% { border-color: transparent; }
-  50% { border-color: red; background-color: #faa; }
-  100% { border-color: transparent; }
+  0% { opacity: 1; }
+  50% { opacity: 0.2; }
+  100% { opacity: 1; }
 }
 
 .blink-twice {
