@@ -1,8 +1,10 @@
 import {
+  IsoDate,
   assertNonNull,
   dateToIsoDatetime,
   isoDateToDate,
   mapEnumWithDefault,
+  sleep,
 } from 'check-type';
 import { Children, Column, ElementSpacer, Row } from '../common/flex';
 import { DefaultTextSize, Heading, Text } from '../common/text';
@@ -31,9 +33,18 @@ import React, {
   forwardRef,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react';
-import { Button, Dialog, TextField } from '@mui/material';
+import {
+  Button,
+  Dialog,
+  TextField,
+  Tooltip,
+  TooltipProps,
+  styled,
+  tooltipClasses,
+} from '@mui/material';
 import { WarningOutlined, ErrorOutlined } from '@mui/icons-material';
 import { elementIdForDay, elementIdForShift, nextDay } from '../shared/compute';
 import { Checkbox } from '@mui/material';
@@ -44,7 +55,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
 import { rpcSaveCallSchedules } from './rpc';
 import { LoadingIndicator } from '../common/loading';
-import { VList } from 'virtua';
+import { VList, VListHandle } from 'virtua';
+import DoNotDisturbIcon from '@mui/icons-material/DoNotDisturb';
 
 const DAY_SPACING = `2px`;
 
@@ -58,6 +70,7 @@ export function RenderCallSchedule() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const weekListRef = useRef<VListHandle>(null);
 
   useEffect(() => {
     window.onbeforeunload = confirmExit;
@@ -176,7 +189,7 @@ export function RenderCallSchedule() {
                   <ElementSpacer />
                 </Column>
               ))} */}
-              <VList style={{ height: '100%' }}>
+              <VList style={{ height: '100%' }} ref={weekListRef}>
                 {Array.from({ length: 53 }).map((_, i) => (
                   <Column key={i}>
                     <RenderWeek
@@ -342,7 +355,12 @@ export function RenderCallSchedule() {
                 {Object.entries(processed.issues)
                   .sort((a, b) => a[1].startDay.localeCompare(b[1].startDay))
                   .map(([id, issue]) => (
-                    <RuleViolation key={id} id={id} issue={issue} />
+                    <RuleViolation
+                      key={id}
+                      id={id}
+                      issue={issue}
+                      weekListRef={weekListRef}
+                    />
                   ))}
               </Column>
             </Column>
@@ -382,7 +400,16 @@ function RenderCallCounts() {
   );
 }
 
-function RuleViolation({ issue }: { id: string; issue: Issue }) {
+function RuleViolation({
+  issue,
+  weekListRef,
+}: {
+  id: string;
+  issue: Issue;
+  weekListRef: React.RefObject<VListHandle>;
+}) {
+  const processed = useProcessedData();
+  const weekIndex = processed.day2weekAndDay[issue.startDay].weekIndex;
   return (
     <Row
       spacing="5px"
@@ -393,10 +420,13 @@ function RuleViolation({ issue }: { id: string; issue: Issue }) {
         borderRadius: '5px',
         cursor: 'pointer',
       }}
-      onClick={() => {
+      onClick={async () => {
         const firstElement = document.getElementById(`day-${issue.startDay}`);
         if (firstElement) {
           firstElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          weekListRef.current?.scrollToIndex(weekIndex);
+          await sleep(100);
         }
         for (const element of issue.elements) {
           const el = document.getElementById(element);
@@ -730,6 +760,15 @@ function RenderShift({
   const processed = useProcessedData();
   const elId = elementIdForShift(day.date, id.shiftName);
   const hasIssue = processed.element2issueKind[elId];
+  // useEffect(() => {
+  //   if (day.date == '2024-07-04') {
+  //     personPicker.requestDialog(() => {}, {
+  //       currentPersonId: '',
+  //       day: day.date,
+  //       shift: id.shiftName,
+  //     });
+  //   }
+  // }, []);
   return (
     <Row
       id={elId}
@@ -748,31 +787,40 @@ function RenderShift({
         borderRadius: '3px',
       }}
       onClick={() => {
-        personPicker.requestDialog(person => {
-          setWarningSnackbar(
-            `You won't be able to save your changes, this is a read-only version of the call schedule application`,
-          );
-          const previous =
-            data.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName];
-          setData((d: CallSchedule) => {
-            d.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName] =
-              person;
-            return { ...d };
-          });
-          setLocalData((d: LocalData) => {
-            d.history.push({
-              previous,
-              next: person,
-              shift: id,
-            });
-            d.undoHistory = [];
-            if (d.unsavedChanges === 0) {
-              d.firstUnsavedChange = dateToIsoDatetime(new Date());
+        personPicker.requestDialog(
+          person => {
+            if (data.isPublic) {
+              setWarningSnackbar(
+                `You won't be able to save your changes, this is a read-only version of the call schedule application`,
+              );
             }
-            d.unsavedChanges += 1;
-            return { ...d };
-          });
-        }, personId);
+            const previous =
+              data.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName];
+            setData((d: CallSchedule) => {
+              d.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName] =
+                person;
+              return { ...d };
+            });
+            setLocalData((d: LocalData) => {
+              d.history.push({
+                previous,
+                next: person,
+                shift: id,
+              });
+              d.undoHistory = [];
+              if (d.unsavedChanges === 0) {
+                d.firstUnsavedChange = dateToIsoDatetime(new Date());
+              }
+              d.unsavedChanges += 1;
+              return { ...d };
+            });
+          },
+          {
+            currentPersonId: personId,
+            day: day.date,
+            shift: id.shiftName,
+          },
+        );
       }}
     >
       <Text>{name}</Text>
@@ -831,19 +879,28 @@ function shadeColor(color: string, percent: number) {
   return '#' + RR + GG + BB;
 }
 
-function RenderPerson({
-  person,
-  style,
-  large,
-  selected,
-  onClick,
-}: {
-  person: MaybePerson;
-  large?: boolean;
-  selected?: boolean;
-  style?: React.CSSProperties;
-  onClick?: () => void;
-}) {
+function omitFields<T extends object, K extends keyof T>(
+  obj: T,
+  fields: K[],
+): Omit<T, K> {
+  const result = { ...obj };
+  for (const field of fields) {
+    delete result[field];
+  }
+  return result;
+}
+
+const RenderPerson = React.forwardRef(function RenderPerson(
+  props: {
+    person: MaybePerson;
+    large?: boolean;
+    selected?: boolean;
+    style?: React.CSSProperties;
+    onClick?: () => void;
+  },
+  ref: React.Ref<HTMLDivElement>,
+) {
+  const { person, style, large, selected, onClick } = props;
   const [data] = useData();
   const [localData] = useLocalData();
   if (!person) {
@@ -851,12 +908,20 @@ function RenderPerson({
   }
   return (
     <ColorPill
+      {...omitFields(props, [
+        'large',
+        'onClick',
+        'person',
+        'selected',
+        'style',
+      ])}
       color={personToColor(data, person)}
       style={style}
       onClick={onClick}
       highlighted={
         selected === undefined ? localData.highlightedPeople[person] : selected
       }
+      ref={ref}
     >
       <Text
         style={{
@@ -871,17 +936,10 @@ function RenderPerson({
       </Text>
     </ColorPill>
   );
-}
+});
 
 export const ColorPill = forwardRef(function ColorPillImp(
-  {
-    color,
-    children,
-    more,
-    style,
-    onClick,
-    highlighted,
-  }: {
+  props: {
     color: string;
     size?: string;
     style?: React.CSSProperties;
@@ -891,8 +949,18 @@ export const ColorPill = forwardRef(function ColorPillImp(
   } & Children,
   ref: React.Ref<HTMLDivElement>,
 ): JSX.Element {
+  const { color, children, more, style, onClick, highlighted } = props;
   return (
     <div
+      {...omitFields(props, [
+        'children',
+        'color',
+        'highlighted',
+        'more',
+        'onClick',
+        'size',
+        'style',
+      ])}
       style={{
         ...style,
         backgroundColor: color,
@@ -912,15 +980,21 @@ export const ColorPill = forwardRef(function ColorPillImp(
   );
 });
 
+type PersonPickerConfig = {
+  currentPersonId: MaybePerson;
+  shift: ShiftKind;
+  day: IsoDate;
+};
+
 type PersonPickerType = {
   requestDialog: (
     callback: (person: MaybePerson) => void,
-    currentPersonId: MaybePerson,
+    config: PersonPickerConfig,
   ) => void;
   handleDialogResult: (person: MaybePerson) => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
-  currentPerson: MaybePerson;
+  config: PersonPickerConfig;
 };
 
 const PersonPickerContext = createContext<PersonPickerType | undefined>(
@@ -934,15 +1008,19 @@ export function usePersonPicker(): PersonPickerType {
 export const PersonPickerProvider = ({ children }: Children) => {
   const [isOpen, setIsOpen] = useState(false);
   const [onResult, setOnResult] = useState(() => (_: MaybePerson) => {});
-  const [currentPerson, setCurrentPerson] = useState<MaybePerson>('');
+  const [config, setConfig] = useState<PersonPickerConfig>({
+    currentPersonId: '',
+    shift: 'day_nwhsch',
+    day: '2024-05-23' as IsoDate,
+  });
 
   const requestDialog = (
     callback: (person: MaybePerson) => void,
-    currentPersonId: MaybePerson,
+    config: PersonPickerConfig,
   ) => {
     setIsOpen(true);
     setOnResult(() => callback);
-    setCurrentPerson(currentPersonId);
+    setConfig(config);
   };
 
   const handleDialogResult = (person: MaybePerson) => {
@@ -957,7 +1035,7 @@ export const PersonPickerProvider = ({ children }: Children) => {
         handleDialogResult,
         isOpen,
         setIsOpen,
-        currentPerson,
+        config,
       }}
     >
       {children}
@@ -985,9 +1063,26 @@ function getYearToPeople(
   return yearToPeople;
 }
 
+const LightTooltip = styled(({ className, ...props }: TooltipProps) => (
+  <Tooltip {...props} classes={{ popper: className }} />
+))(({ theme }) => ({
+  [`& .${tooltipClasses.tooltip}`]: {
+    backgroundColor: theme.palette.common.white,
+    color: 'rgba(0, 0, 0, 0.87)',
+    boxShadow: theme.shadows[1],
+    border: '1px solid #ccc',
+    fontSize: 15,
+  },
+}));
+
 function PersonPickerDialog() {
   const personPicker = usePersonPicker();
   const [data] = useData();
+  const processed = useProcessedData();
+  const config = personPicker.config;
+  const avail =
+    processed.day2shift2unavailablePeople?.[config.day]?.[config.shift];
+  const shiftConfig = data.shiftConfigs[config.shift];
 
   const yearToPeople = getYearToPeople(data);
   return (
@@ -1001,6 +1096,9 @@ function PersonPickerDialog() {
       onClose={() => personPicker.setIsOpen(false)}
     >
       <Column style={{ padding: '20px' }}>
+        <Heading>
+          {shiftConfig.name} on {config.day}
+        </Heading>
         <Row crossAxisAlignment="start">
           {Object.entries(yearToPeople).map(([year, people]) =>
             people.length == 0 ? null : (
@@ -1014,21 +1112,60 @@ function PersonPickerDialog() {
                   {yearToString(year as Year)}
                 </Text>
                 <Column spacing="3px">
-                  {people.map(person => (
-                    <Row key={person.name}>
+                  {people.map(person => {
+                    const unavailable = avail?.[person.id];
+
+                    const renderedPerson = (
                       <RenderPerson
                         person={person.id}
                         large
                         style={{
                           cursor: 'pointer',
+                          opacity: !unavailable
+                            ? undefined
+                            : unavailable.soft
+                              ? 0.5
+                              : 0.3,
                         }}
-                        selected={personPicker.currentPerson === person.id}
+                        selected={
+                          personPicker.config.currentPersonId === person.id
+                        }
                         onClick={() =>
                           personPicker.handleDialogResult(person.id)
                         }
                       />
-                    </Row>
-                  ))}
+                    );
+                    return (
+                      <Row
+                        key={person.name}
+                        crossAxisAlignment="center"
+                        spacing={'2px'}
+                      >
+                        <DoNotDisturbIcon
+                          sx={{
+                            color: !unavailable
+                              ? 'white'
+                              : unavailable.soft
+                                ? WARNING_COLOR
+                                : ERROR_COLOR,
+                            fontSize: 15,
+                          }}
+                        />
+                        {unavailable && (
+                          <LightTooltip
+                            title={unavailable.reason}
+                            style={{
+                              fontSize: '20px',
+                            }}
+                            enterDelay={500}
+                          >
+                            {renderedPerson}
+                          </LightTooltip>
+                        )}
+                        {!unavailable && renderedPerson}
+                      </Row>
+                    );
+                  })}
                 </Column>
               </Column>
             ),
@@ -1057,7 +1194,7 @@ function PersonPickerDialog() {
             variant="contained"
             size="small"
             onClick={() => {
-              personPicker.handleDialogResult('')
+              personPicker.handleDialogResult('');
             }}
           >
             Auto-assign

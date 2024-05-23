@@ -14,6 +14,7 @@ import {
   StoredCallSchedule,
   WEEKDAY_SHIFTS,
   WEEKEND_SHIFTS,
+  isNoCallRotation,
 } from './types';
 import { assertIsoDate } from './check-type.generated';
 import * as datefns from 'date-fns';
@@ -218,6 +219,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     },
     element2issueKind: {},
     day2weekAndDay: {},
+    day2shift2unavailablePeople: {},
   };
 
   // Figure out where everyone is working
@@ -273,6 +275,22 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           if (i == 0) info.shift = shift;
           info.isWorking = true;
         }
+
+        // Almost all shifts are at least 2 days, but there are some holiday day shifts.
+        // To make sure we don't let people be on day shift and then on call again the next day,
+        // we just pretend day shifts are 2 days also.
+        for (let i = 0; i < Math.max(2, shiftConfig.days); i++) {
+          const nextD = nextDay(day.date, i);
+          if (nextD > data.lastDay) break;
+          const nextDayInfo = assertNonNull(
+            result.day2person2info[nextD][person],
+          );
+          nextDayInfo.shifts.push({
+            shift: shift,
+            day: day.date,
+            isFakeEntry: i >= shiftConfig.days,
+          });
+        }
       }
     });
   });
@@ -291,28 +309,71 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   }
 
-  // Collect multi-day shifts
-  forEveryDay(data, (day, _) => {
-    for (const person of PEOPLE) {
-      const today = assertNonNull(result.day2person2info[day][person]);
-      if (!today.shift) continue;
-      const shiftConfig = data.shiftConfigs[today.shift];
-      // Almost all shifts are at least 2 days, but there are some holiday day shifts.
-      // To make sure we don't let people be on day shift and then on call again the next day,
-      // we just pretend day shifts are 2 days also.
-      for (let i = 0; i < Math.max(2, shiftConfig.days); i++) {
-        const nextD = nextDay(day, i);
-        if (nextD > data.lastDay) break;
-        const nextDayInfo = assertNonNull(
-          result.day2person2info[nextD][person],
-        );
-        nextDayInfo.shifts.push({
-          shift: today.shift,
-          day,
-        });
+  // Compute who can take a shift potentially
+  for (const week of data.weeks) {
+    for (const day of week.days) {
+      if (day.date > data.lastDay || day.date < data.firstDay) continue;
+      result.day2shift2unavailablePeople[day.date] = {};
+      for (const s of Object.keys(day.shifts)) {
+        const shift = s as ShiftKind;
+        const shiftConfig = data.shiftConfigs[shift];
+        const unavailablePeople: {
+          [Property in Person]?: {
+            reason: string;
+            soft: boolean;
+          };
+        } = {};
+        result.day2shift2unavailablePeople[day.date][shift] = unavailablePeople;
+        for (const person of PEOPLE) {
+          let hardReason = undefined;
+          for (let i = 0; i < shiftConfig.days; i++) {
+            const nextD = nextDay(day.date, i);
+            if (nextD > data.lastDay || nextD < data.firstDay) continue;
+            const info = assertNonNull(result.day2person2info[nextD][person]);
+            const otherShifts = info.shifts.filter(s => !s.isFakeEntry);
+            if (info.onVacation) {
+              hardReason = `on vacation`;
+              break;
+            } else if (isNoCallRotation(info.rotation)) {
+              hardReason = `is on ${info.rotation}`;
+              break;
+            } else if (otherShifts.length > 0) {
+              hardReason = `already on call for ${otherShifts
+                .map(s => shiftName(s.shift) + ' on ' + s.day)
+                .join(', ')}`;
+              break;
+            }
+          }
+
+          if (hardReason) {
+            unavailablePeople[person] = {
+              reason: hardReason,
+              soft: false,
+            };
+          } else {
+            const info = assertNonNull(
+              result.day2person2info[day.date][person],
+            );
+            if (
+              !isNoCallRotation(info.rotation) &&
+              info.rotation !== 'Research'
+            ) {
+              const rotationHospitals: HospitalKind[] =
+                info.rotation == 'Andro' ? ['UW', 'NWH'] : [info.rotation];
+              if (
+                shiftConfig.hospitals.every(c => !rotationHospitals.includes(c))
+              ) {
+                unavailablePeople[person] = {
+                  reason: `cross-coverage: working at ${info.rotation}`,
+                  soft: true,
+                };
+              }
+            }
+          }
+        }
       }
     }
-  });
+  }
 
   function shiftName(info: DayPersonInfo | ShiftKind): string {
     if (typeof info == 'string') return data.shiftConfigs[info].name;
@@ -324,21 +385,19 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   forEveryDay(data, (day, _) => {
     for (const person of PEOPLE) {
       const today = assertNonNull(result.day2person2info[day][person]);
-      if (!today.shift) continue;
-      if (
-        today.rotation == 'Alaska' ||
-        today.rotation == 'NF' ||
-        today.rotation == 'OFF'
-      ) {
-        result.issues[generateIssueKey()] = {
-          kind: 'rotation-without-call',
-          startDay: day,
-          message: `No call during ${
-            today.rotation
-          }: ${person} is on call for ${shiftName(today)}.`,
-          isHard: true,
-          elements: [elementIdForShift(day, today.shift)],
-        };
+      if (!today.shifts) continue;
+      if (isNoCallRotation(today.rotation) || today.onVacation) {
+        for (const shift of today.shifts) {
+          result.issues[generateIssueKey()] = {
+            kind: 'rotation-without-call',
+            startDay: day,
+            message: `No call during ${
+              today.onVacation ? 'vacation' : today.rotation
+            }: ${person} is on call for ${shiftName(shift.shift)}.`,
+            isHard: true,
+            elements: [elementIdForShift(shift.day, shift.shift)],
+          };
+        }
       }
     }
   });
@@ -375,9 +434,6 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     (day, _) => {
       for (const person of PEOPLE) {
         const today = assertNonNull(result.day2person2info[day][person]);
-        if (day == '2025-01-01' && person == 'MB') {
-          console.log(today);
-        }
         if (today.shifts.length <= 1) continue;
         // if (data.shiftConfigs[today.shift].days != 2) continue;
         // if (data.shiftConfigs[tomorrow.shift].days != 2) continue;
