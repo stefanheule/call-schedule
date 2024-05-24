@@ -8,9 +8,12 @@ import {
   ISSUE_KINDS_HARD,
   ISSUE_KINDS_SOFT,
   Person,
+  SPECIAL_SHIFTS,
   ShiftKind,
   StoredCallSchedule,
   UnavailablePeople,
+  WEEKDAY_SHIFTS,
+  WEEKEND_SHIFTS,
   isNoCallRotation,
 } from './types';
 import { assertIsoDate } from './check-type.generated';

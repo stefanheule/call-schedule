@@ -15,8 +15,11 @@ import {
   ROTATIONS,
   RotationKind,
   RotationSchedule,
+  SPECIAL_SHIFTS,
   ShiftKind,
   VacationSchedule,
+  WEEKDAY_SHIFTS,
+  WEEKEND_SHIFTS,
   Week,
 } from './shared/types';
 
@@ -799,6 +802,30 @@ async function importPreviousSchedule() {
       // };
     }
   }
+
+  // Calculate call targets
+  let totalWeekday = 0;
+  let totalWeekend = 0;
+  for (const week of data.weeks) {
+    for (const day of week.days) {
+      for (const [s, person] of Object.entries(day.shifts)) {
+        const shift = s as ShiftKind;
+        const shiftAssigned = person !== '' && person !== undefined;
+        if ((SPECIAL_SHIFTS as readonly string[]).includes(shift)) {
+        } else if ((WEEKDAY_SHIFTS as readonly string[]).includes(shift)) {
+          totalWeekday += 1;
+        } else if ((WEEKEND_SHIFTS as readonly string[]).includes(shift)) {
+          totalWeekend += 1;
+        } else {
+          throw new Error(`unexpected shift: ${shift}`);
+        }
+      }
+    }
+  }
+  console.log({
+    totalWeekday,
+    totalWeekend,
+  });
 
   const processed = processCallSchedule(data);
 
