@@ -51,6 +51,7 @@ import {
   elementIdForShift,
   inferShift,
   nextDay,
+  rate,
 } from '../shared/compute';
 import { Checkbox } from '@mui/material';
 import { useHotkeys } from 'react-hotkeys-hook';
@@ -765,15 +766,15 @@ function RenderShift({
   const processed = useProcessedData();
   const elId = elementIdForShift(day.date, id.shiftName);
   const hasIssue = processed.element2issueKind[elId];
-  // useEffect(() => {
-  //   if (day.date == '2024-07-04') {
-  //     personPicker.requestDialog(() => {}, {
-  //       currentPersonId: '',
-  //       day: day.date,
-  //       shift: id.shiftName,
-  //     });
-  //   }
-  // }, []);
+  useEffect(() => {
+    if (day.date == '2024-07-04') {
+      personPicker.requestDialog(() => {}, {
+        currentPersonId: '',
+        day: day.date,
+        shift: id.shiftName,
+      });
+    }
+  }, []);
   return (
     <Row
       id={elId}
@@ -1087,6 +1088,7 @@ function PersonPickerDialog() {
   const config = personPicker.config;
   const shiftConfig = data.shiftConfigs[config.shift];
   const inference = inferShift(data, processed, config.day, config.shift);
+  const initialRating = rate(data, processed);
 
   const yearToPeople = getYearToPeople(data);
   const buttonWidth = 200;
@@ -1100,14 +1102,18 @@ function PersonPickerDialog() {
       maxWidth="xl"
       onClose={() => personPicker.setIsOpen(false)}
     >
-      <Column style={{ padding: '20px' }}>
+      <Column style={{ padding: '20px' }} spacing="10px">
         <Heading>
           {shiftConfig.name} on {config.day}
         </Heading>
         <Row crossAxisAlignment="start">
           {Object.entries(yearToPeople).map(([year, people]) =>
             people.length == 0 ? null : (
-              <Column key={year} style={{ marginRight: '20px' }}>
+              <Column
+                key={year}
+                style={{ marginRight: '20px', width: '110px' }}
+                crossAxisAlignment="end"
+              >
                 <Text
                   style={{
                     fontWeight: 'bold',
@@ -1140,12 +1146,18 @@ function PersonPickerDialog() {
                         }
                       />
                     );
+                    const rating = inference.best?.ratings?.[person.id]?.rating;
                     return (
-                      <Row
-                        key={person.name}
-                        crossAxisAlignment="center"
-                        spacing={'2px'}
-                      >
+                      <Row key={person.name} spacing={'2px'}>
+                        {rating && (
+                          <Text
+                            style={{
+                              fontSize: '12px',
+                            }}
+                          >
+                            {rating - initialRating}
+                          </Text>
+                        )}
                         <DoNotDisturbIcon
                           sx={{
                             color: !unavailable

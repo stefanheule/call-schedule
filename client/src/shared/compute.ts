@@ -45,16 +45,22 @@ export type InferenceResult = {
   best?: {
     person: Person;
     processed: CallScheduleProcessed;
+    ratings: {
+      [Property in Person]?: {
+        rating: number;
+        processed: CallScheduleProcessed;
+      };
+    };
   };
   unavailablePeople: UnavailablePeople;
-}
+};
 
 export function inferShift(
   data: CallSchedule,
   processed: CallScheduleProcessed,
   date: IsoDate,
   shift: ShiftKind,
-  config?: { enableLog?: boolean, skipUnavailablePeople?: boolean },
+  config?: { enableLog?: boolean; skipUnavailablePeople?: boolean },
 ): InferenceResult {
   const dayAndWeek = processed.day2weekAndDay[date];
   const unavailablePeople =
@@ -75,21 +81,20 @@ export function inferShift(
     return empty;
   }
 
-  const person2rating = new Map<
-    Person,
-    {
+  const person2rating: {
+    [Property in Person]?: {
       rating: number;
       processed: CallScheduleProcessed;
-    }
-  >();
+    };
+  } = {};
   const oldPerson = day.shifts[shift];
   for (const p of people) {
     day.shifts[shift] = p;
     const processed2 = processCallSchedule(data);
-    person2rating.set(p, {
+    person2rating[p] = {
       rating: rate(data, processed2),
       processed: processed2,
-    });
+    };
 
     // Compute unavailablePeople
     if (config?.skipUnavailablePeople !== true) {
@@ -114,9 +119,9 @@ export function inferShift(
   }
   day.shifts[shift] = oldPerson;
   const min = Math.min(
-    ...Array.from(person2rating.values()).map(x => x.rating),
+    ...Array.from(Object.values(person2rating)).map(x => x.rating),
   );
-  const best = Array.from(person2rating.entries()).filter(
+  const best = Object.entries(person2rating).filter(
     ([, v]) => v.rating === min,
   );
   const randomWinner = best[Math.floor(Math.random() * best.length)];
@@ -127,8 +132,9 @@ export function inferShift(
   }
   return {
     best: {
-      person: randomWinner[0],
+      person: randomWinner[0] as Person,
       processed: randomWinner[1].processed,
+      ratings: person2rating,
     },
     unavailablePeople,
   };
@@ -155,7 +161,7 @@ export function inferSchedule(data: CallSchedule): CallSchedule {
   return data;
 }
 
-function rate(_data: CallSchedule, processed: CallScheduleProcessed) {
+export function rate(_data: CallSchedule, processed: CallScheduleProcessed) {
   return processed.issueCounts.hard * 100 + processed.issueCounts.soft * 10;
 }
 
