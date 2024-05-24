@@ -18,6 +18,7 @@ import {
 } from './types';
 import { assertIsoDate } from './check-type.generated';
 import * as datefns from 'date-fns';
+import { dateToIsoDate, isoDateToDate } from './optimized';
 
 export function clearSchedule(data: CallSchedule): CallSchedule {
   for (const week of data.weeks) {
@@ -140,58 +141,34 @@ export function elementIdForShift(date: string, shift: ShiftKind): string {
   return `shift-${shift}-on-day-${date}`;
 }
 
-function isoDateToDate(date: IsoDate): Date {
-  const parts = date.split('-').map(x => parseInt(x));
-  return new Date(parts[0], parts[1] - 1, parts[2]);
-}
+// function isoDateToDate(date: IsoDate): Date {
+//   const parts = date.split('-').map(x => parseInt(x));
+//   return new Date(parts[0], parts[1] - 1, parts[2]);
+// }
 
-function dateToIsoDate(date: Date): IsoDate {
-  return `${date.getFullYear()}-${date.getMonth() + 1 > 9 ? '' : '0'}${
-    date.getMonth() + 1
-  }-${date.getDate() > 9 ? '' : '0'}${date.getDate()}` as IsoDate;
-}
+// function dateToIsoDate(date: Date): IsoDate {
+//   return `${date.getFullYear()}-${date.getMonth() + 1 > 9 ? '' : '0'}${
+//     date.getMonth() + 1
+//   }-${date.getDate() > 9 ? '' : '0'}${date.getDate()}` as IsoDate;
+// }
 
-export function nextDay(day: string | Date, n: number = 1): IsoDate {
-  if (typeof day === 'string') {
-    day = isoDateToDate(assertIsoDate(day));
+const _nextDayCache: Record<string, Record<number, IsoDate>> = {};
+export function nextDay(day: string, n: number = 1): IsoDate {
+  if (day in _nextDayCache && n in _nextDayCache[day]) {
+    return _nextDayCache[day][n];
   }
-  const next = new Date(day);
+  const date = isoDateToDate(day as IsoDate);
+  const next = new Date(date);
   next.setDate(next.getDate() + n);
-  return dateToIsoDate(next);
+  const result = dateToIsoDate(next);
+  if (!(day in _nextDayCache)) _nextDayCache[day] = {};
+  _nextDayCache[day][n] = result;
+  return result;
 }
 
 function isWeekday(day: string): boolean {
-  const date = isoDateToDate(assertIsoDate(day));
+  const date = isoDateToDate(day as IsoDate);
   return date.getDay() != 0 && date.getDay() != 6;
-}
-
-function isOnVacation(
-  data: CallSchedule,
-  person: Person,
-  day: string,
-): boolean {
-  const vacations = data.vacations[person];
-  for (const vacation of vacations) {
-    let vacationStart, vacationEnd;
-    if (typeof vacation == 'string') {
-      const vacationMonday = vacation;
-      vacationStart = nextDay(vacationMonday, -2);
-      vacationEnd = nextDay(vacationMonday, 6);
-    } else {
-      vacationStart = vacation.start;
-      vacationEnd = nextDay(vacationStart, vacation.length);
-      if (dateToDayOfWeek(vacationStart) == 'mon') {
-        vacationStart = nextDay(vacationStart, -2);
-      }
-      if (dateToDayOfWeek(vacationEnd) == 'fri') {
-        vacationEnd = nextDay(vacationEnd, 2);
-      }
-    }
-    if (day >= vacationStart && day <= vacationEnd) {
-      return true;
-    }
-  }
-  return false;
 }
 
 export function dateToDayOfWeek(
@@ -248,7 +225,6 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
               rotation: 'OFF' as const,
               chief: false,
             };
-      const onVacation = isOnVacation(data, person, day);
       result.day2person2info[day] = result.day2person2info[day] || {};
       const dayInfo = result.day2person2info[day];
       dayInfo[person] = {
@@ -256,13 +232,40 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         rotationDetails: {
           chief: rotation.chief,
         },
-        onVacation,
-        isWorking: isWeekday(day) && !onVacation,
+        onVacation: false,
+        isWorking: isWeekday(day),
         shifts: [],
       };
 
       if (day == data.lastDay) break;
       day = nextDay(day);
+    }
+  }
+
+  // Compute vacations
+  for (const [person, vacations] of Object.entries(data.vacations)) {
+    for (const vacation of vacations) {
+      let vacationStart, vacationEnd;
+      if (typeof vacation == 'string') {
+        const vacationMonday = vacation;
+        vacationStart = nextDay(vacationMonday, -2);
+        vacationEnd = nextDay(vacationMonday, 6);
+      } else {
+        vacationStart = vacation.start;
+        vacationEnd = nextDay(vacationStart, vacation.length);
+        if (dateToDayOfWeek(vacationStart) == 'mon') {
+          vacationStart = nextDay(vacationStart, -2);
+        }
+        if (dateToDayOfWeek(vacationEnd) == 'fri') {
+          vacationEnd = nextDay(vacationEnd, 2);
+        }
+      }
+      for (let day = vacationStart; day <= vacationEnd; day = nextDay(day)) {
+        const dayInfo = assertNonNull(result.day2person2info[day]);
+        const personInfo = assertNonNull(dayInfo[person as Person]);
+        personInfo.onVacation = true;
+        personInfo.isWorking = false;
+      }
     }
   }
 
@@ -760,7 +763,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   }
 
-  if (1 == 2 + 1) {
+  if (1 == 2 + 1 - 2) {
     console.log('Processing took', Date.now() - start, 'ms');
   }
   return result;
@@ -775,14 +778,11 @@ function forEveryDay(
   callback: (day: IsoDate, date: Date) => void,
   stopNDaysBeforeEnd?: number,
 ) {
-  let day = assertIsoDate(data.firstDay);
-  const lastDate = isoDateToDate(assertIsoDate(data.lastDay));
+  if (stopNDaysBeforeEnd === undefined) stopNDaysBeforeEnd = 0;
+  let day = data.firstDay as IsoDate;
   while (true) {
-    const date = isoDateToDate(assertIsoDate(day));
-    if (datefns.isAfter(date, lastDate)) break;
-    if (stopNDaysBeforeEnd) {
-      if (nextDay(day, stopNDaysBeforeEnd) > data.lastDay) break;
-    }
+    const date = isoDateToDate(day);
+    if (nextDay(day, stopNDaysBeforeEnd) > data.lastDay) break;
     callback(day, date);
     day = nextDay(day);
   }
