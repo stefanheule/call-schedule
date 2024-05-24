@@ -384,7 +384,7 @@ function collectHolidayCall(
   data: CallSchedule,
   processed: CallScheduleProcessed,
 ): string {
-  const result = [];
+  const result: string[] = [];
   for (const day in data.holidays) {
     const dayInfo = processed.day2person2info[day];
     if (dayInfo && dayInfo[person]) {
