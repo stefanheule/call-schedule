@@ -91,6 +91,22 @@ export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 
 export type CallPool = 'north' | 'uw' | 'south';
 
+export const CALL_POOL: Person[] = [
+  'MAD',
+  'AA',
+  'DC',
+  'AJ',
+  'LX',
+  'CC',
+  'MB',
+  'RB',
+  'MJ',
+  'TM',
+  'GN',
+  'KO',
+  'CPu',
+  'NR',
+];
 export const ALL_PEOPLE = [
   'MAD',
   'DK',
@@ -282,14 +298,18 @@ export type CallScheduleProcessed = {
 
   day2shift2unavailablePeople: {
     [day: string]: {
-      [Property in ShiftKind]?: {
-        [Property in Person]?: {
-          reason: string;
-          soft: boolean;
-        };
-      };
+      [Property in ShiftKind]?: UnavailablePeople;
     };
   };
+};
+
+export type UnavailablePeople = {
+  [Property in Person]?: UnavailableReason;
+};
+
+export type UnavailableReason = {
+  reason: string;
+  soft: boolean;
 };
 
 export type CallCount = {

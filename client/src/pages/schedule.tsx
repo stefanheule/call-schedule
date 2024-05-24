@@ -25,6 +25,7 @@ import {
   RotationDetails,
   Hospital2People,
   SHIFT_ORDER,
+  UnavailablePeople,
 } from '../shared/types';
 import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
@@ -46,7 +47,13 @@ import {
   tooltipClasses,
 } from '@mui/material';
 import { WarningOutlined, ErrorOutlined } from '@mui/icons-material';
-import { elementIdForDay, elementIdForShift, nextDay } from '../shared/compute';
+import {
+  availablePeopleForShift,
+  elementIdForDay,
+  elementIdForShift,
+  nextDay,
+  processCallSchedule,
+} from '../shared/compute';
 import { Checkbox } from '@mui/material';
 import { useHotkeys } from 'react-hotkeys-hook';
 import Snackbar from '@mui/material/Snackbar';
@@ -57,6 +64,7 @@ import { rpcSaveCallSchedules } from './rpc';
 import { LoadingIndicator } from '../common/loading';
 import { VList, VListHandle } from 'virtua';
 import DoNotDisturbIcon from '@mui/icons-material/DoNotDisturb';
+import { useAsync } from '../common/hooks';
 
 const DAY_SPACING = `2px`;
 
@@ -1080,9 +1088,69 @@ function PersonPickerDialog() {
   const [data] = useData();
   const processed = useProcessedData();
   const config = personPicker.config;
-  const avail =
-    processed.day2shift2unavailablePeople?.[config.day]?.[config.shift];
   const shiftConfig = data.shiftConfigs[config.shift];
+  // const [avail, setAvail] = useState({
+  //   ...processed.day2shift2unavailablePeople?.[config.day]?.[config.shift],
+  // });
+  // const avail = {
+  //   ...processed.day2shift2unavailablePeople?.[config.day]?.[config.shift],
+  // }
+  const [avail, setAvail] = useState<UnavailablePeople>({});
+  useEffect(() => {
+    if (personPicker.isOpen) {
+      setAvail({
+        ...processed.day2shift2unavailablePeople?.[config.day]?.[config.shift],
+      });
+    }
+  }, [config.day, config.shift, personPicker.isOpen]);
+
+  // Compute who can't take the shift
+  useAsync(
+    async isMounted => {
+      if (!personPicker.isOpen) return;
+      setTimeout(() => {
+        const avail: UnavailablePeople = {};
+        const people: Person[] = availablePeopleForShift(
+          processed,
+          config.day,
+          config.shift,
+        );
+        const lookup = processed.day2weekAndDay[config.day];
+        if (lookup) {
+          const day = data.weeks[lookup.weekIndex].days[lookup.dayIndex];
+          const oldPerson = day.shifts[config.shift];
+          for (const p of people) {
+            day.shifts[config.shift] = p;
+            const processed2 = processCallSchedule(data);
+            if (processed2.issueCounts.hard > processed.issueCounts.hard) {
+              avail[p] = {
+                soft: false,
+                reason: 'Hard rule violation',
+              };
+            } else if (
+              processed2.issueCounts.hard == processed.issueCounts.hard &&
+              processed2.issueCounts.soft > processed.issueCounts.soft
+            ) {
+              avail[p] = {
+                soft: true,
+                reason: 'Soft rule violation',
+              };
+            }
+          }
+          day.shifts[config.shift] = oldPerson;
+          if (isMounted.current) {
+            setAvail(old => {
+              return {
+                ...old,
+                ...avail,
+              };
+            });
+          }
+        }
+      }, 0);
+    },
+    [config.day, config.shift, personPicker.isOpen],
+  );
 
   const yearToPeople = getYearToPeople(data);
   return (
