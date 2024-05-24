@@ -1,6 +1,6 @@
 import { IsoDate, assertNonNull, dateToIsoDatetime, uuid } from 'check-type';
 import {
-  ALL_PEOPLE,
+  CALL_POOL,
   CallSchedule,
   CallScheduleProcessed,
   DayPersonInfo,
@@ -30,6 +30,20 @@ export function clearSchedule(data: CallSchedule): CallSchedule {
   return data;
 }
 
+export function availablePeopleForShift(
+  processed: CallScheduleProcessed,
+  date: IsoDate,
+  shift: ShiftKind,
+): Person[] {
+  const unavailablePeople =
+    processed.day2shift2unavailablePeople?.[date]?.[shift];
+  if (!unavailablePeople) return CALL_POOL;
+  return CALL_POOL.filter(
+    p =>
+      unavailablePeople[p] == undefined || unavailablePeople[p]?.soft === false,
+  );
+}
+
 export function inferShift(
   data: CallSchedule,
   processed: CallScheduleProcessed,
@@ -37,14 +51,9 @@ export function inferShift(
   shift: ShiftKind,
   config?: { enableLog?: boolean },
 ): [MaybePerson, CallScheduleProcessed] {
-  const dayInfo = processed.day2person2info[date];
   const dayAndWeek = processed.day2weekAndDay[date];
   const day = data.weeks[dayAndWeek.weekIndex].days[dayAndWeek.dayIndex];
-  const people: Person[] = ALL_PEOPLE.filter(p => {
-    const info = assertNonNull(dayInfo[p]);
-    const year = data.people[p].year;
-    return !info.onVacation && year !== 'C' && year != '1';
-  });
+  const people: Person[] = availablePeopleForShift(processed, date, shift);
 
   if (people.length == 0) {
     if (config?.enableLog) {
@@ -718,7 +727,6 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       const dayOfWeek = dateToDayOfWeek(day);
       if (info.rotation == 'NF' && dayOfWeek != 'fri' && dayOfWeek != 'sun') {
         callCount.nf += 1;
-        // if (p === 'MAD') console.log(day);
       }
     }
   }
