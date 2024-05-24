@@ -25,6 +25,7 @@ import {
   RotationDetails,
   Hospital2People,
   SHIFT_ORDER,
+  CallScheduleProcessed,
 } from '../shared/types';
 import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
@@ -378,30 +379,77 @@ export function RenderCallSchedule() {
   );
 }
 
+function collectHolidayCall(
+  person: Person,
+  data: CallSchedule,
+  processed: CallScheduleProcessed,
+): string {
+  const result = [];
+  for (const day in data.holidays) {
+    const dayInfo = processed.day2person2info[day];
+    if (dayInfo && dayInfo[person]) {
+      const dayPersonInfo = dayInfo[person];
+      for (const shift of dayPersonInfo?.shifts || []) {
+        if (shift.isFakeEntry) continue;
+        result.push(`${shift.shift} on ${day} (${data.holidays[day]})`);
+      }
+    }
+  }
+  if (result.length == 0) return `none`;
+  return `${result.length}: ${result.join(', ')}`;
+}
+
 function RenderCallCounts() {
   const processed = useProcessedData();
   const [data] = useData();
+  const [holiday, setHoliday] = useState(true);
   return (
     <Column>
-      <Heading>Call counts</Heading>
-      <Column>
-        {Object.entries(processed.callCounts)
-          .filter(([person]) => data.people[person as Person].year != 'C')
-          .map(([person, counts]) => (
-            <Row key={person} spacing={'5px'}>
-              <RenderPerson
-                person={person as Person}
-                style={{
-                  width: '23px',
-                }}
-              />
-              <Text>
-                {counts.weekday} weekday / {counts.weekend} weekend /{' '}
-                {counts.holiday} holiday / {counts.nf} NF
-              </Text>
-            </Row>
-          ))}
-      </Column>
+      <Row>
+        <Heading>Call counts</Heading>
+        <ElementSpacer />
+        <Checkbox checked={holiday} onChange={() => setHoliday(!holiday)} />
+        <Text>Show holiday call counts?</Text>
+      </Row>
+      {holiday && (
+        <Column>
+          {Object.entries(processed.callCounts)
+            .filter(([person]) => data.people[person as Person].year != 'C')
+            .map(([person, counts]) => (
+              <Row key={person} spacing={'5px'}>
+                <RenderPerson
+                  person={person as Person}
+                  style={{
+                    width: '23px',
+                  }}
+                />
+                <Text>
+                  {collectHolidayCall(person as Person, data, processed)}
+                </Text>
+              </Row>
+            ))}
+        </Column>
+      )}
+      {!holiday && (
+        <Column>
+          {Object.entries(processed.callCounts)
+            .filter(([person]) => data.people[person as Person].year != 'C')
+            .map(([person, counts]) => (
+              <Row key={person} spacing={'5px'}>
+                <RenderPerson
+                  person={person as Person}
+                  style={{
+                    width: '23px',
+                  }}
+                />
+                <Text>
+                  {counts.weekday} weekday / {counts.weekend} weekend /{' '}
+                  {counts.nf} NF
+                </Text>
+              </Row>
+            ))}
+        </Column>
+      )}
     </Column>
   );
 }

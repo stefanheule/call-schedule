@@ -17,13 +17,19 @@ export function storeStorage(storage: StoredCallSchedules): void {
   fs.writeFileSync(STORAGE_LOCATION, JSON.stringify(storage, null, 2));
 }
 
-export function loadStorage(): StoredCallSchedules {
+export function loadStorage(config?: {
+  noCheck?: boolean;
+}): StoredCallSchedules {
   if (!fs.existsSync(STORAGE_LOCATION)) {
     return {
       versions: [],
     };
   }
-  return assertStoredCallSchedules(
-    JSON.parse(fs.readFileSync(STORAGE_LOCATION, 'utf8')),
-  );
+  const result = JSON.parse(
+    fs.readFileSync(STORAGE_LOCATION, 'utf8'),
+  ) as unknown;
+  if (config?.noCheck) {
+    return result as StoredCallSchedules;
+  }
+  return assertStoredCallSchedules(result);
 }

@@ -24,11 +24,14 @@ export type WeekendShiftKind = (typeof WEEKEND_SHIFTS)[number];
 export const SPECIAL_SHIFTS = [
   'day_uw',
   'day_nwhsch',
+  'day_2x_uw',
+  'day_2x_nwhsch',
   'south_24',
+  'south_36',
   'power_uw',
   'power_nwhsch',
   'power_south',
-  'thanksgiving_south',
+  // 'thanksgiving_south',
 ] as const;
 export type SpecialShiftKind = (typeof SPECIAL_SHIFTS)[number];
 export type ShiftKind = WeekdayShiftKind | WeekendShiftKind | SpecialShiftKind;
@@ -36,17 +39,20 @@ export const SHIFT_ORDER: ShiftKind[] = [
   // NWH/SCH
   'weekend_nwhsch',
   'day_nwhsch',
+  'day_2x_nwhsch',
   'power_nwhsch',
   // UW
   'weekend_uw',
   'day_uw',
+  'day_2x_uw',
   'power_uw',
   'south_24',
+  'south_36',
   // South
   'power_south',
   'weekday_south',
   'weekend_south',
-  'thanksgiving_south',
+  // 'thanksgiving_south',
 ];
 
 export const HOSPITALS = ['UW', 'VA', 'HMC', 'SCH', 'NWH'] as const;
@@ -316,7 +322,6 @@ export type CallCount = {
   weekday: number;
   nf: number;
   weekend: number;
-  holiday: number;
 };
 
 export const ISSUE_KINDS_HARD = [
