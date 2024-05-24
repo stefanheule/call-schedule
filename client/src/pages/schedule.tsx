@@ -391,7 +391,7 @@ function collectHolidayCall(
       const dayPersonInfo = dayInfo[person];
       for (const shift of dayPersonInfo?.shifts || []) {
         if (shift.isFakeEntry) continue;
-        result.push(`${shift.shift} on ${day} (${data.holidays[day]})`);
+        result.push(`${shift.shift} on ${shift.day} (${data.holidays[day]})`);
       }
     }
   }
