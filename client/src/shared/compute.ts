@@ -1,6 +1,7 @@
 import { IsoDate, assertNonNull, dateToIsoDatetime, uuid } from 'check-type';
 import {
   CALL_POOL,
+  CallPoolPerson,
   CallSchedule,
   CallScheduleProcessed,
   DayPersonInfo,
@@ -8,12 +9,11 @@ import {
   ISSUE_KINDS_HARD,
   ISSUE_KINDS_SOFT,
   Person,
-  SPECIAL_SHIFTS,
   ShiftKind,
   StoredCallSchedule,
   UnavailablePeople,
-  WEEKDAY_SHIFTS,
-  WEEKEND_SHIFTS,
+  WEEKDAY_SHIFT_LOOKUP,
+  WEEKEND_SHIFT_LOOKUP,
   isNoCallRotation,
 } from './types';
 import { assertIsoDate } from './check-type.generated';
@@ -34,7 +34,7 @@ export function availablePeopleForShift(
   processed: CallScheduleProcessed,
   date: IsoDate,
   shift: ShiftKind,
-): Person[] {
+): readonly CallPoolPerson[] {
   const unavailablePeople =
     processed.day2shift2unavailablePeople?.[date]?.[shift];
   if (!unavailablePeople) return CALL_POOL;
@@ -43,7 +43,7 @@ export function availablePeopleForShift(
 
 export type InferenceResult = {
   best?: {
-    person: Person;
+    person: CallPoolPerson;
     processed: CallScheduleProcessed;
     ratings: {
       [Property in Person]?: {
@@ -72,7 +72,7 @@ export function inferShift(
     return empty;
   }
   const day = data.weeks[dayAndWeek.weekIndex].days[dayAndWeek.dayIndex];
-  const people: Person[] = availablePeopleForShift(processed, date, shift);
+  const people = availablePeopleForShift(processed, date, shift);
 
   if (people.length == 0) {
     if (config?.enableLog) {
@@ -132,7 +132,7 @@ export function inferShift(
   }
   return {
     best: {
-      person: randomWinner[0] as Person,
+      person: randomWinner[0] as CallPoolPerson,
       processed: randomWinner[1].processed,
       ratings: person2rating,
     },
@@ -216,6 +216,10 @@ function isWeekday(day: string): boolean {
   return date.getDay() != 0 && date.getDay() != 6;
 }
 
+function isLxNotTakingCallDueToMaternity(day: string): boolean {
+  return day >= '2024-09-01' && day <= '2025-01-22'
+}
+
 export function dateToDayOfWeek(
   date: Date | string,
 ): 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun' {
@@ -243,7 +247,26 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       hard: 0,
       soft: 0,
     },
-    callCounts: {},
+    callCounts: {
+      MAD: { weekday: 0, weekend: 0, nf: 0 },
+      // Seniors
+      AA: { weekday: 0, weekend: 0, nf: 0 },
+      DC: { weekday: 0, weekend: 0, nf: 0 },
+      AJ: { weekday: 0, weekend: 0, nf: 0 },
+      // Research
+      LX: { weekday: 0, weekend: 0, nf: 0 },
+      CC: { weekday: 0, weekend: 0, nf: 0 },
+      // Year 3
+      MB: { weekday: 0, weekend: 0, nf: 0 },
+      RB: { weekday: 0, weekend: 0, nf: 0 },
+      MJ: { weekday: 0, weekend: 0, nf: 0 },
+      TM: { weekday: 0, weekend: 0, nf: 0 },
+      // Year 2
+      GN: { weekday: 0, weekend: 0, nf: 0 },
+      KO: { weekday: 0, weekend: 0, nf: 0 },
+      CPu: { weekday: 0, weekend: 0, nf: 0 },
+      NR: { weekday: 0, weekend: 0, nf: 0 },
+    },
     shiftCounts: {
       total: 0,
       assigned: 0,
@@ -251,6 +274,18 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     element2issueKind: {},
     day2weekAndDay: {},
     day2shift2unavailablePeople: {},
+    unassignedCalls: {
+      weekend: 0,
+      weekday: 0,
+      weekendOutsideMaternity: 0,
+      weekdayOutsideMaternity: 0,
+    },
+    totalCalls: {
+      weekend: 0,
+      weekday: 0,
+      weekendOutsideMaternity: 0,
+      weekdayOutsideMaternity: 0,
+    },
   };
 
   // Figure out where everyone is working
@@ -751,35 +786,14 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   // Count calls
   for (const [day, person2info] of Object.entries(result.day2person2info)) {
     for (const [p, info] of Object.entries(person2info)) {
-      const person = p as Person;
-      let callCount = result.callCounts[person];
-      if (!callCount) {
-        callCount = {
-          weekday: 0,
-          nf: 0,
-          weekend: 0,
-        };
-        result.callCounts[person] = callCount;
-      }
+      const person = p as CallPoolPerson;
+      if (!(person in result.callCounts)) continue;
+      const callCount = result.callCounts[person];
       if (info.shift) {
-        switch (info.shift) {
-          case 'day_uw':
-          case 'day_nwhsch':
-          case 'weekday_south':
-            callCount.weekday += 1;
-            break;
-          case 'weekend_south':
-          case 'weekend_uw':
-          case 'weekend_nwhsch':
-          case 'day_2x_uw':
-          case 'day_2x_nwhsch':
-          case 'south_24':
-          case 'south_36':
-          case 'power_uw':
-          case 'power_nwhsch':
-          case 'power_south':
-            callCount.weekend += 1;
-            break;
+        if (info.shift in WEEKDAY_SHIFT_LOOKUP) {
+          callCount.weekday += 1;
+        } else if (info.shift in WEEKEND_SHIFT_LOOKUP) {
+          callCount.weekend += 1;
         }
       }
       const dayOfWeek = dateToDayOfWeek(day);
@@ -792,6 +806,158 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   if (result.callCounts.MAD?.nf == 11) {
     result.callCounts.MAD.nf = 10;
   }
+
+  // Calculate call targets
+  // let totalWeekday = 0;
+  // let totalWeekend = 0;
+  for (const week of data.weeks) {
+    for (const day of week.days) {
+      for (const [s, person] of Object.entries(day.shifts)) {
+        const shift = s as ShiftKind;
+        const isMaternity = isLxNotTakingCallDueToMaternity(day.date);
+        if (shift in WEEKDAY_SHIFT_LOOKUP) {
+          if (!person) {
+            result.unassignedCalls.weekday += 1;
+            if (!isMaternity) {
+              result.unassignedCalls.weekdayOutsideMaternity += 1;
+            }
+          }
+          result.totalCalls.weekday += 1;
+          if (!isMaternity) {
+            result.totalCalls.weekdayOutsideMaternity += 1;
+          }
+        } else if (shift in WEEKEND_SHIFT_LOOKUP) {
+          if (!person) {
+            result.unassignedCalls.weekend += 1;
+            if (!isMaternity) {
+              result.unassignedCalls.weekendOutsideMaternity += 1;
+            }
+          }
+          result.totalCalls.weekend += 1;
+          if (!isMaternity) {
+            result.totalCalls.weekendOutsideMaternity += 1;
+          }
+        }
+      }
+    }
+  }
+  console.log({
+    unassignedCall: result.unassignedCalls,
+    totalCalls: result.totalCalls,
+  })
+  // {totalWeekday: 254, totalWeekend: 159}
+  const weekdayTarget: Record<CallPoolPerson, number> = {
+    MAD: 2,
+    // Seniors
+    AA: 24,
+    DC: 25,
+    AJ: 25,
+    // Research
+    LX: 19,
+    CC: 19,
+    // Year 3
+    MB: 24,
+    RB: 24,
+    MJ: 24,
+    TM: 24,
+    // Year 2
+    GN: 11,
+    KO: 11,
+    CPu: 11,
+    NR: 11,
+  };
+  const weekendTarget: Record<CallPoolPerson, number> = {
+    MAD: 1,
+    // Seniors
+    AA: 9,
+    DC: 9,
+    AJ: 9,
+    // Research
+    LX: 8, // 10, but 2 redistributed due to maternity leave
+    CC: 11,
+    // Year 3
+    MB: 13,
+    RB: 13,
+    MJ: 13,
+    TM: 13,
+    // Year 2
+    GN: 15,
+    KO: 15,
+    CPu: 15,
+    NR: 15,
+  };
+  // if (
+  //   totalWeekday !=
+  //   weekdayTarget.MAD +
+  //     weekdayTarget.AA +
+  //     weekdayTarget.DC +
+  //     weekdayTarget.AJ +
+  //     weekdayTarget.LX +
+  //     weekdayTarget.CC +
+  //     weekdayTarget.MB +
+  //     weekdayTarget.RB +
+  //     weekdayTarget.MJ +
+  //     weekdayTarget.TM +
+  //     weekdayTarget.GN +
+  //     weekdayTarget.KO +
+  //     weekdayTarget.CPu +
+  //     weekdayTarget.NR
+  // ) {
+  //   console.error(
+  //     'Total weekday call count is off:',
+  //     totalWeekday,
+  //     weekdayTarget.MAD +
+  //       weekdayTarget.AA +
+  //       weekdayTarget.DC +
+  //       weekdayTarget.AJ +
+  //       weekdayTarget.LX +
+  //       weekdayTarget.CC +
+  //       weekdayTarget.MB +
+  //       weekdayTarget.RB +
+  //       weekdayTarget.MJ +
+  //       weekdayTarget.TM +
+  //       weekdayTarget.GN +
+  //       weekdayTarget.KO +
+  //       weekdayTarget.CPu +
+  //       weekdayTarget.NR,
+  //   );
+  // }
+  // if (
+  //   totalWeekend !=
+  //   weekendTarget.MAD +
+  //     weekendTarget.AA +
+  //     weekendTarget.DC +
+  //     weekendTarget.AJ +
+  //     weekendTarget.LX +
+  //     weekendTarget.CC +
+  //     weekendTarget.MB +
+  //     weekendTarget.RB +
+  //     weekendTarget.MJ +
+  //     weekendTarget.TM +
+  //     weekendTarget.GN +
+  //     weekendTarget.KO +
+  //     weekendTarget.CPu +
+  //     weekendTarget.NR
+  // ) {
+  //   console.error(
+  //     'Total weekend call count is off:',
+  //     totalWeekend,
+  //     weekendTarget.MAD +
+  //       weekendTarget.AA +
+  //       weekendTarget.DC +
+  //       weekendTarget.AJ +
+  //       weekendTarget.LX +
+  //       weekendTarget.CC +
+  //       weekendTarget.MB +
+  //       weekendTarget.RB +
+  //       weekendTarget.MJ +
+  //       weekendTarget.TM +
+  //       weekendTarget.GN +
+  //       weekendTarget.KO +
+  //       weekendTarget.CPu +
+  //       weekendTarget.NR,
+  //   );
+  // }
 
   // count shifts
   for (const week of data.weeks) {

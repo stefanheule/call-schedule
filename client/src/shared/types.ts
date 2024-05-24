@@ -14,12 +14,20 @@ export type Year = '1' | '2' | '3' | 'S' | 'C' | 'R' | 'M';
 export type YearOnSchedule = '2' | '3' | 'S' | 'R' | 'M';
 
 export const WEEKDAY_SHIFTS = ['weekday_south'] as const;
+export const WEEKDAY_SHIFT_LOOKUP: Record<WeekdayShiftKind, boolean> = {
+  weekday_south: true,
+};
 export type WeekdayShiftKind = (typeof WEEKDAY_SHIFTS)[number];
 export const WEEKEND_SHIFTS = [
   'weekend_south',
   'weekend_uw',
   'weekend_nwhsch',
 ] as const;
+export const WEEKEND_SHIFT_LOOKUP: Record<WeekendShiftKind, boolean> = {
+  weekend_south: true,
+  weekend_uw: true,
+  weekend_nwhsch: true,
+};
 export type WeekendShiftKind = (typeof WEEKEND_SHIFTS)[number];
 export const SPECIAL_SHIFTS = [
   'day_uw',
@@ -33,6 +41,18 @@ export const SPECIAL_SHIFTS = [
   'power_south',
   // 'thanksgiving_south',
 ] as const;
+export const SPECIAL_SHIFT_LOOKUP: Record<SpecialShiftKind, boolean> = {
+  day_uw: true,
+  day_nwhsch: true,
+  day_2x_uw: true,
+  day_2x_nwhsch: true,
+  south_24: true,
+  south_36: true,
+  power_uw: true,
+  power_nwhsch: true,
+  power_south: true,
+};
+
 export type SpecialShiftKind = (typeof SPECIAL_SHIFTS)[number];
 export type ShiftKind = WeekdayShiftKind | WeekendShiftKind | SpecialShiftKind;
 export const SHIFT_ORDER: ShiftKind[] = [
@@ -97,7 +117,7 @@ export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 
 export type CallPool = 'north' | 'uw' | 'south';
 
-export const CALL_POOL: Person[] = [
+export const CALL_POOL = [
   'MAD',
   'AA',
   'DC',
@@ -112,7 +132,8 @@ export const CALL_POOL: Person[] = [
   'KO',
   'CPu',
   'NR',
-];
+] as const;
+export type CallPoolPerson = (typeof CALL_POOL)[number];
 export const ALL_PEOPLE = [
   'MAD',
   'DK',
@@ -136,6 +157,7 @@ export const ALL_PEOPLE = [
 export type Person = (typeof ALL_PEOPLE)[number];
 export type UnassignedPerson = '';
 export type MaybePerson = Person | UnassignedPerson;
+export type MaybeCallPoolPerson = CallPoolPerson | UnassignedPerson;
 
 export type ShiftId = DayId & {
   shiftName: ShiftKind;
@@ -161,7 +183,7 @@ export type Day = {
   date: IsoDate;
 
   shifts: {
-    [Symbol in ShiftKind]?: MaybePerson;
+    [Symbol in ShiftKind]?: MaybeCallPoolPerson;
   };
 };
 
@@ -222,8 +244,8 @@ export type RotationConfig = RotationDetails & {
 };
 
 export type Action = {
-  previous: MaybePerson | undefined;
-  next: MaybePerson | undefined;
+  previous: MaybeCallPoolPerson | undefined;
+  next: MaybeCallPoolPerson | undefined;
   shift: ShiftId;
 };
 
@@ -291,8 +313,18 @@ export type CallScheduleProcessed = {
 
   shiftCounts: ShiftCount;
 
-  callCounts: {
-    [Property in Person]?: CallCount;
+  callCounts: Record<CallPoolPerson, CallCount>;
+  unassignedCalls: {
+    weekend: number;
+    weekday: number;
+    weekendOutsideMaternity: number;
+    weekdayOutsideMaternity: number;
+  };
+  totalCalls: {
+    weekend: number;
+    weekday: number;
+    weekendOutsideMaternity: number;
+    weekdayOutsideMaternity: number;
   };
 
   day2weekAndDay: {

@@ -26,6 +26,8 @@ import {
   Hospital2People,
   SHIFT_ORDER,
   CallScheduleProcessed,
+  MaybeCallPoolPerson,
+  CallPoolPerson,
 } from '../shared/types';
 import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
@@ -1077,17 +1079,17 @@ export const ColorPill = forwardRef(function ColorPillImp(
 });
 
 type PersonPickerConfig = {
-  currentPersonId: MaybePerson;
+  currentPersonId: MaybeCallPoolPerson;
   shift: ShiftKind;
   day: IsoDate;
 };
 
 type PersonPickerType = {
   requestDialog: (
-    callback: (person: MaybePerson) => void,
+    callback: (person: MaybeCallPoolPerson) => void,
     config: PersonPickerConfig,
   ) => void;
-  handleDialogResult: (person: MaybePerson) => void;
+  handleDialogResult: (person: MaybeCallPoolPerson) => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   config: PersonPickerConfig;
@@ -1111,7 +1113,7 @@ export const PersonPickerProvider = ({ children }: Children) => {
   });
 
   const requestDialog = (
-    callback: (person: MaybePerson) => void,
+    callback: (person: MaybeCallPoolPerson) => void,
     config: PersonPickerConfig,
   ) => {
     setIsOpen(true);
@@ -1119,7 +1121,7 @@ export const PersonPickerProvider = ({ children }: Children) => {
     setConfig(config);
   };
 
-  const handleDialogResult = (person: MaybePerson) => {
+  const handleDialogResult = (person: MaybeCallPoolPerson) => {
     setIsOpen(false);
     onResult(person);
   };
@@ -1141,10 +1143,10 @@ export const PersonPickerProvider = ({ children }: Children) => {
 
 function getYearToPeople(
   data: CallSchedule,
-): Record<YearOnSchedule, (PersonConfig & { id: Person })[]> {
+): Record<YearOnSchedule, (PersonConfig & { id: CallPoolPerson })[]> {
   const yearToPeople: Record<
     YearOnSchedule,
-    (PersonConfig & { id: Person })[]
+    (PersonConfig & { id: CallPoolPerson })[]
   > = {
     '2': [],
     '3': [],
@@ -1154,7 +1156,7 @@ function getYearToPeople(
   };
   for (const [id, person] of Object.entries(data.people)) {
     if (person.year == '1' || person.year == 'C') continue;
-    yearToPeople[person.year].push({ ...person, id: id as Person });
+    yearToPeople[person.year].push({ ...person, id: id as CallPoolPerson });
   }
   return yearToPeople;
 }
