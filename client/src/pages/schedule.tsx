@@ -766,15 +766,15 @@ function RenderShift({
   const processed = useProcessedData();
   const elId = elementIdForShift(day.date, id.shiftName);
   const hasIssue = processed.element2issueKind[elId];
-  useEffect(() => {
-    if (day.date == '2024-07-04') {
-      personPicker.requestDialog(() => {}, {
-        currentPersonId: '',
-        day: day.date,
-        shift: id.shiftName,
-      });
-    }
-  }, []);
+  // useEffect(() => {
+  //   if (day.date == '2024-07-04') {
+  //     personPicker.requestDialog(() => {}, {
+  //       currentPersonId: '',
+  //       day: day.date,
+  //       shift: id.shiftName,
+  //     });
+  //   }
+  // }, []);
   return (
     <Row
       id={elId}
@@ -1152,7 +1152,7 @@ function PersonPickerDialog() {
                         {rating && (
                           <Text
                             style={{
-                              color: "#ccc",
+                              color: '#ccc',
                               fontSize: '12px',
                             }}
                           >
@@ -1173,7 +1173,7 @@ function PersonPickerDialog() {
                           style={{
                             width: 50,
                           }}
-                          mainAxisAlignment='end'
+                          mainAxisAlignment="end"
                         >
                           {unavailable && (
                             <LightTooltip
