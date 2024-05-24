@@ -415,7 +415,7 @@ function RenderCallCounts() {
         <Column>
           {Object.entries(processed.callCounts)
             .filter(([person]) => data.people[person as Person].year != 'C')
-            .map(([person, counts]) => (
+            .map(([person, _]) => (
               <Row key={person} spacing={'5px'}>
                 <RenderPerson
                   person={person as Person}
