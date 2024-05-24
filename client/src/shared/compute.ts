@@ -8,12 +8,9 @@ import {
   ISSUE_KINDS_HARD,
   ISSUE_KINDS_SOFT,
   Person,
-  SPECIAL_SHIFTS,
   ShiftKind,
   StoredCallSchedule,
   UnavailablePeople,
-  WEEKDAY_SHIFTS,
-  WEEKEND_SHIFTS,
   isNoCallRotation,
 } from './types';
 import { assertIsoDate } from './check-type.generated';
@@ -338,7 +335,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         // we just pretend day shifts are 2 days also.
         for (let i = 0; i < Math.max(2, shiftConfig.days); i++) {
           const nextD = nextDay(day.date, i);
-          if (nextD > data.lastDay) break;
+          if (nextD > data.lastDay || nextD < data.firstDay) continue;
           const nextDayInfo = assertNonNull(
             result.day2person2info[nextD][person],
           );
@@ -758,19 +755,28 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           weekday: 0,
           nf: 0,
           weekend: 0,
-          holiday: 0,
         };
         result.callCounts[person] = callCount;
       }
       if (info.shift) {
-        if ((WEEKDAY_SHIFTS as readonly string[]).includes(info.shift)) {
-          callCount.weekday += 1;
-        }
-        if ((WEEKEND_SHIFTS as readonly string[]).includes(info.shift)) {
-          callCount.weekend += 1;
-        }
-        if ((SPECIAL_SHIFTS as readonly string[]).includes(info.shift)) {
-          callCount.holiday += 1;
+        switch (info.shift) {
+          case 'day_uw':
+          case 'day_nwhsch':
+          case 'weekday_south':
+            callCount.weekday += 1;
+            break;
+          case 'weekend_south':
+          case 'weekend_uw':
+          case 'weekend_nwhsch':
+          case 'day_2x_uw':
+          case 'day_2x_nwhsch':
+          case 'south_24':
+          case 'south_36':
+          case 'power_uw':
+          case 'power_nwhsch':
+          case 'power_south':
+            callCount.weekend += 1;
+            break;
         }
       }
       const dayOfWeek = dateToDayOfWeek(day);

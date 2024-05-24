@@ -15,19 +15,13 @@ import {
   ROTATIONS,
   RotationKind,
   RotationSchedule,
-  StoredCallSchedules,
+  ShiftKind,
   VacationSchedule,
   Week,
 } from './shared/types';
 
 import * as datefns from 'date-fns';
-import {
-  IsoDate,
-  IsoDatetime,
-  dateToIsoDate,
-  isoDateToDate,
-  mapEnum,
-} from 'check-type';
+import { IsoDate, dateToIsoDate, isoDateToDate, mapEnum } from 'check-type';
 import {
   clearSchedule,
   nextDay,
@@ -39,31 +33,63 @@ import {
   assertCallScheduleProcessed,
   assertPerson,
 } from './shared/check-type.generated';
-import { storeStorage } from './storage';
-import fs from 'fs';
+import { loadStorage, storeStorage } from './storage';
 
 async function main() {
   await globalSetup();
 
+  const storage = loadStorage({
+    noCheck: true,
+  });
+
+  // Re-import everything
   const data = await importPreviousSchedule();
-  // inferSchedule(data);
   clearSchedule(data);
 
-  const storage: StoredCallSchedules = {
+  // Move existing assignments over
+  const latest = storage.versions[storage.versions.length - 1].callSchedule;
+  latest.weeks.forEach((week, weekIndex) => {
+    week.days.forEach((day, dayIndex) => {
+      Object.entries(day.shifts).forEach(([s, person]) => {
+        const shift = s as ShiftKind;
+        if (person) {
+          const shifts = data.weeks[weekIndex].days[dayIndex].shifts;
+          if (shift in shifts) {
+            shifts[shift] = person;
+          }
+        }
+      });
+    });
+  });
+
+  storeStorage({
     versions: [
-      {
-        ...scheduleToStoredSchedule(
-          JSON.parse(
-            fs.readFileSync(`${__dirname}/shared/init.json`, 'utf-8'),
-          ) as CallSchedule,
-          `Example`,
-        ),
-        ts: `2024-05-18T15:49:50-07:00` as IsoDatetime,
-      },
-      scheduleToStoredSchedule(data, `Empty initial schedule`),
+      scheduleToStoredSchedule(
+        data,
+        `Re-imported (vacations and thanksgiving rotations fixes)`,
+      ),
     ],
-  };
-  storeStorage(storage);
+  });
+
+  // const data = await importPreviousSchedule();
+  // // inferSchedule(data);
+  // clearSchedule(data);
+
+  // const storage: StoredCallSchedules = {
+  //   versions: [
+  //     {
+  //       ...scheduleToStoredSchedule(
+  //         JSON.parse(
+  //           fs.readFileSync(`${__dirname}/shared/init.json`, 'utf-8'),
+  //         ) as CallSchedule,
+  //         `Example`,
+  //       ),
+  //       ts: `2024-05-18T15:49:50-07:00` as IsoDatetime,
+  //     },
+  //     scheduleToStoredSchedule(data, `Empty initial schedule`),
+  //   ],
+  // };
+  // storeStorage(storage);
 
   // Write to file in data/init.json
   // fs.writeFileSync(
@@ -532,6 +558,18 @@ async function importPreviousSchedule() {
         hospitals: ['UW'],
         days: 1,
       },
+      day_2x_nwhsch: {
+        kind: 'day_2x_nwhsch',
+        name: `NWH/SCH 2 Day`,
+        hospitals: NWHSCH_HOSPITALS,
+        days: 2,
+      },
+      day_2x_uw: {
+        kind: 'day_2x_uw',
+        name: `UW 2 Day`,
+        hospitals: ['UW'],
+        days: 2,
+      },
       south_24: {
         kind: 'south_24',
         name: `South 24`,
@@ -556,12 +594,18 @@ async function importPreviousSchedule() {
         hospitals: SOUTH_HOSPITALS,
         days: 3,
       },
-      thanksgiving_south: {
-        kind: 'thanksgiving_south',
-        name: `Thanksgiving South`,
+      south_36: {
+        kind: 'south_36',
+        name: `South 36`,
         hospitals: SOUTH_HOSPITALS,
-        days: 3,
+        days: 2,
       },
+      // thanksgiving_south: {
+      //   kind: 'thanksgiving_south',
+      //   name: `Thanksgiving South`,
+      //   hospitals: SOUTH_HOSPITALS,
+      //   days: 3,
+      // },
     },
     people,
     holidays: {},
@@ -737,21 +781,21 @@ async function importPreviousSchedule() {
     {
       const date = '2024-11-28';
       const thursday = findDate(date);
-      const friday = findDate(datePlusN(date, 1));
-      const wednesday = findDate(datePlusN(date, -1));
-      wednesday.shifts = {
-        thanksgiving_south: '',
-      };
+      // const friday = findDate(datePlusN(date, 1));
+      // const wednesday = findDate(datePlusN(date, -1));
+      // wednesday.shifts = {
+      //   thanksgiving_south: '',
+      // };
       thursday.shifts = {
-        day_nwhsch: '',
-        day_uw: '',
-        south_24: '',
+        day_2x_nwhsch: '',
+        day_2x_uw: '',
+        south_36: '',
       };
-      friday.shifts = {
-        power_south: '',
-        power_nwhsch: '',
-        power_uw: '',
-      };
+      // friday.shifts = {
+      //   power_south: '',
+      //   power_nwhsch: '',
+      //   power_uw: '',
+      // };
     }
   }
 
