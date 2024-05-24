@@ -1100,6 +1100,10 @@ function PersonPickerDialog() {
         minHeight: '400px',
       }}
       maxWidth="xl"
+      transitionDuration={{
+        enter: 0,
+        exit: 0,
+      }}
       onClose={() => personPicker.setIsOpen(false)}
     >
       <Column style={{ padding: '20px' }} spacing="10px">
