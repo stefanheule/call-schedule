@@ -1122,7 +1122,7 @@ function PersonPickerDialog() {
                 >
                   {yearToString(year as Year)}
                 </Text>
-                <Column spacing="3px">
+                <Column spacing="3px" crossAxisAlignment="end">
                   {people.map(person => {
                     const unavailable = inference.unavailablePeople[person.id];
 
@@ -1152,6 +1152,7 @@ function PersonPickerDialog() {
                         {rating && (
                           <Text
                             style={{
+                              color: "#ccc",
                               fontSize: '12px',
                             }}
                           >
@@ -1168,18 +1169,25 @@ function PersonPickerDialog() {
                             fontSize: 15,
                           }}
                         />
-                        {unavailable && (
-                          <LightTooltip
-                            title={unavailable.reason}
-                            style={{
-                              fontSize: '20px',
-                            }}
-                            enterDelay={500}
-                          >
-                            {renderedPerson}
-                          </LightTooltip>
-                        )}
-                        {!unavailable && renderedPerson}
+                        <Row
+                          style={{
+                            width: 50,
+                          }}
+                          mainAxisAlignment='end'
+                        >
+                          {unavailable && (
+                            <LightTooltip
+                              title={unavailable.reason}
+                              style={{
+                                fontSize: '20px',
+                              }}
+                              enterDelay={500}
+                            >
+                              {renderedPerson}
+                            </LightTooltip>
+                          )}
+                          {!unavailable && renderedPerson}
+                        </Row>
                       </Row>
                     );
                   })}
