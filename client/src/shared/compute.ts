@@ -7,17 +7,16 @@ import {
   HospitalKind,
   ISSUE_KINDS_HARD,
   ISSUE_KINDS_SOFT,
-  MaybePerson,
   Person,
   SPECIAL_SHIFTS,
   ShiftKind,
   StoredCallSchedule,
+  UnavailablePeople,
   WEEKDAY_SHIFTS,
   WEEKEND_SHIFTS,
   isNoCallRotation,
 } from './types';
 import { assertIsoDate } from './check-type.generated';
-import * as datefns from 'date-fns';
 import { dateToIsoDate, isoDateToDate } from './optimized';
 
 export function clearSchedule(data: CallSchedule): CallSchedule {
@@ -39,10 +38,15 @@ export function availablePeopleForShift(
   const unavailablePeople =
     processed.day2shift2unavailablePeople?.[date]?.[shift];
   if (!unavailablePeople) return CALL_POOL;
-  return CALL_POOL.filter(
-    p =>
-      unavailablePeople[p] == undefined || unavailablePeople[p]?.soft === false,
-  );
+  return CALL_POOL.filter(p => unavailablePeople[p] == undefined);
+}
+
+export type InferenceResult = {
+  best?: {
+    person: Person;
+    processed: CallScheduleProcessed;
+  };
+  unavailablePeople: UnavailablePeople;
 }
 
 export function inferShift(
@@ -50,9 +54,17 @@ export function inferShift(
   processed: CallScheduleProcessed,
   date: IsoDate,
   shift: ShiftKind,
-  config?: { enableLog?: boolean },
-): [MaybePerson, CallScheduleProcessed] {
+  config?: { enableLog?: boolean, skipUnavailablePeople?: boolean },
+): InferenceResult {
   const dayAndWeek = processed.day2weekAndDay[date];
+  const unavailablePeople =
+    processed.day2shift2unavailablePeople?.[date]?.[shift] || {};
+  const empty = {
+    unavailablePeople,
+  };
+  if (dayAndWeek === undefined) {
+    return empty;
+  }
   const day = data.weeks[dayAndWeek.weekIndex].days[dayAndWeek.dayIndex];
   const people: Person[] = availablePeopleForShift(processed, date, shift);
 
@@ -60,7 +72,7 @@ export function inferShift(
     if (config?.enableLog) {
       console.log(`No candidates left for ${date}.`);
     }
-    return ['', processed];
+    return empty;
   }
 
   const person2rating = new Map<
@@ -70,14 +82,37 @@ export function inferShift(
       processed: CallScheduleProcessed;
     }
   >();
+  const oldPerson = day.shifts[shift];
   for (const p of people) {
     day.shifts[shift] = p;
-    const processed = processCallSchedule(data);
+    const processed2 = processCallSchedule(data);
     person2rating.set(p, {
-      rating: rate(data, processed),
-      processed,
+      rating: rate(data, processed2),
+      processed: processed2,
     });
+
+    // Compute unavailablePeople
+    if (config?.skipUnavailablePeople !== true) {
+      if (
+        processed2.issueCounts.hard > processed.issueCounts.hard &&
+        unavailablePeople[p] === undefined
+      ) {
+        unavailablePeople[p] = {
+          soft: false,
+          reason: 'Hard rule violation',
+        };
+      } else if (
+        processed2.issueCounts.hard == processed.issueCounts.hard &&
+        processed2.issueCounts.soft > processed.issueCounts.soft
+      ) {
+        unavailablePeople[p] = {
+          soft: true,
+          reason: 'Soft rule violation',
+        };
+      }
+    }
   }
+  day.shifts[shift] = oldPerson;
   const min = Math.min(
     ...Array.from(person2rating.values()).map(x => x.rating),
   );
@@ -90,7 +125,13 @@ export function inferShift(
       `For ${date} picking a rating=${randomWinner[1].rating}: ${randomWinner[0]}`,
     );
   }
-  return [randomWinner[0], randomWinner[1].processed];
+  return {
+    best: {
+      person: randomWinner[0],
+      processed: randomWinner[1].processed,
+    },
+    unavailablePeople,
+  };
 }
 
 export function inferSchedule(data: CallSchedule): CallSchedule {
@@ -100,15 +141,13 @@ export function inferSchedule(data: CallSchedule): CallSchedule {
       if (day.date < data.firstDay || day.date > data.lastDay) continue;
       for (const s of Object.keys(day.shifts)) {
         const shift = s as ShiftKind;
-        [day.shifts[shift], processed] = inferShift(
-          data,
-          processed,
-          day.date,
-          shift,
-          {
-            enableLog: true,
-          },
-        );
+        const inference = inferShift(data, processed, day.date, shift, {
+          enableLog: true,
+        });
+        if (inference.best) {
+          day.shifts[shift] = inference.best.person;
+          processed = inference.best.processed;
+        }
       }
     }
   }
@@ -362,26 +401,27 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
               reason: hardReason,
               soft: false,
             };
-          } else {
-            const info = assertNonNull(
-              result.day2person2info[day.date][person],
-            );
-            if (
-              !isNoCallRotation(info.rotation) &&
-              info.rotation !== 'Research'
-            ) {
-              const rotationHospitals: HospitalKind[] =
-                info.rotation == 'Andro' ? ['UW', 'NWH'] : [info.rotation];
-              if (
-                shiftConfig.hospitals.every(c => !rotationHospitals.includes(c))
-              ) {
-                unavailablePeople[person] = {
-                  reason: `cross-coverage: working at ${info.rotation}`,
-                  soft: true,
-                };
-              }
-            }
           }
+          // } else {
+          //   const info = assertNonNull(
+          //     result.day2person2info[day.date][person],
+          //   );
+          //   if (
+          //     !isNoCallRotation(info.rotation) &&
+          //     info.rotation !== 'Research'
+          //   ) {
+          //     const rotationHospitals: HospitalKind[] =
+          //       info.rotation == 'Andro' ? ['UW', 'NWH'] : [info.rotation];
+          //     if (
+          //       shiftConfig.hospitals.every(c => !rotationHospitals.includes(c))
+          //     ) {
+          //       unavailablePeople[person] = {
+          //         reason: `cross-coverage: working at ${info.rotation}`,
+          //         soft: true,
+          //       };
+          //     }
+          //   }
+          // }
         }
       }
     }
@@ -763,7 +803,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   }
 
-  if (1 == 2 + 1 - 2) {
+  if (1 == 2 + 1) {
     console.log('Processing took', Date.now() - start, 'ms');
   }
   return result;

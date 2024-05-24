@@ -25,7 +25,6 @@ import {
   RotationDetails,
   Hospital2People,
   SHIFT_ORDER,
-  UnavailablePeople,
 } from '../shared/types';
 import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
@@ -48,11 +47,10 @@ import {
 } from '@mui/material';
 import { WarningOutlined, ErrorOutlined } from '@mui/icons-material';
 import {
-  availablePeopleForShift,
   elementIdForDay,
   elementIdForShift,
+  inferShift,
   nextDay,
-  processCallSchedule,
 } from '../shared/compute';
 import { Checkbox } from '@mui/material';
 import { useHotkeys } from 'react-hotkeys-hook';
@@ -64,7 +62,6 @@ import { rpcSaveCallSchedules } from './rpc';
 import { LoadingIndicator } from '../common/loading';
 import { VList, VListHandle } from 'virtua';
 import DoNotDisturbIcon from '@mui/icons-material/DoNotDisturb';
-import { useAsync } from '../common/hooks';
 
 const DAY_SPACING = `2px`;
 
@@ -1089,70 +1086,10 @@ function PersonPickerDialog() {
   const processed = useProcessedData();
   const config = personPicker.config;
   const shiftConfig = data.shiftConfigs[config.shift];
-  // const [avail, setAvail] = useState({
-  //   ...processed.day2shift2unavailablePeople?.[config.day]?.[config.shift],
-  // });
-  // const avail = {
-  //   ...processed.day2shift2unavailablePeople?.[config.day]?.[config.shift],
-  // }
-  const [avail, setAvail] = useState<UnavailablePeople>({});
-  useEffect(() => {
-    if (personPicker.isOpen) {
-      setAvail({
-        ...processed.day2shift2unavailablePeople?.[config.day]?.[config.shift],
-      });
-    }
-  }, [config.day, config.shift, personPicker.isOpen]);
-
-  // Compute who can't take the shift
-  useAsync(
-    async isMounted => {
-      if (!personPicker.isOpen) return;
-      setTimeout(() => {
-        const avail: UnavailablePeople = {};
-        const people: Person[] = availablePeopleForShift(
-          processed,
-          config.day,
-          config.shift,
-        );
-        const lookup = processed.day2weekAndDay[config.day];
-        if (lookup) {
-          const day = data.weeks[lookup.weekIndex].days[lookup.dayIndex];
-          const oldPerson = day.shifts[config.shift];
-          for (const p of people) {
-            day.shifts[config.shift] = p;
-            const processed2 = processCallSchedule(data);
-            if (processed2.issueCounts.hard > processed.issueCounts.hard) {
-              avail[p] = {
-                soft: false,
-                reason: 'Hard rule violation',
-              };
-            } else if (
-              processed2.issueCounts.hard == processed.issueCounts.hard &&
-              processed2.issueCounts.soft > processed.issueCounts.soft
-            ) {
-              avail[p] = {
-                soft: true,
-                reason: 'Soft rule violation',
-              };
-            }
-          }
-          day.shifts[config.shift] = oldPerson;
-          if (isMounted.current) {
-            setAvail(old => {
-              return {
-                ...old,
-                ...avail,
-              };
-            });
-          }
-        }
-      }, 0);
-    },
-    [config.day, config.shift, personPicker.isOpen],
-  );
+  const inference = inferShift(data, processed, config.day, config.shift);
 
   const yearToPeople = getYearToPeople(data);
+  const buttonWidth = 200;
   return (
     <Dialog
       open={personPicker.isOpen}
@@ -1181,7 +1118,7 @@ function PersonPickerDialog() {
                 </Text>
                 <Column spacing="3px">
                   {people.map(person => {
-                    const unavailable = avail?.[person.id];
+                    const unavailable = inference.unavailablePeople[person.id];
 
                     const renderedPerson = (
                       <RenderPerson
@@ -1254,6 +1191,9 @@ function PersonPickerDialog() {
           <Button
             variant="contained"
             size="small"
+            style={{
+              width: buttonWidth,
+            }}
             onClick={() => personPicker.handleDialogResult('')}
           >
             Clear assigned person
@@ -1261,11 +1201,16 @@ function PersonPickerDialog() {
           <Button
             variant="contained"
             size="small"
+            style={{
+              width: buttonWidth,
+            }}
+            disabled={!inference.best}
             onClick={() => {
-              personPicker.handleDialogResult('');
+              personPicker.handleDialogResult(inference.best?.person ?? '');
             }}
           >
-            Auto-assign
+            {inference.best && `Auto-assign (${inference.best.person})`}
+            {!inference.best && `Nobody available`}
           </Button>
         </Row>
       </Column>
