@@ -385,6 +385,7 @@ function collectHolidayCall(
   processed: CallScheduleProcessed,
 ): string {
   const result: string[] = [];
+  const shifts: ShiftKind[] = [];
   for (const day in data.holidays) {
     const dayInfo = processed.day2person2info[day];
     if (dayInfo && dayInfo[person]) {
@@ -394,12 +395,50 @@ function collectHolidayCall(
         const next = `${shift.shift} on ${shift.day} (${data.holidays[day]})`;
         if (!result.includes(next)) {
           result.push(next);
+          shifts.push(shift.shift);
         }
       }
     }
   }
+  let tally = 0;
+  let calls = 0;
+  for (const shift of shifts) {
+    switch (shift) {
+      case 'day_uw':
+      case 'day_nwhsch':
+      case 'weekday_south':
+        calls += 1;
+        tally += 10;
+        break;
+      case 'weekend_south':
+      case 'weekend_uw':
+      case 'weekend_nwhsch':
+        calls += 1;
+        tally += 48;
+        break;
+      case 'day_2x_uw':
+      case 'day_2x_nwhsch':
+        calls += 2;
+        tally += 20;
+        break;
+      case 'south_24':
+        calls += 1;
+        tally += 24;
+        break;
+      case 'south_36':
+        calls += 1;
+        tally += 36;
+        break;
+      case 'power_uw':
+      case 'power_nwhsch':
+      case 'power_south':
+        calls += 1;
+        tally += 60;
+        break;
+    }
+  }
   if (result.length == 0) return `none`;
-  return `${result.length}: ${result.join(', ')}`;
+  return `${tally}h or ${calls} calls: ${result.join(', ')}`;
 }
 
 function RenderCallCounts() {
