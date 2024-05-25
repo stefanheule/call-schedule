@@ -462,6 +462,32 @@ function collectHolidayCall(
   }
   return holidayShiftsToString(holidayCalls);
 }
+function collectHolidayAdjacentCall(
+  person: Person,
+  data: CallSchedule,
+  processed: CallScheduleProcessed,
+): string {
+  const holidayCalls: HolidayShift[] = [];
+  for (const day in processed.day2shift2isHolidayAdjacent) {
+    const index = processed.day2weekAndDay[day];
+    for (const s in processed.day2shift2isHolidayAdjacent[day]) {
+      const shift = s as ShiftKind;
+      const personOnCall =
+        data.weeks[index.weekIndex].days[index.dayIndex].shifts[shift];
+      if (personOnCall == person) {
+        const holiday = assertNonNull(
+          processed.day2shift2isHolidayAdjacent[day][shift],
+        );
+        holidayCalls.push({
+          shift,
+          day,
+          holiday,
+        });
+      }
+    }
+  }
+  return holidayShiftsToString(holidayCalls);
+}
 
 function RenderCallCounts() {
   const processed = useProcessedData();
@@ -476,7 +502,7 @@ function RenderCallCounts() {
         <Text>Show holiday call counts?</Text>
       </Row>
       {holiday && (
-        <Column>
+        <Column spacing="5px">
           {CALL_POOL.map(person => (
             <Row key={person} spacing={'5px'}>
               <RenderPerson
@@ -485,7 +511,15 @@ function RenderCallCounts() {
                   width: '23px',
                 }}
               />
-              <Text>{collectHolidayCall(person, data, processed)}</Text>
+              <Column>
+                <Text>
+                  Holiday: {collectHolidayCall(person, data, processed)}
+                </Text>
+                <Text>
+                  Holiday adjacent:{' '}
+                  {collectHolidayAdjacentCall(person, data, processed)}
+                </Text>
+              </Column>
             </Row>
           ))}
         </Column>
