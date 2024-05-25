@@ -336,24 +336,24 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       soft: 0,
     },
     callCounts: {
-      MAD: { weekday: 0, weekend: 0, nf: 0 },
+      MAD: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
       // Seniors
-      AA: { weekday: 0, weekend: 0, nf: 0 },
-      DC: { weekday: 0, weekend: 0, nf: 0 },
-      AJ: { weekday: 0, weekend: 0, nf: 0 },
+      AA: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
+      DC: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
+      AJ: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
       // Research
-      LX: { weekday: 0, weekend: 0, nf: 0 },
-      CC: { weekday: 0, weekend: 0, nf: 0 },
+      LX: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
+      CC: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
       // Year 3
-      MB: { weekday: 0, weekend: 0, nf: 0 },
-      RB: { weekday: 0, weekend: 0, nf: 0 },
-      MJ: { weekday: 0, weekend: 0, nf: 0 },
-      TM: { weekday: 0, weekend: 0, nf: 0 },
+      MB: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
+      RB: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
+      MJ: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
+      TM: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
       // Year 2
-      GN: { weekday: 0, weekend: 0, nf: 0 },
-      KO: { weekday: 0, weekend: 0, nf: 0 },
-      CPu: { weekday: 0, weekend: 0, nf: 0 },
-      NR: { weekday: 0, weekend: 0, nf: 0 },
+      GN: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
+      KO: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
+      CPu: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
+      NR: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
     },
     shiftCounts: {
       total: 0,
@@ -374,7 +374,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       weekendOutsideMaternity: 0,
       weekdayOutsideMaternity: 0,
     },
-    day2shift2isHolidayAdjacent: {},
+    day2shift2isHoliday: {},
   };
 
   // Figure out where everyone is working
@@ -557,32 +557,47 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   }
 
+  // Compute holiday shifts
+  function shiftsOfDay(day: string): { day: string; shift: ShiftKind }[] {
+    return (
+      Object.keys(result.day2shift2unavailablePeople[day] || {}) as ShiftKind[]
+    ).map(shift => ({ day, shift }));
+  }
   for (const [date, holiday] of Object.entries(data.holidays)) {
     const dow = dateToDayOfWeek(date);
-    const days = [];
+    const shifts = [];
     if (holiday.includes('Thanksgiving')) {
-      if (dow == 'fri') days.push(date);
+      if (dow == 'thu') {
+        shifts.push(...shiftsOfDay(nextDay(date, 0)));
+        shifts.push(...shiftsOfDay(nextDay(date, 1)));
+      }
     } else {
       switch (dow) {
         case 'mon':
-          days.push(nextDay(date, -3), nextDay(date, -1));
+          shifts.push(...shiftsOfDay(nextDay(date, -3)));
+          shifts.push(...shiftsOfDay(nextDay(date, -1)));
+          shifts.push(
+            ...shiftsOfDay(nextDay(date, 0)).filter(
+              x => x.shift !== 'weekday_south',
+            ),
+          );
           break;
         case 'wed':
         case 'thu':
-          days.push(nextDay(date, -1));
+          if (holiday == 'Christmas' || holiday == 'New Year') {
+            shifts.push(...shiftsOfDay(nextDay(date, -1)));
+          }
+          shifts.push(...shiftsOfDay(nextDay(date, 0)));
           break;
         default:
           throw new Error(`Didn't expect a holiday on ${dow}`);
       }
     }
 
-    for (const day of days) {
-      for (const s in result.day2shift2unavailablePeople[day]) {
-        const shift = s as ShiftKind;
-        result.day2shift2isHolidayAdjacent[day] =
-          result.day2shift2isHolidayAdjacent[day] ?? {};
-        result.day2shift2isHolidayAdjacent[day][shift] = holiday;
-      }
+    for (const shift of shifts) {
+      result.day2shift2isHoliday[shift.day] =
+        result.day2shift2isHoliday[shift.day] ?? {};
+      result.day2shift2isHoliday[shift.day][shift.shift] = holiday;
     }
   }
 
@@ -929,18 +944,25 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
 
   // Count calls
   for (const [day, person2info] of Object.entries(result.day2person2info)) {
+    const dayOfWeek = dateToDayOfWeek(day);
     for (const [p, info] of Object.entries(person2info)) {
       const person = p as CallPoolPerson;
       if (!(person in result.callCounts)) continue;
       const callCount = result.callCounts[person];
       if (info.shift) {
         if (info.shift in WEEKDAY_SHIFT_LOOKUP) {
-          callCount.weekday += 1;
+          if (
+            dayOfWeek == 'sun' ||
+            (dayOfWeek == 'mon' && data.holidays[day] !== undefined)
+          ) {
+            callCount.sunday += 1;
+          } else {
+            callCount.weekday += 1;
+          }
         } else if (info.shift in WEEKEND_SHIFT_LOOKUP) {
           callCount.weekend += 1;
         }
       }
-      const dayOfWeek = dateToDayOfWeek(day);
       if (info.rotation == 'NF' && dayOfWeek != 'fri' && dayOfWeek != 'sun') {
         callCount.nf += 1;
       }

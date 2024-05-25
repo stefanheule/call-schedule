@@ -869,15 +869,15 @@ async function importPreviousSchedule() {
 
       // Monday holidays
       if (dateObj.getDay() === 1) {
-        // const sunday = findDate(datePlusN(date, -1));
+        const sunday = findDate(datePlusN(date, -1));
         const monday = findDate(date);
-        // sunday.shifts = {
-        //   south_24: '',
-        // };
+        sunday.shifts = {
+          south_24: '',
+        };
         monday.shifts = {
           day_nwhsch: '',
           day_uw: '',
-          south_24: '',
+          weekday_south: '',
         };
       }
 

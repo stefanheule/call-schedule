@@ -29,7 +29,6 @@ import {
   MaybeCallPoolPerson,
   CallPoolPerson,
   CALL_POOL,
-  SPECIAL_SHIFT_LOOKUP,
 } from '../shared/types';
 import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
@@ -443,40 +442,15 @@ function collectHolidayCall(
   processed: CallScheduleProcessed,
 ): string {
   const holidayCalls: HolidayShift[] = [];
-  for (const week of data.weeks) {
-    for (const day of week.days) {
-      if (day.date < data.firstDay || day.date > data.lastDay) continue;
-      const dayInfo = processed.day2person2info[day.date][person];
-      if (dayInfo) {
-        if (dayInfo.shift) {
-          if (dayInfo.shift in SPECIAL_SHIFT_LOOKUP) {
-            holidayCalls.push({
-              shift: dayInfo.shift,
-              day: day.date,
-              holiday: data.holidays[day.date],
-            });
-          }
-        }
-      }
-    }
-  }
-  return holidayShiftsToString(holidayCalls);
-}
-function collectHolidayAdjacentCall(
-  person: Person,
-  data: CallSchedule,
-  processed: CallScheduleProcessed,
-): string {
-  const holidayCalls: HolidayShift[] = [];
-  for (const day in processed.day2shift2isHolidayAdjacent) {
+  for (const day in processed.day2shift2isHoliday) {
     const index = processed.day2weekAndDay[day];
-    for (const s in processed.day2shift2isHolidayAdjacent[day]) {
+    for (const s in processed.day2shift2isHoliday[day]) {
       const shift = s as ShiftKind;
       const personOnCall =
         data.weeks[index.weekIndex].days[index.dayIndex].shifts[shift];
       if (personOnCall == person) {
         const holiday = assertNonNull(
-          processed.day2shift2isHolidayAdjacent[day][shift],
+          processed.day2shift2isHoliday[day][shift],
         );
         holidayCalls.push({
           shift,
@@ -504,22 +478,14 @@ function RenderCallCounts() {
       {holiday && (
         <Column spacing="5px">
           {CALL_POOL.map(person => (
-            <Row key={person} spacing={'5px'}>
+            <Row key={person} spacing={'3px'}>
               <RenderPerson
                 person={person}
                 style={{
                   width: '23px',
                 }}
               />
-              <Column>
-                <Text>
-                  Holiday: {collectHolidayCall(person, data, processed)}
-                </Text>
-                <Text>
-                  Holiday adjacent:{' '}
-                  {collectHolidayAdjacentCall(person, data, processed)}
-                </Text>
-              </Column>
+              <Text>{collectHolidayCall(person, data, processed)}</Text>
             </Row>
           ))}
         </Column>
@@ -940,7 +906,10 @@ function RenderShift({
       id={elId}
       style={{
         boxSizing: 'border-box',
-        border: `1px solid #ccc`,
+        border: `1px solid #aaa`,
+        borderStyle: processed.day2shift2isHoliday?.[day.date]?.[id.shiftName]
+          ? 'dashed'
+          : 'solid',
         marginBottom: `1px`,
         cursor: 'pointer',
         padding: '1px 3px',

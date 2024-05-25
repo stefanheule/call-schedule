@@ -342,12 +342,20 @@ export type CallScheduleProcessed = {
     };
   };
 
-  day2shift2isHolidayAdjacent: {
+  day2shift2isHoliday: {
     [day: string]: {
       [Property in ShiftKind]?: string;
     };
   };
 };
+
+export function isHolidayShift(
+  processed: CallScheduleProcessed,
+  day: string,
+  shift: ShiftKind,
+): string | undefined {
+  return processed.day2shift2isHoliday[day]?.[shift];
+}
 
 export type UnavailablePeople = {
   [Property in Person]?: UnavailableReason;
@@ -360,6 +368,7 @@ export type UnavailableReason = {
 
 export type CallCount = {
   weekday: number;
+  sunday: number;
   nf: number;
   weekend: number;
 };
