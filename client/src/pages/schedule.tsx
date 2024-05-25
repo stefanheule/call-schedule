@@ -387,90 +387,80 @@ export function RenderCallSchedule() {
   );
 }
 
-function collectHolidayCall(
-  person: Person,
-  data: CallSchedule,
-  processed: CallScheduleProcessed,
-): string {
-  const result: string[] = [];
-  const shifts: ShiftKind[] = [];
-  const considerAllHolidayOverlappingShifts = false;
-  if (considerAllHolidayOverlappingShifts) {
-    for (const day in data.holidays) {
-      const dayInfo = processed.day2person2info[day];
-      if (dayInfo && dayInfo[person]) {
-        const dayPersonInfo = dayInfo[person];
-        for (const shift of dayPersonInfo?.shifts || []) {
-          if (shift.isFakeEntry) continue;
-          const next = `${shift.shift} on ${shift.day} (${data.holidays[day]})`;
-          if (!result.includes(next)) {
-            result.push(next);
-            shifts.push(shift.shift);
-          }
-        }
-      }
-    }
-  } else {
-    for (const week of data.weeks) {
-      for (const day of week.days) {
-        if (day.date < data.firstDay || day.date > data.lastDay) continue;
-        const dayInfo = processed.day2person2info[day.date][person];
-        if (dayInfo) {
-          if (dayInfo.shift) {
-            if (dayInfo.shift in SPECIAL_SHIFT_LOOKUP) {
-              shifts.push(dayInfo.shift);
+type HolidayShift = {
+  shift: ShiftKind;
+  day: string;
+  holiday: string;
+};
 
-              const next = `${dayInfo.shift} on ${day.date} (${
-                data.holidays[day.date]
-              })`;
-              if (!result.includes(next)) {
-                result.push(next);
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  let tally = 0;
+function holidayShiftsToString(holidayShifts: HolidayShift[]): string {
+  let hours = 0;
   let calls = 0;
-  for (const shift of shifts) {
-    switch (shift) {
+  for (const holidayShift of holidayShifts) {
+    switch (holidayShift.shift) {
       case 'day_uw':
       case 'day_nwhsch':
       case 'weekday_south':
         calls += 1;
-        tally += 10;
+        hours += 10;
         break;
       case 'weekend_south':
       case 'weekend_uw':
       case 'weekend_nwhsch':
         calls += 1;
-        tally += 48;
+        hours += 48;
         break;
       case 'day_2x_uw':
       case 'day_2x_nwhsch':
         calls += 2;
-        tally += 20;
+        hours += 20;
         break;
       case 'south_24':
         calls += 1;
-        tally += 24;
+        hours += 24;
         break;
       case 'south_36':
         calls += 1;
-        tally += 36;
+        hours += 36;
         break;
       case 'power_uw':
       case 'power_nwhsch':
       case 'power_south':
         calls += 1;
-        tally += 60;
+        hours += 60;
         break;
     }
   }
-  if (result.length == 0) return `none`;
-  return `${tally}h or ${calls} calls: ${result.join(', ')}`;
+  if (holidayShifts.length == 0) return `none`;
+  return `${hours}h or ${calls} calls: ${holidayShifts
+    .map(h => `${h.shift} on ${h.day} (${h.holiday})`)
+    .join(', ')}`;
+}
+
+function collectHolidayCall(
+  person: Person,
+  data: CallSchedule,
+  processed: CallScheduleProcessed,
+): string {
+  const holidayCalls: HolidayShift[] = [];
+  for (const week of data.weeks) {
+    for (const day of week.days) {
+      if (day.date < data.firstDay || day.date > data.lastDay) continue;
+      const dayInfo = processed.day2person2info[day.date][person];
+      if (dayInfo) {
+        if (dayInfo.shift) {
+          if (dayInfo.shift in SPECIAL_SHIFT_LOOKUP) {
+            holidayCalls.push({
+              shift: dayInfo.shift,
+              day: day.date,
+              holiday: data.holidays[day.date],
+            });
+          }
+        }
+      }
+    }
+  }
+  return holidayShiftsToString(holidayCalls);
 }
 
 function RenderCallCounts() {
