@@ -28,6 +28,7 @@ import {
   CallScheduleProcessed,
   MaybeCallPoolPerson,
   CallPoolPerson,
+  CALL_POOL,
 } from '../shared/types';
 import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
@@ -50,11 +51,15 @@ import {
 } from '@mui/material';
 import { WarningOutlined, ErrorOutlined } from '@mui/icons-material';
 import {
+  WEEKDAY_CALL_TARGET,
+  WEEKEND_CALL_TARGET,
   elementIdForDay,
   elementIdForShift,
   inferShift,
   nextDay,
   rate,
+  ratingMinus,
+  ratingToString,
 } from '../shared/compute';
 import { Checkbox } from '@mui/material';
 import { useHotkeys } from 'react-hotkeys-hook';
@@ -446,7 +451,7 @@ function collectHolidayCall(
 function RenderCallCounts() {
   const processed = useProcessedData();
   const [data] = useData();
-  const [holiday, setHoliday] = useState(true);
+  const [holiday, setHoliday] = useState(false);
   return (
     <Column>
       <Row>
@@ -457,41 +462,39 @@ function RenderCallCounts() {
       </Row>
       {holiday && (
         <Column>
-          {Object.entries(processed.callCounts)
-            .filter(([person]) => data.people[person as Person].year != 'C')
-            .map(([person, _]) => (
-              <Row key={person} spacing={'5px'}>
-                <RenderPerson
-                  person={person as Person}
-                  style={{
-                    width: '23px',
-                  }}
-                />
-                <Text>
-                  {collectHolidayCall(person as Person, data, processed)}
-                </Text>
-              </Row>
-            ))}
+          {CALL_POOL.map(person => (
+            <Row key={person} spacing={'5px'}>
+              <RenderPerson
+                person={person}
+                style={{
+                  width: '23px',
+                }}
+              />
+              <Text>{collectHolidayCall(person, data, processed)}</Text>
+            </Row>
+          ))}
         </Column>
       )}
       {!holiday && (
         <Column>
-          {Object.entries(processed.callCounts)
-            .filter(([person]) => data.people[person as Person].year != 'C')
-            .map(([person, counts]) => (
+          {CALL_POOL.map(person => {
+            const counts = processed.callCounts[person];
+            return (
               <Row key={person} spacing={'5px'}>
                 <RenderPerson
-                  person={person as Person}
+                  person={person}
                   style={{
                     width: '23px',
                   }}
                 />
                 <Text>
-                  {counts.weekday} weekday / {counts.weekend} weekend /{' '}
-                  {counts.nf} NF
+                  {counts.weekday} weekday (target:{' '}
+                  {WEEKDAY_CALL_TARGET[person]}) / {counts.weekend} weekend
+                  (target: {WEEKEND_CALL_TARGET[person]}) / {counts.nf} NF
                 </Text>
               </Row>
-            ))}
+            );
+          })}
         </Column>
       )}
     </Column>
@@ -1252,7 +1255,7 @@ function PersonPickerDialog() {
                               fontSize: '12px',
                             }}
                           >
-                            {rating - initialRating}
+                            {ratingToString(ratingMinus(rating, initialRating))}
                           </Text>
                         )}
                         <DoNotDisturbIcon

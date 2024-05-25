@@ -1,4 +1,10 @@
-import { IsoDate, assertNonNull, dateToIsoDatetime, uuid } from 'check-type';
+import {
+  IsoDate,
+  assertNonNull,
+  dateToIsoDatetime,
+  lexicalCompare,
+  uuid,
+} from 'check-type';
 import {
   CALL_POOL,
   CallPoolPerson,
@@ -22,6 +28,7 @@ import { dateToIsoDate, isoDateToDate } from './optimized';
 export function clearSchedule(data: CallSchedule): CallSchedule {
   for (const week of data.weeks) {
     for (const day of week.days) {
+      if (day.date > data.lastDay || day.date < data.firstDay) continue;
       for (const s of Object.keys(day.shifts)) {
         day.shifts[s as ShiftKind] = '';
       }
@@ -47,7 +54,7 @@ export type InferenceResult = {
     processed: CallScheduleProcessed;
     ratings: {
       [Property in Person]?: {
-        rating: number;
+        rating: Rating;
         processed: CallScheduleProcessed;
       };
     };
@@ -83,7 +90,7 @@ export function inferShift(
 
   const person2rating: {
     [Property in Person]?: {
-      rating: number;
+      rating: Rating;
       processed: CallScheduleProcessed;
     };
   } = {};
@@ -118,16 +125,18 @@ export function inferShift(
     }
   }
   day.shifts[shift] = oldPerson;
-  const min = Math.min(
-    ...Array.from(Object.values(person2rating)).map(x => x.rating),
-  );
-  const best = Object.entries(person2rating).filter(
-    ([, v]) => v.rating === min,
+  const min = Array.from(Object.values(person2rating))
+    .map(x => x.rating)
+    .sort((a, b) => lexicalCompare(a, b))[0];
+  const best = Object.entries(person2rating).filter(([, v]) =>
+    ratingCompare(v.rating, min),
   );
   const randomWinner = best[Math.floor(Math.random() * best.length)];
   if (config?.enableLog) {
     console.log(
-      `For ${date} picking a rating=${randomWinner[1].rating}: ${randomWinner[0]}`,
+      `For ${date} picking a rating=${ratingToString(
+        randomWinner[1].rating,
+      )}: ${randomWinner[0]}`,
     );
   }
   return {
@@ -161,8 +170,46 @@ export function inferSchedule(data: CallSchedule): CallSchedule {
   return data;
 }
 
-export function rate(_data: CallSchedule, processed: CallScheduleProcessed) {
-  return processed.issueCounts.hard * 100 + processed.issueCounts.soft * 10;
+export type Rating = [number, number, number];
+export function ratingMinus(a: Rating, b: Rating): Rating {
+  return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+}
+export function ratingCompare(a: Rating, b: Rating): boolean {
+  return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
+}
+export function ratingToString(r: Rating): string {
+  return `(${r[0]},${r[1]},${r[2].toFixed(1)})`;
+}
+export function rate(
+  _data: CallSchedule,
+  processed: CallScheduleProcessed,
+): Rating {
+  let target = 0;
+  for (const person of CALL_POOL) {
+    {
+      let field: 'weekend' | 'weekendOutsideMaternity' = 'weekend';
+      if (person == 'LX') {
+        field = 'weekendOutsideMaternity';
+      }
+      const currentWeekend = processed.callCounts[person].weekend;
+      const correction =
+        1 - processed.unassignedCalls[field] / processed.totalCalls[field];
+      const targetWeekend = WEEKEND_CALL_TARGET[person] * correction;
+      target += Math.abs(currentWeekend - targetWeekend);
+    }
+    {
+      let field: 'weekday' | 'weekdayOutsideMaternity' = 'weekday';
+      if (person == 'LX') {
+        field = 'weekdayOutsideMaternity';
+      }
+      const currentWeekday = processed.callCounts[person].weekday;
+      const correction =
+        1 - processed.unassignedCalls[field] / processed.totalCalls[field];
+      const targetWeekday = WEEKDAY_CALL_TARGET[person] * correction;
+      target += Math.abs(currentWeekday - targetWeekday);
+    }
+  }
+  return [processed.issueCounts.hard, processed.issueCounts.soft, target];
 }
 
 export function scheduleToStoredSchedule(
@@ -217,7 +264,7 @@ function isWeekday(day: string): boolean {
 }
 
 function isLxNotTakingCallDueToMaternity(day: string): boolean {
-  return day >= '2024-09-01' && day <= '2025-01-22'
+  return day >= '2024-09-01' && day <= '2025-01-22';
 }
 
 export function dateToDayOfWeek(
@@ -233,6 +280,47 @@ export function dateToDayOfWeek(
   if (d == 5) return 'fri';
   return 'sat';
 }
+
+export const WEEKDAY_CALL_TARGET: Record<CallPoolPerson, number> = {
+  MAD: 2,
+  // Seniors
+  AA: 24,
+  DC: 25,
+  AJ: 25,
+  // Research
+  LX: 19,
+  CC: 19,
+  // Year 3
+  MB: 23,
+  RB: 23,
+  MJ: 23,
+  TM: 23,
+  // Year 2
+  GN: 11,
+  KO: 11,
+  CPu: 11,
+  NR: 11,
+};
+export const WEEKEND_CALL_TARGET: Record<CallPoolPerson, number> = {
+  MAD: 5,
+  // Seniors
+  AA: 9,
+  DC: 9,
+  AJ: 9,
+  // Research
+  LX: 8, // 10, but 2 redistributed due to maternity leave
+  CC: 11,
+  // Year 3
+  MB: 12,
+  RB: 13,
+  MJ: 12,
+  TM: 12,
+  // Year 2
+  GN: 14,
+  KO: 14,
+  CPu: 14,
+  NR: 14,
+};
 
 export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   const start = Date.now();
@@ -443,26 +531,6 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
               soft: false,
             };
           }
-          // } else {
-          //   const info = assertNonNull(
-          //     result.day2person2info[day.date][person],
-          //   );
-          //   if (
-          //     !isNoCallRotation(info.rotation) &&
-          //     info.rotation !== 'Research'
-          //   ) {
-          //     const rotationHospitals: HospitalKind[] =
-          //       info.rotation == 'Andro' ? ['UW', 'NWH'] : [info.rotation];
-          //     if (
-          //       shiftConfig.hospitals.every(c => !rotationHospitals.includes(c))
-          //     ) {
-          //       unavailablePeople[person] = {
-          //         reason: `cross-coverage: working at ${info.rotation}`,
-          //         soft: true,
-          //       };
-          //     }
-          //   }
-          // }
         }
       }
     }
@@ -739,6 +807,12 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       if (today.rotation == 'OFF') continue;
       const rotationHospitals: HospitalKind[] =
         today.rotation == 'Andro' ? ['UW', 'NWH'] : [today.rotation];
+
+      // for seniors we don't consider cross-call during weekdays, because they have way to much
+      // call and way too little time in south.
+      if (data.people[person].year == 'S' && today.shift == 'weekday_south') {
+        continue;
+      }
       if (call.every(c => !rotationHospitals.includes(c))) {
         result.issues[generateIssueKey()] = {
           kind: 'cross-coverage',
@@ -758,13 +832,13 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     for (const person of PEOPLE) {
       const config = data.people[person];
       if (!config.dueDate) continue;
-      if (day >= nextDay(config.dueDate, -84) && day <= config.dueDate) {
+      if (isLxNotTakingCallDueToMaternity(day)) {
         const today = assertNonNull(result.day2person2info[day][person]);
         if (!today.shift) continue;
         result.issues[generateIssueKey()] = {
-          kind: 'third-trimester',
+          kind: 'maternity',
           startDay: day,
-          message: `On-call during 3rd trimester: ${person} on call ${day} for ${shiftName(
+          message: `On-call during maternity: ${person} on call ${day} for ${shiftName(
             today,
           )}.`,
           isHard: false,
@@ -808,10 +882,9 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   }
 
   // Calculate call targets
-  // let totalWeekday = 0;
-  // let totalWeekend = 0;
   for (const week of data.weeks) {
     for (const day of week.days) {
+      if (day.date > data.lastDay || day.date < data.firstDay) continue;
       for (const [s, person] of Object.entries(day.shifts)) {
         const shift = s as ShiftKind;
         const isMaternity = isLxNotTakingCallDueToMaternity(day.date);
@@ -841,127 +914,11 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       }
     }
   }
-  console.log({
-    unassignedCall: result.unassignedCalls,
-    totalCalls: result.totalCalls,
-  })
-  // {totalWeekday: 254, totalWeekend: 159}
-  const weekdayTarget: Record<CallPoolPerson, number> = {
-    MAD: 2,
-    // Seniors
-    AA: 24,
-    DC: 25,
-    AJ: 25,
-    // Research
-    LX: 19,
-    CC: 19,
-    // Year 3
-    MB: 24,
-    RB: 24,
-    MJ: 24,
-    TM: 24,
-    // Year 2
-    GN: 11,
-    KO: 11,
-    CPu: 11,
-    NR: 11,
-  };
-  const weekendTarget: Record<CallPoolPerson, number> = {
-    MAD: 1,
-    // Seniors
-    AA: 9,
-    DC: 9,
-    AJ: 9,
-    // Research
-    LX: 8, // 10, but 2 redistributed due to maternity leave
-    CC: 11,
-    // Year 3
-    MB: 13,
-    RB: 13,
-    MJ: 13,
-    TM: 13,
-    // Year 2
-    GN: 15,
-    KO: 15,
-    CPu: 15,
-    NR: 15,
-  };
-  // if (
-  //   totalWeekday !=
-  //   weekdayTarget.MAD +
-  //     weekdayTarget.AA +
-  //     weekdayTarget.DC +
-  //     weekdayTarget.AJ +
-  //     weekdayTarget.LX +
-  //     weekdayTarget.CC +
-  //     weekdayTarget.MB +
-  //     weekdayTarget.RB +
-  //     weekdayTarget.MJ +
-  //     weekdayTarget.TM +
-  //     weekdayTarget.GN +
-  //     weekdayTarget.KO +
-  //     weekdayTarget.CPu +
-  //     weekdayTarget.NR
-  // ) {
-  //   console.error(
-  //     'Total weekday call count is off:',
-  //     totalWeekday,
-  //     weekdayTarget.MAD +
-  //       weekdayTarget.AA +
-  //       weekdayTarget.DC +
-  //       weekdayTarget.AJ +
-  //       weekdayTarget.LX +
-  //       weekdayTarget.CC +
-  //       weekdayTarget.MB +
-  //       weekdayTarget.RB +
-  //       weekdayTarget.MJ +
-  //       weekdayTarget.TM +
-  //       weekdayTarget.GN +
-  //       weekdayTarget.KO +
-  //       weekdayTarget.CPu +
-  //       weekdayTarget.NR,
-  //   );
-  // }
-  // if (
-  //   totalWeekend !=
-  //   weekendTarget.MAD +
-  //     weekendTarget.AA +
-  //     weekendTarget.DC +
-  //     weekendTarget.AJ +
-  //     weekendTarget.LX +
-  //     weekendTarget.CC +
-  //     weekendTarget.MB +
-  //     weekendTarget.RB +
-  //     weekendTarget.MJ +
-  //     weekendTarget.TM +
-  //     weekendTarget.GN +
-  //     weekendTarget.KO +
-  //     weekendTarget.CPu +
-  //     weekendTarget.NR
-  // ) {
-  //   console.error(
-  //     'Total weekend call count is off:',
-  //     totalWeekend,
-  //     weekendTarget.MAD +
-  //       weekendTarget.AA +
-  //       weekendTarget.DC +
-  //       weekendTarget.AJ +
-  //       weekendTarget.LX +
-  //       weekendTarget.CC +
-  //       weekendTarget.MB +
-  //       weekendTarget.RB +
-  //       weekendTarget.MJ +
-  //       weekendTarget.TM +
-  //       weekendTarget.GN +
-  //       weekendTarget.KO +
-  //       weekendTarget.CPu +
-  //       weekendTarget.NR,
-  //   );
-  // }
 
   // count shifts
   for (const week of data.weeks) {
     for (const day of week.days) {
+      if (day.date > data.lastDay || day.date < data.firstDay) continue;
       for (const shift of Object.values(day.shifts)) {
         result.shiftCounts.total += 1;
         if (shift !== '' && shift !== undefined)
@@ -981,6 +938,29 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       } else {
         result.element2issueKind[id] = 'soft';
       }
+    }
+  }
+
+  // 6. soft: don't go over call targets
+  for (const person of CALL_POOL) {
+    const callCount = result.callCounts[person];
+    if (callCount.weekday > WEEKDAY_CALL_TARGET[person]) {
+      result.issues[generateIssueKey()] = {
+        kind: 'over-call-target',
+        startDay: data.firstDay as IsoDate,
+        message: `Over weekday call target: ${person} has ${callCount.weekday} calls, target is ${WEEKDAY_CALL_TARGET[person]}.`,
+        isHard: false,
+        elements: [],
+      };
+    }
+    if (callCount.weekend > WEEKEND_CALL_TARGET[person]) {
+      result.issues[generateIssueKey()] = {
+        kind: 'over-call-target',
+        startDay: data.firstDay as IsoDate,
+        message: `Over weekend call target: ${person} has ${callCount.weekend} calls, target is ${WEEKEND_CALL_TARGET[person]}.`,
+        isHard: false,
+        elements: [],
+      };
     }
   }
 

@@ -363,13 +363,14 @@ export const ISSUE_KINDS_HARD = [
   'r2-early-call',
   'mad-early-call',
   'less-than-4-off-in-28',
+  'maternity',
 ] as const;
 export const ISSUE_KINDS_SOFT = [
   'almost-consecutive-call',
   'every-other-weekend-call',
   'mad-during-aua',
   'cross-coverage',
-  'third-trimester',
+  'over-call-target',
 ] as const;
 export const ISSUE_KINDS = [...ISSUE_KINDS_SOFT, ...ISSUE_KINDS_HARD];
 export type IssueKind = (typeof ISSUE_KINDS)[number];
