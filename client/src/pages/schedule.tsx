@@ -416,10 +416,16 @@ function collectHolidayCall(
         if (day.date < data.firstDay || day.date > data.lastDay) continue;
         const dayInfo = processed.day2person2info[day.date][person];
         if (dayInfo) {
-          console.log(person);
           if (dayInfo.shift) {
             if (dayInfo.shift in SPECIAL_SHIFT_LOOKUP) {
               shifts.push(dayInfo.shift);
+
+              const next = `${dayInfo.shift} on ${day.date} (${
+                data.holidays[day.date]
+              })`;
+              if (!result.includes(next)) {
+                result.push(next);
+              }
             }
           }
         }
@@ -683,7 +689,7 @@ function RenderLegend({ showRotations }: { showRotations: boolean }) {
       )}
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
       <Column style={{ ...DAY_BOX_STYLE, minHeight: DAY_VACATION_HEIGHT }}>
-        <Text>Vacations</Text>
+        <Text>Vacations</Text> <Text> (prio. wknd)</Text>
       </Column>
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
       <Column style={{ ...DAY_BOX_STYLE }}>
@@ -712,6 +718,17 @@ function RenderDay({
     (id.dayIndex == 0 && id.weekIndex !== 0) ||
     (id.dayIndex == 1 && id.weekIndex == 0);
   const backgroundColor = isHoliday ? '#fee' : isSpecial ? '#eef' : undefined;
+
+  const vacation = processed.day2person2info[day.date]
+    ? Object.entries(processed.day2person2info[day.date]).filter(
+        ([_, info]) => info.onVacation,
+      )
+    : [];
+  const priorityWeekend = processed.day2person2info[day.date]
+    ? Object.entries(processed.day2person2info[day.date]).filter(
+        ([_, info]) => info.onPriorityWeekend,
+      )
+    : [];
   return (
     <Column
       id={elementIdForDay(day.date)}
@@ -784,12 +801,17 @@ function RenderDay({
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
       <Column style={{ ...DAY_BOX_STYLE, minHeight: DAY_VACATION_HEIGHT }}>
         <Row style={{ opacity: secondaryInfoOpacity, flexWrap: 'wrap' }}>
-          {processed.day2person2info[day.date] &&
-            Object.entries(processed.day2person2info[day.date])
-              .filter(([_, info]) => info.onVacation)
-              .map(([person]) => (
-                <RenderPerson key={person} person={person as Person} />
-              ))}
+          {vacation.map(([person]) => (
+            <RenderPerson key={person} person={person as Person} />
+          ))}
+          {priorityWeekend.length + vacation.length > 0 && (
+            <ElementSpacer space="2px" />
+          )}
+          {priorityWeekend.length > 0 && <Text>(</Text>}
+          {priorityWeekend.map(([person]) => (
+            <RenderPerson key={person} person={person as Person} />
+          ))}
+          {priorityWeekend.length > 0 && <Text>)</Text>}
         </Row>
       </Column>
       <Column style={{ borderBottom: DAY_BORDER }}></Column>

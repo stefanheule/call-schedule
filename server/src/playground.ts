@@ -47,6 +47,7 @@ type RunType =
   | 're-import-holiday'
   | 'infer-weekends'
   | 'infer-weekdays'
+  | 'add-priority-weekend'
   | 'clear-weekends';
 
 function runType(): RunType {
@@ -69,7 +70,7 @@ async function main() {
   // Move existing assignments over
   let data = storage.versions[storage.versions.length - 1].callSchedule;
 
-  if (run == 're-import-holiday') {
+  if (run == 're-import-holiday' || run == 'add-priority-weekend') {
     const previousData = data;
     data = reimportedData;
     previousData.weeks.forEach((week, weekIndex) => {
@@ -147,11 +148,13 @@ async function main() {
     case 're-import-holiday':
     case 'infer-weekends':
     case 'infer-weekdays':
+    case 'add-priority-weekend':
       const text = mapEnum(run, {
         'clear-weekends': 'Cleared weekends to start over',
         're-import-holiday': 'Re-imported fixed holiday schedule',
         'infer-weekends': 'Auto-assigned weekends',
         'infer-weekdays': 'Auto-assigned weekdays',
+        'add-priority-weekend': 'Added priority weekends',
       });
       storage.versions.push(
         scheduleToStoredSchedule(data, `Auto-assigned weekend call`),
@@ -204,6 +207,7 @@ const people: {
   DK: {
     name: 'DK',
     year: 'C',
+    priorityWeekendSaturday: '2024-07-20',
   },
   LZ: {
     name: 'LZ',
@@ -220,19 +224,23 @@ const people: {
   AA: {
     name: 'AA',
     year: 'S',
+    priorityWeekendSaturday: '2024-08-24',
   },
   DC: {
     name: 'DC',
     year: 'S',
+    priorityWeekendSaturday: '2024-08-31',
   },
   AJ: {
     name: 'AJ',
     year: 'S',
+    priorityWeekendSaturday: '2024-08-03',
   },
   LX: {
     name: 'LX',
     year: 'R',
     dueDate: '2024-10-22',
+    priorityWeekendSaturday: '2025-05-17',
   },
   CC: {
     name: 'CC',
@@ -241,14 +249,17 @@ const people: {
   MB: {
     name: 'MB',
     year: '3',
+    priorityWeekendSaturday: '2024-12-14',
   },
   RB: {
     name: 'RB',
     year: '3',
+    priorityWeekendSaturday: '2024-08-03',
   },
   MJ: {
     name: 'MJ',
     year: '3',
+    priorityWeekendSaturday: '2024-08-31',
   },
   TM: {
     name: 'TM',
@@ -257,18 +268,22 @@ const people: {
   GN: {
     name: 'GN',
     year: '2',
+    priorityWeekendSaturday: '2025-04-19',
   },
   KO: {
     name: 'KO',
     year: '2',
+    priorityWeekendSaturday: '2024-10-12',
   },
   CPu: {
     name: 'CPu',
     year: '2',
+    priorityWeekendSaturday: '2024-08-17',
   },
   NR: {
     name: 'NR',
     year: '2',
+    priorityWeekendSaturday: '2024-08-31',
   },
 };
 
@@ -919,6 +934,15 @@ async function importPreviousSchedule() {
     throw new Error(
       `Expected ${processed.totalCalls.weekend} weekend calls, got ${weekend} from WEEKEND_CALL_TARGET`,
     );
+  }
+
+  for (const person of CALL_POOL) {
+    const priority = data.people[person].priorityWeekendSaturday;
+    if (priority) {
+      if (dateToDayOfWeek(priority) != 'sat') {
+        throw new Error(`Priority weekend should be a Saturday: ${priority}`);
+      }
+    }
   }
 
   // haw many weeks south vs north
