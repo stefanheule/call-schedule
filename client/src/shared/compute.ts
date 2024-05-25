@@ -401,12 +401,32 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           chief: rotation.chief,
         },
         onVacation: false,
+        onPriorityWeekend: false,
         isWorking: isWeekday(day),
         shifts: [],
       };
 
       if (day == data.lastDay) break;
       day = nextDay(day);
+    }
+  }
+
+  for (const person of CALL_POOL) {
+    const priority = data.people[person].priorityWeekendSaturday;
+    if (priority) {
+      const priority2 = nextDay(priority, 1);
+      assertNonNull(
+        result.day2person2info[priority]?.[person],
+      ).onPriorityWeekend = true;
+      assertNonNull(
+        result.day2person2info[priority2]?.[person],
+      ).onPriorityWeekend = true;
+      const priority3 = nextDay(priority, 2);
+      if (data.holidays[priority3] !== undefined) {
+        assertNonNull(
+          result.day2person2info[priority3]?.[person],
+        ).onPriorityWeekend = true;
+      }
     }
   }
 
@@ -420,7 +440,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         vacationEnd = nextDay(vacationMonday, 6);
       } else {
         vacationStart = vacation.start;
-        vacationEnd = nextDay(vacationStart, vacation.length);
+        vacationEnd = nextDay(vacationStart, vacation.length - 1);
         if (dateToDayOfWeek(vacationStart) == 'mon') {
           vacationStart = nextDay(vacationStart, -2);
         }
@@ -715,6 +735,26 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       skip -= 1;
     }
   }
+
+  // hard 6. priority weekend
+  forEveryDay(data, (day, _) => {
+    for (const person of CALL_POOL) {
+      const info = result.day2person2info?.[day]?.[person];
+      if (info && info.onPriorityWeekend) {
+        if (info.shifts.length > 0) {
+          result.issues[generateIssueKey()] = {
+            kind: 'priority-weekend',
+            startDay: nextDay(day, -1),
+            message: `Priority weekend: ${person} on ${shiftName(
+              info.shifts[0].shift,
+            )} for ${day}`,
+            isHard: true,
+            elements: [elementIdForShift(day, info.shifts[0].shift)],
+          };
+        }
+      }
+    }
+  });
 
   // soft 1. every other weeknight call // TODO: should weekends count for this?
   forEveryDay(

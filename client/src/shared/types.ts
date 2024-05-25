@@ -111,6 +111,7 @@ export type PersonConfig = {
   name: string;
   year: Year;
   dueDate?: string;
+  priorityWeekendSaturday?: string;
 };
 
 export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
@@ -268,6 +269,7 @@ export type DayPersonInfo = {
   rotationDetails: RotationDetails;
   shift?: ShiftKind;
   onVacation: boolean;
+  onPriorityWeekend: boolean;
   // true if it's a weekday and the person is not on vacation, or if they are on call (either today, or via a multi-day shift that includes today)
   isWorking: boolean;
   shifts: {
@@ -364,6 +366,7 @@ export const ISSUE_KINDS_HARD = [
   'mad-early-call',
   'less-than-4-off-in-28',
   'maternity',
+  'priority-weekend',
 ] as const;
 export const ISSUE_KINDS_SOFT = [
   'almost-consecutive-call',
