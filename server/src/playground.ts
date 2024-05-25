@@ -19,6 +19,7 @@ import {
   RotationSchedule,
   ShiftKind,
   VacationSchedule,
+  WEEKEND_SHIFT_LOOKUP,
   Week,
 } from './shared/types';
 
@@ -41,13 +42,24 @@ import {
 } from './shared/check-type.generated';
 import { loadStorage, storeStorage } from './storage';
 
+type RunType =
+  | 'change-type'
+  | 're-import-holiday'
+  | 'infer-weekends'
+  | 'infer-weekdays'
+  | 'clear-weekends';
+
+function runType(): RunType {
+  return 're-import-holiday';
+}
+
 async function main() {
   await globalSetup();
 
-  const noCheck = false;
+  const run = runType();
 
   const storage = loadStorage({
-    noCheck,
+    noCheck: run == 'change-type',
   });
 
   // Re-import everything
@@ -55,24 +67,39 @@ async function main() {
   clearSchedule(reimportedData);
 
   // Move existing assignments over
-  const data = storage.versions[storage.versions.length - 1].callSchedule;
-  data.weeks.forEach((week, weekIndex) => {
-    week.days.forEach((day, dayIndex) => {
-      Object.entries(day.shifts).forEach(([s, person]) => {
-        const shift = s as ShiftKind;
-        if (person) {
-          const shifts = reimportedData.weeks[weekIndex].days[dayIndex].shifts;
-          if (shift in shifts) {
-            shifts[shift] = person;
+  let data = storage.versions[storage.versions.length - 1].callSchedule;
+
+  if (run == 're-import-holiday') {
+    const previousData = data;
+    data = reimportedData;
+    previousData.weeks.forEach((week, weekIndex) => {
+      week.days.forEach((day, dayIndex) => {
+        Object.entries(day.shifts).forEach(([s, person]) => {
+          const shift = s as ShiftKind;
+          if (person) {
+            const shifts = data.weeks[weekIndex].days[dayIndex].shifts;
+            if (shift in shifts) {
+              shifts[shift] = person;
+            }
           }
-        }
+        });
       });
     });
-  });
+  }
 
-  // Auto-assign weekends
-  const inferWeekends = true;
-  if (inferWeekends) {
+  if (run == 'clear-weekends') {
+    for (const week of data.weeks) {
+      for (const day of week.days) {
+        for (const shift of Object.keys(day.shifts) as ShiftKind[]) {
+          if (shift in WEEKEND_SHIFT_LOOKUP) {
+            day.shifts[shift] = '';
+          }
+        }
+      }
+    }
+  }
+
+  if (run == 'infer-weekends') {
     const processed = processCallSchedule(data);
     for (const week of data.weeks) {
       const friday = week.days[5];
@@ -95,23 +122,50 @@ async function main() {
     }
   }
 
-  if (noCheck) {
-    storeStorage({
-      versions: [scheduleToStoredSchedule(data, `Re-imported`)],
-    });
-    console.log(`Saving as 're-imported'.`);
-    storeStorage(storage);
-  } else {
-    if (inferWeekends) {
+  if (run == 'infer-weekdays') {
+    const processed = processCallSchedule(data);
+    for (const week of data.weeks) {
+      for (const day of week.days) {
+        const shift: ShiftKind = 'weekday_south';
+        if (!(shift in day.shifts)) continue;
+        if (day.shifts[shift]) continue;
+
+        const inference = inferShift(data, processed, day.date, shift, {
+          enableLog: true,
+          skipUnavailablePeople: true,
+        });
+
+        if (inference.best) {
+          day.shifts[shift] = inference.best.person;
+        }
+      }
+    }
+  }
+
+  switch (run) {
+    case 'clear-weekends':
+    case 're-import-holiday':
+    case 'infer-weekends':
+    case 'infer-weekdays':
+      const text = mapEnum(run, {
+        'clear-weekends': 'Cleared weekends to start over',
+        're-import-holiday': 'Re-imported fixed holiday schedule',
+        'infer-weekends': 'Auto-assigned weekends',
+        'infer-weekdays': 'Auto-assigned weekdays',
+      });
       storage.versions.push(
         scheduleToStoredSchedule(data, `Auto-assigned weekend call`),
       );
-      console.log(`Saving as 'inferred weekends'.`);
-      storeStorage(storage);
-    } else {
-      console.log(`Not saving.`);
-    }
+      console.log(`Saving as: '${text}'`);
+      break;
+    case 'change-type':
+      storeStorage({
+        versions: [scheduleToStoredSchedule(data, `Re-imported`)],
+      });
+      console.log(`Saving as 're-imported'.`);
+      break;
   }
+  storeStorage(storage);
 
   // const data = await importPreviousSchedule();
   // // inferSchedule(data);
@@ -316,10 +370,13 @@ async function importRotationSchedule(): Promise<
   for (rowIndex = 0; rowIndex < 7; rowIndex += 1) {
     for (let col = 3; col <= 3 + 52; col++) {
       const startDay = nextDay('2024-07-01', (col - 3) * 7);
-      const per = sheet.data[rowIndex][col] as string;
+      let per = sheet.data[rowIndex][col] as string;
       if (per === undefined || per == '') continue;
       if (per.includes('(S1)') || per.includes('(S2)')) continue;
-      const person = assertPerson(per.replace(/[0-9]/, '').replace('*', ''));
+      per = per.replace(/[0-9]/, '').replace('*', '');
+      if (per == 'TB') per = 'MAD';
+      if (per == 'HS') per = 'MAD';
+      const person = assertPerson(per);
       vacations[person].push(startDay);
     }
   }

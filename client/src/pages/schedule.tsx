@@ -29,6 +29,7 @@ import {
   MaybeCallPoolPerson,
   CallPoolPerson,
   CALL_POOL,
+  SPECIAL_SHIFT_LOOKUP,
 } from '../shared/types';
 import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
@@ -393,16 +394,34 @@ function collectHolidayCall(
 ): string {
   const result: string[] = [];
   const shifts: ShiftKind[] = [];
-  for (const day in data.holidays) {
-    const dayInfo = processed.day2person2info[day];
-    if (dayInfo && dayInfo[person]) {
-      const dayPersonInfo = dayInfo[person];
-      for (const shift of dayPersonInfo?.shifts || []) {
-        if (shift.isFakeEntry) continue;
-        const next = `${shift.shift} on ${shift.day} (${data.holidays[day]})`;
-        if (!result.includes(next)) {
-          result.push(next);
-          shifts.push(shift.shift);
+  const considerAllHolidayOverlappingShifts = false;
+  if (considerAllHolidayOverlappingShifts) {
+    for (const day in data.holidays) {
+      const dayInfo = processed.day2person2info[day];
+      if (dayInfo && dayInfo[person]) {
+        const dayPersonInfo = dayInfo[person];
+        for (const shift of dayPersonInfo?.shifts || []) {
+          if (shift.isFakeEntry) continue;
+          const next = `${shift.shift} on ${shift.day} (${data.holidays[day]})`;
+          if (!result.includes(next)) {
+            result.push(next);
+            shifts.push(shift.shift);
+          }
+        }
+      }
+    }
+  } else {
+    for (const week of data.weeks) {
+      for (const day of week.days) {
+        if (day.date < data.firstDay || day.date > data.lastDay) continue;
+        const dayInfo = processed.day2person2info[day.date][person];
+        if (dayInfo) {
+          console.log(person);
+          if (dayInfo.shift) {
+            if (dayInfo.shift in SPECIAL_SHIFT_LOOKUP) {
+              shifts.push(dayInfo.shift);
+            }
+          }
         }
       }
     }
