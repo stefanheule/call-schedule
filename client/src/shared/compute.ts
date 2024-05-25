@@ -374,6 +374,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       weekendOutsideMaternity: 0,
       weekdayOutsideMaternity: 0,
     },
+    day2shift2isHolidayAdjacent: {},
   };
 
   // Figure out where everyone is working
@@ -552,6 +553,35 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
             };
           }
         }
+      }
+    }
+  }
+
+  for (const [date, holiday] of Object.entries(data.holidays)) {
+    const dow = dateToDayOfWeek(date);
+    const days = [];
+    if (holiday.includes('Thanksgiving')) {
+      if (dow == 'fri') days.push(date);
+    } else {
+      switch (dow) {
+        case 'mon':
+          days.push(nextDay(date, -3), nextDay(date, -1));
+          break;
+        case 'wed':
+        case 'thu':
+          days.push(nextDay(date, -1));
+          break;
+        default:
+          throw new Error(`Didn't expect a holiday on ${dow}`);
+      }
+    }
+
+    for (const day of days) {
+      for (const s in result.day2shift2unavailablePeople[day]) {
+        const shift = s as ShiftKind;
+        result.day2shift2isHolidayAdjacent[day] =
+          result.day2shift2isHolidayAdjacent[day] ?? {};
+        result.day2shift2isHolidayAdjacent[day][shift] = holiday;
       }
     }
   }
