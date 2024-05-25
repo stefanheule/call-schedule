@@ -48,10 +48,11 @@ type RunType =
   | 'infer-weekends'
   | 'infer-weekdays'
   | 'add-priority-weekend'
+  | 'noop'
   | 'clear-weekends';
 
 function runType(): RunType {
-  return 're-import-holiday';
+  return 'noop';
 }
 
 async function main() {
@@ -141,6 +142,11 @@ async function main() {
         }
       }
     }
+  }
+
+  if (run == 'noop') {
+    console.log('No operation specified.');
+    return;
   }
 
   switch (run) {

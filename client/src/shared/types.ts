@@ -341,6 +341,12 @@ export type CallScheduleProcessed = {
       [Property in ShiftKind]?: UnavailablePeople;
     };
   };
+
+  day2shift2isHolidayAdjacent: {
+    [day: string]: {
+      [Property in ShiftKind]?: string;
+    };
+  };
 };
 
 export type UnavailablePeople = {
