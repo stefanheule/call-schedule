@@ -71,7 +71,7 @@ async function main() {
   });
 
   // Auto-assign weekends
-  const inferWeekends = false;
+  const inferWeekends = true;
   if (inferWeekends) {
     const processed = processCallSchedule(data);
     for (const week of data.weeks) {
