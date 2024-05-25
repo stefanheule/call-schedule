@@ -5,7 +5,9 @@ import { globalSetup } from './common/error-reporting';
 import * as xlsx from 'node-xlsx';
 import {
   ALL_PEOPLE,
+  CALL_POOL,
   CallPool,
+  CallPoolPerson,
   CallSchedule,
   Day,
   HospitalKind,
@@ -23,7 +25,11 @@ import {
 import * as datefns from 'date-fns';
 import { IsoDate, dateToIsoDate, isoDateToDate, mapEnum } from 'check-type';
 import {
+  WEEKDAY_CALL_TARGET,
+  WEEKEND_CALL_TARGET,
   clearSchedule,
+  dateToDayOfWeek,
+  inferShift,
   nextDay,
   processCallSchedule,
   scheduleToStoredSchedule,
@@ -38,22 +44,24 @@ import { loadStorage, storeStorage } from './storage';
 async function main() {
   await globalSetup();
 
+  const noCheck = false;
+
   const storage = loadStorage({
-    noCheck: true,
+    noCheck,
   });
 
   // Re-import everything
-  const data = await importPreviousSchedule();
-  clearSchedule(data);
+  const reimportedData = await importPreviousSchedule();
+  clearSchedule(reimportedData);
 
   // Move existing assignments over
-  const latest = storage.versions[storage.versions.length - 1].callSchedule;
-  latest.weeks.forEach((week, weekIndex) => {
+  const data = storage.versions[storage.versions.length - 1].callSchedule;
+  data.weeks.forEach((week, weekIndex) => {
     week.days.forEach((day, dayIndex) => {
       Object.entries(day.shifts).forEach(([s, person]) => {
         const shift = s as ShiftKind;
         if (person) {
-          const shifts = data.weeks[weekIndex].days[dayIndex].shifts;
+          const shifts = reimportedData.weeks[weekIndex].days[dayIndex].shifts;
           if (shift in shifts) {
             shifts[shift] = person;
           }
@@ -62,14 +70,48 @@ async function main() {
     });
   });
 
-  storeStorage({
-    versions: [
-      scheduleToStoredSchedule(
-        data,
-        `Re-imported (vacations and thanksgiving rotations fixes)`,
-      ),
-    ],
-  });
+  // Auto-assign weekends
+  const inferWeekends = false;
+  if (inferWeekends) {
+    const processed = processCallSchedule(data);
+    for (const week of data.weeks) {
+      const friday = week.days[5];
+      if (dateToDayOfWeek(friday.date) !== 'fri')
+        throw new Error(`Should be friday: ${dateToDayOfWeek(friday.date)}`);
+
+      for (const [s, assigned] of Object.entries(friday.shifts)) {
+        const shift = s as ShiftKind;
+        if (assigned) continue;
+
+        const inference = inferShift(data, processed, friday.date, shift, {
+          enableLog: true,
+          skipUnavailablePeople: true,
+        });
+
+        if (inference.best) {
+          friday.shifts[shift] = inference.best.person;
+        }
+      }
+    }
+  }
+
+  if (noCheck) {
+    storeStorage({
+      versions: [scheduleToStoredSchedule(data, `Re-imported`)],
+    });
+    console.log(`Saving as 're-imported'.`);
+    storeStorage(storage);
+  } else {
+    if (inferWeekends) {
+      storage.versions.push(
+        scheduleToStoredSchedule(data, `Auto-assigned weekend call`),
+      );
+      console.log(`Saving as 'inferred weekends'.`);
+      storeStorage(storage);
+    } else {
+      console.log(`Not saving.`);
+    }
+  }
 
   // const data = await importPreviousSchedule();
   // // inferSchedule(data);
@@ -801,6 +843,77 @@ async function importPreviousSchedule() {
   }
 
   const processed = processCallSchedule(data);
+
+  // check call target matches up.
+  const weekday = Object.values(WEEKDAY_CALL_TARGET).reduce(
+    (acc, val) => acc + val,
+    0,
+  );
+  if (processed.totalCalls.weekday != weekday) {
+    throw new Error(
+      `Expected ${processed.totalCalls.weekday} weekday calls, got ${weekday} from WEEKDAY_CALL_TARGET`,
+    );
+  }
+  const weekend = Object.values(WEEKEND_CALL_TARGET).reduce(
+    (acc, val) => acc + val,
+    0,
+  );
+  if (processed.totalCalls.weekend != weekend) {
+    throw new Error(
+      `Expected ${processed.totalCalls.weekend} weekend calls, got ${weekend} from WEEKEND_CALL_TARGET`,
+    );
+  }
+
+  // haw many weeks south vs north
+  const southWeekdays: Record<CallPoolPerson, number> = {} as Record<
+    CallPoolPerson,
+    number
+  >;
+  const northWeekdays: Record<CallPoolPerson, number> = {} as Record<
+    CallPoolPerson,
+    number
+  >;
+  for (const week of data.weeks) {
+    for (const day of week.days) {
+      const dow = dateToDayOfWeek(day.date);
+      if (dow == 'sun' || dow == 'sat') continue;
+      for (const person of CALL_POOL) {
+        if (!northWeekdays[person]) northWeekdays[person] = 0;
+        if (!southWeekdays[person]) southWeekdays[person] = 0;
+        const info = processed.day2person2info?.[day.date]?.[person];
+        if (info) {
+          switch (info.rotation) {
+            case 'Research':
+            case 'UW':
+            case 'SCH':
+            case 'NWH':
+            case 'Andro':
+              northWeekdays[person] += 1;
+              break;
+            case 'VA':
+            case 'HMC':
+              southWeekdays[person] += 1;
+              break;
+            case 'Alaska':
+            case 'NF':
+            case 'OFF':
+              break;
+          }
+        }
+      }
+    }
+  }
+
+  console.log(
+    `Here's how much people spend at a south rotation vs how much south call they take.`,
+  );
+  for (const person of CALL_POOL) {
+    console.log(
+      `${person.length > 2 ? '' : ' '}${person}: ${southWeekdays[person]} <-> ${
+        WEEKDAY_CALL_TARGET[person]
+      }`,
+    );
+  }
 
   assertCallSchedule(data);
   assertCallScheduleProcessed(processed);
