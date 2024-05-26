@@ -3,6 +3,7 @@ import {
   assertNonNull,
   dateToIsoDatetime,
   lexicalCompare,
+  mapEnum,
   uuid,
 } from 'check-type';
 import {
@@ -265,7 +266,7 @@ function isWeekday(day: string): boolean {
 }
 
 function isLxNotTakingCallDueToMaternity(day: string): boolean {
-  return day >= '2024-09-01' && day <= '2025-01-22';
+  return day >= '2024-09-01' && day <= '2025-01-14';
 }
 
 export function dateToDayOfWeek(
@@ -303,7 +304,7 @@ export const WEEKDAY_CALL_TARGET: Record<CallPoolPerson, number> = {
   NR: 11,
 };
 export const WEEKEND_CALL_TARGET: Record<CallPoolPerson, number> = {
-  MAD: 3, // +2 holiday
+  MAD: 4, // +1 holiday
   // Seniors
   AA: 8,
   DC: 8,
@@ -312,15 +313,15 @@ export const WEEKEND_CALL_TARGET: Record<CallPoolPerson, number> = {
   LX: 7, // 9, but 2 redistributed due to maternity leave
   CC: 9,
   // Year 3
-  MB: 10,
-  RB: 10,
+  MB: 11,
+  RB: 11,
   MJ: 10,
-  TM: 10,
+  TM: 11,
   // Year 2
-  GN: 13,
-  KO: 13,
-  CPu: 13,
-  NR: 13,
+  GN: 12,
+  KO: 12,
+  CPu: 12,
+  NR: 12,
 };
 
 export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
@@ -406,6 +407,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         onPriorityWeekend: false,
         isWorking: isWeekday(day),
         shifts: [],
+        shifts2: [],
       };
 
       if (day == data.lastDay) break;
@@ -485,6 +487,30 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
             result.day2person2info[nextD][person],
           );
           nextDayInfo.shifts.push({
+            shift: shift,
+            day: day.date,
+          });
+        }
+
+        const lenDays = mapEnum(shift, {
+          day_2x_nwhsch: 0,
+          day_2x_uw: 0,
+          day_uw: 0,
+          day_nwhsch: 0,
+          weekday_south: 1,
+          weekend_south: 3,
+          weekend_uw: 3,
+          weekend_nwhsch: 3,
+          south_24: 2,
+          south_36: 2,
+        });
+        for (let i = 0; i < lenDays; i++) {
+          const nextD = nextDay(day.date, i);
+          if (nextD > data.lastDay || nextD < data.firstDay) continue;
+          const nextDayInfo = assertNonNull(
+            result.day2person2info[nextD][person],
+          );
+          nextDayInfo.shifts2.push({
             shift: shift,
             day: day.date,
           });
@@ -698,10 +724,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     data,
     (day, _) => {
       for (const person of PEOPLE) {
-        const today = assertNonNull(result.day2person2info[day][person]).shifts;
+        const today = assertNonNull(result.day2person2info[day][person]).shifts2;
         const tomorrow = assertNonNull(
           result.day2person2info[nextDay(day)][person],
-        ).shifts.filter(
+        ).shifts2.filter(
           t => !today.find(x => x.shift == t.shift && x.day == t.day),
         );
 
@@ -795,6 +821,8 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   // hard 5. 4 days off in a 28 day period
   for (const person of PEOPLE) {
     let offCounter = 0;
+    // Research residents can't violate this rule
+    if (data.people[person].year == 'R') continue;
     for (let i = 0; i < 28; i++) {
       const info = assertNonNull(
         result.day2person2info[nextDay(data.firstDay, i)][person],
@@ -875,13 +903,13 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     data,
     (day, _) => {
       for (const person of PEOPLE) {
-        const today = assertNonNull(result.day2person2info[day][person]).shifts;
+        const today = assertNonNull(result.day2person2info[day][person]).shifts2;
         const tomorrow = assertNonNull(
           result.day2person2info[nextDay(day)][person],
-        ).shifts;
+        ).shifts2;
         const dayAfterTomorrow = assertNonNull(
           result.day2person2info[nextDay(day, 2)][person],
-        ).shifts.filter(
+        ).shifts2.filter(
           t => !today.find(x => x.shift == t.shift && x.day == t.day),
         );
 
@@ -1006,7 +1034,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           message: `On-call during maternity: ${person} on call ${day} for ${shiftName(
             today,
           )}.`,
-          isHard: false,
+          isHard: true,
           elements: [elementIdForShift(day, today.shift)],
         };
       }

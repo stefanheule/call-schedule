@@ -52,7 +52,7 @@ type RunType =
   | 'clear-weekends';
 
 function runType(): RunType {
-  return 'infer-weekends';
+  return 'noop';
 }
 
 async function main() {
@@ -108,6 +108,7 @@ async function main() {
       if (dateToDayOfWeek(friday.date) !== 'fri')
         throw new Error(`Should be friday: ${dateToDayOfWeek(friday.date)}`);
 
+      if (friday.date < data.firstDay || friday.date > data.lastDay) continue;
       for (const [s, assigned] of Object.entries(friday.shifts)) {
         const shift = s as ShiftKind;
         if (assigned) continue;
@@ -128,6 +129,7 @@ async function main() {
     const processed = processCallSchedule(data);
     for (const week of data.weeks) {
       for (const day of week.days) {
+        if (day.date < data.firstDay || day.date > data.lastDay) continue;
         const shift: ShiftKind = 'weekday_south';
         if (!(shift in day.shifts)) continue;
         if (day.shifts[shift]) continue;
@@ -162,9 +164,7 @@ async function main() {
         'infer-weekdays': 'Auto-assigned weekdays',
         'add-priority-weekend': 'Added priority weekends',
       });
-      storage.versions.push(
-        scheduleToStoredSchedule(data, `Auto-assigned weekend call`),
-      );
+      storage.versions.push(scheduleToStoredSchedule(data, text));
       console.log(`Saving as: '${text}'`);
       break;
     case 'change-type':
@@ -696,24 +696,24 @@ async function importPreviousSchedule() {
         hospitals: SOUTH_HOSPITALS,
         days: 2,
       },
-      power_nwhsch: {
-        kind: 'power_nwhsch',
-        name: `Power NWH/SCH`,
-        hospitals: NWHSCH_HOSPITALS,
-        days: 3,
-      },
-      power_uw: {
-        kind: 'power_uw',
-        name: `Power UW`,
-        hospitals: ['UW'],
-        days: 3,
-      },
-      power_south: {
-        kind: 'power_south',
-        name: `Power South`,
-        hospitals: SOUTH_HOSPITALS,
-        days: 3,
-      },
+      // power_nwhsch: {
+      //   kind: 'power_nwhsch',
+      //   name: `Power NWH/SCH`,
+      //   hospitals: NWHSCH_HOSPITALS,
+      //   days: 3,
+      // },
+      // power_uw: {
+      //   kind: 'power_uw',
+      //   name: `Power UW`,
+      //   hospitals: ['UW'],
+      //   days: 3,
+      // },
+      // power_south: {
+      //   kind: 'power_south',
+      //   name: `Power South`,
+      //   hospitals: SOUTH_HOSPITALS,
+      //   days: 3,
+      // },
       south_36: {
         kind: 'south_36',
         name: `South 36`,
@@ -741,9 +741,10 @@ async function importPreviousSchedule() {
       '2025-04-27': 'AUA',
       '2025-04-28': 'AUA',
       '2025-04-29': 'AUA',
-      '2025-06-07': 'Chief Board Review',
-      '2025-06-08': 'Chief Board Review',
-      '2025-06-14': 'Graduation',
+      '2025-05-30': 'Chief Board Review',
+      '2025-05-31': 'Chief Board Review',
+      '2025-06-01': 'Chief Board Review',
+      '2025-06-07': 'Graduation',
     },
     vacations: {
       LZ: [],
