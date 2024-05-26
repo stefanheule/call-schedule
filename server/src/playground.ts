@@ -50,6 +50,7 @@ import {
 } from './shared/check-type.generated';
 import { assertRunType } from './check-type.generated';
 import { loadStorage, storeStorage } from './storage';
+import fs from 'fs';
 
 // @check-type
 export type RunType =
@@ -60,6 +61,7 @@ export type RunType =
   | 'add-priority-weekend'
   | 'noop'
   | 'delete-previous'
+  | 'export'
   | 'clear-weekends'
   | 'clear-weekdays';
 
@@ -185,6 +187,11 @@ async function main() {
     return;
   }
 
+  if (run == 'export') {
+    exportSchedule(data);
+    return;
+  }
+
   switch (run) {
     case 'delete-previous':
       const x = storage.versions.pop();
@@ -241,6 +248,76 @@ async function main() {
   //   `${__dirname}/shared/init.json`,
   //   JSON.stringify(data, null, 2),
   // );
+}
+
+function exportSchedule(data: CallSchedule) {
+  const processed = processCallSchedule(data);
+  const rows: string[][] = [];
+
+  for (const week of data.weeks) {
+    const dates = [];
+    const shifts: string[][] = [[], [], []];
+    const vacations = [];
+    const priorityWeekend = [];
+    const holidays = [];
+    for (const day of week.days) {
+      dates.push(datefns.format(isoDateToDate(day.date), 'EEEE, M/d/yyyy'));
+      holidays.push(
+        data.holidays[day.date] ?? data.specialDays[day.date] ?? '',
+      );
+      const peopleOnVacation = CALL_POOL.filter(p => {
+        const info = processed.day2person2info[day.date]?.[p];
+        return info && info.onVacation;
+      });
+      vacations.push(peopleOnVacation.join(', '));
+
+      const peoplePriorityWeekend = CALL_POOL.filter(p => {
+        const info = processed.day2person2info[day.date]?.[p];
+        return info && info.onPriorityWeekend;
+      });
+      priorityWeekend.push(peoplePriorityWeekend.join(', '));
+
+      let i = 0;
+      for (const [s, person] of Object.entries(day.shifts)) {
+        const shift = s as ShiftKind;
+        const shiftName = mapEnum(shift, {
+          weekday_south: 'South overnight',
+          weekend_south: 'Weekend South',
+          weekend_uw: 'Weekend UW',
+          weekend_nwhsch: 'Weekend NWH/SCH',
+          day_nwhsch: 'NWH/SCH Day Shift',
+          day_uw: 'UW Day Shift',
+          day_2x_nwhsch: 'NWH/SCH Day Shift (Thu and Fri, 10h each)',
+          day_2x_uw: 'UW Day Shift (Thu and Fri, 10h each)',
+          south_24: 'South 24h',
+          south_36: 'South 36h',
+        });
+        shifts[i].push(`${shiftName}: ${person}`);
+        i += 1;
+      }
+      for (; i < 3; i++) {
+        shifts[i].push('');
+      }
+    }
+    rows.push(['', ...dates]);
+    rows.push(['Holidays/Special', ...holidays]);
+    rows.push(['Vacations', ...vacations]);
+    rows.push(['Priority Weekend', ...priorityWeekend]);
+    rows.push(['Call shifts', ...shifts[0]]);
+    rows.push(['', ...shifts[1]]);
+    rows.push(['', ...shifts[2]]);
+    rows.push([]);
+    rows.push([]);
+  }
+
+  const buffer = xlsx.build([
+    { name: 'Call Schedule AY2025', data: rows, options: {} },
+  ]);
+  const outputFile = `${__dirname}/../../Call-Schedule-AY2025.xlsx`;
+  if (fs.existsSync(outputFile)) {
+    fs.unlinkSync(outputFile);
+  }
+  fs.writeFileSync(outputFile, buffer);
 }
 
 const people: {
@@ -1032,15 +1109,17 @@ async function importPreviousSchedule() {
     }
   }
 
-  console.log(
-    `Here's how much people spend at a south rotation vs how much south call they take.`,
-  );
-  for (const person of CALL_POOL) {
+  if (1 == 1 + 1) {
     console.log(
-      `${person.length > 2 ? '' : ' '}${person}: ${southWeekdays[person]} <-> ${
-        WEEKDAY_CALL_TARGET[person]
-      }`,
+      `Here's how much people spend at a south rotation vs how much south call they take.`,
     );
+    for (const person of CALL_POOL) {
+      console.log(
+        `${person.length > 2 ? '' : ' '}${person}: ${
+          southWeekdays[person]
+        } <-> ${WEEKDAY_CALL_TARGET[person]}`,
+      );
+    }
   }
 
   assertCallSchedule(data);
