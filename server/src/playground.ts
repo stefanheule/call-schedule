@@ -56,7 +56,7 @@ type RunType =
   | 'clear-weekdays';
 
 function runType(): RunType {
-  return 'clear-weekdays';
+  return 'noop';
 }
 
 async function main() {
