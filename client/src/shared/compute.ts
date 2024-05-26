@@ -473,7 +473,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         if (person === '' || person === undefined) continue;
 
         const shiftConfig = data.shiftConfigs[shift];
-        for (let i = 0; i <= shiftConfig.days; i++) {
+        for (let i = 0; i <= shiftConfig.days - 1; i++) {
           const info = result.day2person2info[nextDay(day.date, i)]?.[person];
           if (!info) continue;
           if (i == 0) info.shift = shift;
