@@ -275,7 +275,6 @@ export type DayPersonInfo = {
   shifts: {
     shift: ShiftKind;
     day: string;
-    isFakeEntry: boolean;
   }[];
 };
 
