@@ -26,7 +26,13 @@ import {
 } from './shared/types';
 
 import * as datefns from 'date-fns';
-import { IsoDate, dateToIsoDate, deepCopy, isoDateToDate, mapEnum } from 'check-type';
+import {
+  IsoDate,
+  dateToIsoDate,
+  deepCopy,
+  isoDateToDate,
+  mapEnum,
+} from 'check-type';
 import {
   WEEKDAY_CALL_TARGET,
   WEEKEND_CALL_TARGET,
@@ -42,9 +48,11 @@ import {
   assertCallScheduleProcessed,
   assertPerson,
 } from './shared/check-type.generated';
+import { assertRunType } from './check-type.generated';
 import { loadStorage, storeStorage } from './storage';
 
-type RunType =
+// @check-type
+export type RunType =
   | 'change-type'
   | 're-import-holiday'
   | 'infer-weekends'
@@ -56,7 +64,10 @@ type RunType =
   | 'clear-weekdays';
 
 function runType(): RunType {
-  return 'noop';
+  if (process.argv.length < 3) return 'noop';
+  const arg = process.argv[2];
+
+  return assertRunType(arg);
 }
 
 async function main() {

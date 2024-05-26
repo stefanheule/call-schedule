@@ -294,6 +294,7 @@ export type Hospital2People = {
 export type IssueCount = {
   hard: number;
   soft: number;
+  softCrossCoverage?: number;
 };
 
 export type CallScheduleProcessed = {

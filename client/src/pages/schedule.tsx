@@ -411,7 +411,7 @@ function holidayShiftsToString(holidayShifts: HolidayShift[]): string {
         break;
       case 'day_2x_uw':
       case 'day_2x_nwhsch':
-        calls += 2;
+        calls += 1;
         hours += 20;
         break;
       case 'south_24':
@@ -523,7 +523,7 @@ function RenderCallCounts() {
                           : 'normal',
                     }}
                   >
-                    (target: {WEEKDAY_CALL_TARGET[person]})
+                    (target: {WEEKDAY_CALL_TARGET[person]}; sundays: {counts.sunday})
                   </Text>
                   <Text>/</Text>
                   <Text
