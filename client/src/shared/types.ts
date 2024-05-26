@@ -36,9 +36,9 @@ export const SPECIAL_SHIFTS = [
   'day_2x_nwhsch',
   'south_24',
   'south_36',
-  'power_uw',
-  'power_nwhsch',
-  'power_south',
+  // 'power_uw',
+  // 'power_nwhsch',
+  // 'power_south',
   // 'thanksgiving_south',
 ] as const;
 export const SPECIAL_SHIFT_LOOKUP: Record<SpecialShiftKind, boolean> = {
@@ -48,9 +48,9 @@ export const SPECIAL_SHIFT_LOOKUP: Record<SpecialShiftKind, boolean> = {
   day_2x_nwhsch: true,
   south_24: true,
   south_36: true,
-  power_uw: true,
-  power_nwhsch: true,
-  power_south: true,
+  // power_uw: true,
+  // power_nwhsch: true,
+  // power_south: true,
 };
 
 export type SpecialShiftKind = (typeof SPECIAL_SHIFTS)[number];
@@ -60,16 +60,16 @@ export const SHIFT_ORDER: ShiftKind[] = [
   'weekend_nwhsch',
   'day_nwhsch',
   'day_2x_nwhsch',
-  'power_nwhsch',
+  // 'power_nwhsch',
   // UW
   'weekend_uw',
   'day_uw',
   'day_2x_uw',
-  'power_uw',
+  // 'power_uw',
   'south_24',
   'south_36',
   // South
-  'power_south',
+  // 'power_south',
   'weekday_south',
   'weekend_south',
   // 'thanksgiving_south',
@@ -273,6 +273,11 @@ export type DayPersonInfo = {
   // true if it's a weekday and the person is not on vacation, or if they are on call (either today, or via a multi-day shift that includes today)
   isWorking: boolean;
   shifts: {
+    shift: ShiftKind;
+    day: string;
+  }[];
+  // shifts2 is used for consecutive and almost-consecutive call. it's weird what does and does not count.
+  shifts2: {
     shift: ShiftKind;
     day: string;
   }[];

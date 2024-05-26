@@ -422,12 +422,12 @@ function holidayShiftsToString(holidayShifts: HolidayShift[]): string {
         calls += 1;
         hours += 36;
         break;
-      case 'power_uw':
-      case 'power_nwhsch':
-      case 'power_south':
-        calls += 1;
-        hours += 60;
-        break;
+      // case 'power_uw':
+      // case 'power_nwhsch':
+      // case 'power_south':
+      //   calls += 1;
+      //   hours += 60;
+      //   break;
     }
   }
   if (holidayShifts.length == 0) return `none`;
@@ -502,11 +502,53 @@ function RenderCallCounts() {
                     width: '23px',
                   }}
                 />
-                <Text>
-                  {counts.weekday} weekday (target:{' '}
-                  {WEEKDAY_CALL_TARGET[person]}) / {counts.weekend} weekend
-                  (target: {WEEKEND_CALL_TARGET[person]}) / {counts.nf} NF
-                </Text>
+                <Row spacing="2px">
+                  <Text
+                    style={{
+                      fontWeight:
+                        counts.weekday + counts.sunday >
+                        WEEKDAY_CALL_TARGET[person]
+                          ? 'bold'
+                          : 'normal',
+                    }}
+                  >
+                    {counts.weekday + counts.sunday} weekday
+                  </Text>
+                  <Text
+                    style={{
+                      fontWeight:
+                        counts.weekday + counts.sunday <
+                        WEEKDAY_CALL_TARGET[person]
+                          ? 'bold'
+                          : 'normal',
+                    }}
+                  >
+                    (target: {WEEKDAY_CALL_TARGET[person]})
+                  </Text>
+                  <Text>/</Text>
+                  <Text
+                    style={{
+                      fontWeight:
+                        counts.weekend > WEEKEND_CALL_TARGET[person]
+                          ? 'bold'
+                          : 'normal',
+                    }}
+                  >
+                    {counts.weekend} weekend
+                  </Text>
+                  <Text
+                    style={{
+                      fontWeight:
+                        counts.weekend < WEEKEND_CALL_TARGET[person]
+                          ? 'bold'
+                          : 'normal',
+                    }}
+                  >
+                    (target: {WEEKEND_CALL_TARGET[person]})
+                  </Text>
+                  <Text>/</Text>
+                  <Text>{counts.nf} NF</Text>
+                </Row>
               </Row>
             );
           })}
