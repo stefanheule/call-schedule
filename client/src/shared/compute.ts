@@ -81,7 +81,9 @@ export function inferShift(
     return empty;
   }
   const day = data.weeks[dayAndWeek.weekIndex].days[dayAndWeek.dayIndex];
-  const people = availablePeopleForShift(processed, date, shift).filter(p => data.people[p].year !== '2');
+  const people = availablePeopleForShift(processed, date, shift).filter(
+    p => data.people[p].year !== '2',
+  );
 
   if (people.length == 0) {
     if (config?.enableLog) {
@@ -182,6 +184,7 @@ export function ratingCompare(a: Rating, b: Rating): boolean {
 export function ratingToString(r: Rating): string {
   return `(${r[0]},${r[1]},${r[2].toFixed(1)})`;
 }
+const RATE_CROSS_COVERAGE_AS_SOFT_RULE = false;
 export function rate(
   _data: CallSchedule,
   processed: CallScheduleProcessed,
@@ -210,6 +213,14 @@ export function rate(
       const targetWeekday = WEEKDAY_CALL_TARGET[person] * correction;
       target += Math.abs(currentWeekday - targetWeekday);
     }
+  }
+  if (!RATE_CROSS_COVERAGE_AS_SOFT_RULE) {
+    return [
+      processed.issueCounts.hard,
+      processed.issueCounts.soft -
+        (processed.issueCounts.softCrossCoverage ?? 0),
+      100*target + (processed.issueCounts.softCrossCoverage ?? 0),
+    ];
   }
   return [processed.issueCounts.hard, processed.issueCounts.soft, target];
 }
@@ -336,6 +347,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     issueCounts: {
       hard: 0,
       soft: 0,
+      softCrossCoverage: 0,
     },
     callCounts: {
       MAD: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
@@ -781,7 +793,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
 
   // hard 3. r2's should not be on call for first 2 weeks of july
   forEveryDay(data, (day, _) => {
-    if (day > '2024-07-14') return;
+    if (day > '2024-07-13') return;
     for (const person of PEOPLE) {
       const p = data.people[person];
       if (p.year != '2') continue;
@@ -1051,6 +1063,12 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       result.issueCounts.hard += 1;
     } else if ((ISSUE_KINDS_SOFT as readonly string[]).includes(issue.kind)) {
       result.issueCounts.soft += 1;
+      if (
+        issue.kind == 'cross-coverage' &&
+        result.issueCounts.softCrossCoverage !== undefined
+      ) {
+        result.issueCounts.softCrossCoverage += 1;
+      }
     }
   }
 

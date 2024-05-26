@@ -715,6 +715,11 @@ cliui@^8.0.1:
     strip-ansi "^6.0.1"
     wrap-ansi "^7.0.0"
 
+cloc@^2.0.0-cloc:
+  version "2.0.0-cloc"
+  resolved "https://registry.yarnpkg.com/cloc/-/cloc-2.0.0-cloc.tgz#05c8fb1fddf241e3265c0aad2a64f72b78b69a72"
+  integrity sha512-hy6aS/5QbKlxyasequhfAOHOBzV1QpBeA01P8hnjnlV++OaRXazX3YLv5Mpqw0+Vh4FV4kiFhKYSV2x6CAKlpQ==
+
 color-convert@^2.0.1:
   version "2.0.1"
   resolved "https://registry.yarnpkg.com/color-convert/-/color-convert-2.0.1.tgz#72d3a68d598c9bdb3af2ad1e84f21d896abd4de3"
