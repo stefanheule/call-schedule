@@ -184,7 +184,7 @@ export function ratingCompare(a: Rating, b: Rating): boolean {
 export function ratingToString(r: Rating): string {
   return `(${r[0]},${r[1]},${r[2].toFixed(1)})`;
 }
-const RATE_CROSS_COVERAGE_AS_SOFT_RULE = false;
+const RATE_CROSS_COVERAGE_AS_SOFT_RULE = true;
 export function rate(
   _data: CallSchedule,
   processed: CallScheduleProcessed,
@@ -219,7 +219,7 @@ export function rate(
       processed.issueCounts.hard,
       processed.issueCounts.soft -
         (processed.issueCounts.softCrossCoverage ?? 0),
-      100*target + (processed.issueCounts.softCrossCoverage ?? 0),
+      100 * target + (processed.issueCounts.softCrossCoverage ?? 0),
     ];
   }
   return [processed.issueCounts.hard, processed.issueCounts.soft, target];

@@ -44,6 +44,8 @@ import {
   Button,
   Dialog,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   TooltipProps,
   styled,
@@ -61,7 +63,6 @@ import {
   ratingMinus,
   ratingToString,
 } from '../shared/compute';
-import { Checkbox } from '@mui/material';
 import { useHotkeys } from 'react-hotkeys-hook';
 import Snackbar from '@mui/material/Snackbar';
 import IconButton from '@mui/material/IconButton';
@@ -75,7 +76,7 @@ import DoNotDisturbIcon from '@mui/icons-material/DoNotDisturb';
 const DAY_SPACING = `2px`;
 
 export function RenderCallSchedule() {
-  const [showRotations, setShowRotations] = useState(true);
+  const [showRotations, _setShowRotations] = useState(true);
   const [copyPasteSnackbar, setCopyPasteSnackbar] = useState('');
   const [localData, setLocalData] = useLocalData();
   const [data, setData] = useData();
@@ -237,15 +238,14 @@ export function RenderCallSchedule() {
               }}
             >
               <Column>
-                <Heading>Options</Heading>
                 <Row spacing="8px">
-                  <Row>
+                  {/* <Row>
                     <Checkbox
                       checked={showRotations}
                       onChange={() => setShowRotations(!showRotations)}
                     />
                     Show rotations
-                  </Row>
+                  </Row> */}
                   <Button
                     variant="outlined"
                     size="small"
@@ -353,6 +353,7 @@ export function RenderCallSchedule() {
                   </Dialog>
                 </Row>
               </Column>
+              <ElementSpacer />
               <Highlight />
               <RenderCallCounts />
               <Column
@@ -463,19 +464,37 @@ function collectHolidayCall(
   return holidayShiftsToString(holidayCalls);
 }
 
+const SHOW_TARGETS = false;
 function RenderCallCounts() {
   const processed = useProcessedData();
   const [data] = useData();
-  const [holiday, setHoliday] = useState(false);
+  const [holiday, setHoliday] = useState<'regular' | 'holiday'>('regular');
   return (
     <Column>
       <Row>
         <Heading>Call counts</Heading>
         <ElementSpacer />
-        <Checkbox checked={holiday} onChange={() => setHoliday(!holiday)} />
-        <Text>Show holiday call counts?</Text>
+        {/* <Checkbox checked={holiday} onChange={() => setHoliday(!holiday)} />
+        <Text>Show holiday call counts?</Text> */}
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={holiday}
+          color="primary"
+          style={{
+            height: '28px',
+          }}
+          onChange={(_, v) => setHoliday(assertNonNull(v) as 'regular')}
+        >
+          <ToggleButton size="small" value="regular">
+            Regular calls
+          </ToggleButton>
+          <ToggleButton size="small" value="holiday">
+            Holiday calls
+          </ToggleButton>
+        </ToggleButtonGroup>
       </Row>
-      {holiday && (
+      {holiday == 'holiday' && (
         <Column spacing="5px">
           {CALL_POOL.map(person => (
             <Row key={person} spacing={'3px'}>
@@ -490,7 +509,7 @@ function RenderCallCounts() {
           ))}
         </Column>
       )}
-      {!holiday && (
+      {holiday == 'regular' && (
         <Column>
           {CALL_POOL.map(person => {
             const counts = processed.callCounts[person];
@@ -514,17 +533,20 @@ function RenderCallCounts() {
                   >
                     {counts.weekday + counts.sunday} weekday
                   </Text>
-                  <Text
-                    style={{
-                      fontWeight:
-                        counts.weekday + counts.sunday <
-                        WEEKDAY_CALL_TARGET[person]
-                          ? 'bold'
-                          : 'normal',
-                    }}
-                  >
-                    (target: {WEEKDAY_CALL_TARGET[person]}; sundays: {counts.sunday})
-                  </Text>
+                  {SHOW_TARGETS && (
+                    <Text
+                      style={{
+                        fontWeight:
+                          counts.weekday + counts.sunday <
+                          WEEKDAY_CALL_TARGET[person]
+                            ? 'bold'
+                            : 'normal',
+                      }}
+                    >
+                      (target: {WEEKDAY_CALL_TARGET[person]})
+                    </Text>
+                  )}
+                  <Text>out of which {counts.sunday} are sundays</Text>
                   <Text>/</Text>
                   <Text
                     style={{
@@ -536,16 +558,18 @@ function RenderCallCounts() {
                   >
                     {counts.weekend} weekend
                   </Text>
-                  <Text
-                    style={{
-                      fontWeight:
-                        counts.weekend < WEEKEND_CALL_TARGET[person]
-                          ? 'bold'
-                          : 'normal',
-                    }}
-                  >
-                    (target: {WEEKEND_CALL_TARGET[person]})
-                  </Text>
+                  {SHOW_TARGETS && (
+                    <Text
+                      style={{
+                        fontWeight:
+                          counts.weekend < WEEKEND_CALL_TARGET[person]
+                            ? 'bold'
+                            : 'normal',
+                      }}
+                    >
+                      (target: {WEEKEND_CALL_TARGET[person]})
+                    </Text>
+                  )}
                   <Text>/</Text>
                   <Text>{counts.nf} NF</Text>
                 </Row>
