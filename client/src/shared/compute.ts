@@ -81,7 +81,7 @@ export function inferShift(
     return empty;
   }
   const day = data.weeks[dayAndWeek.weekIndex].days[dayAndWeek.dayIndex];
-  const people = availablePeopleForShift(processed, date, shift);
+  const people = availablePeopleForShift(processed, date, shift).filter(p => data.people[p].year !== '2');
 
   if (people.length == 0) {
     if (config?.enableLog) {
