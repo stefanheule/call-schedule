@@ -724,7 +724,9 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     data,
     (day, _) => {
       for (const person of PEOPLE) {
-        const today = assertNonNull(result.day2person2info[day][person]).shifts2;
+        const today = assertNonNull(
+          result.day2person2info[day][person],
+        ).shifts2;
         const tomorrow = assertNonNull(
           result.day2person2info[nextDay(day)][person],
         ).shifts2.filter(
@@ -903,7 +905,9 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     data,
     (day, _) => {
       for (const person of PEOPLE) {
-        const today = assertNonNull(result.day2person2info[day][person]).shifts2;
+        const today = assertNonNull(
+          result.day2person2info[day][person],
+        ).shifts2;
         const tomorrow = assertNonNull(
           result.day2person2info[nextDay(day)][person],
         ).shifts2;
