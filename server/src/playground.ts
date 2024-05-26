@@ -19,8 +19,10 @@ import {
   RotationSchedule,
   ShiftKind,
   VacationSchedule,
+  WEEKDAY_SHIFT_LOOKUP,
   WEEKEND_SHIFT_LOOKUP,
   Week,
+  isHolidayShift,
 } from './shared/types';
 
 import * as datefns from 'date-fns';
@@ -49,7 +51,9 @@ type RunType =
   | 'infer-weekdays'
   | 'add-priority-weekend'
   | 'noop'
-  | 'clear-weekends';
+  | 'delete-previous'
+  | 'clear-weekends'
+  | 'clear-weekdays';
 
 function runType(): RunType {
   return 'noop';
@@ -69,13 +73,16 @@ async function main() {
   clearSchedule(reimportedData);
 
   // Move existing assignments over
-  let data = storage.versions[storage.versions.length - 1].callSchedule;
+  const latest = storage.versions[storage.versions.length - 1];
+  let data = latest.callSchedule;
+  console.log(`Latest = ${latest.name}`);
 
   if (run == 're-import-holiday' || run == 'add-priority-weekend') {
     const previousData = data;
     data = reimportedData;
     previousData.weeks.forEach((week, weekIndex) => {
       week.days.forEach((day, dayIndex) => {
+        if (day.date < data.firstDay || day.date > data.lastDay) return;
         Object.entries(day.shifts).forEach(([s, person]) => {
           const shift = s as ShiftKind;
           if (person) {
@@ -90,10 +97,26 @@ async function main() {
   }
 
   if (run == 'clear-weekends') {
+    const processed = processCallSchedule(data);
     for (const week of data.weeks) {
       for (const day of week.days) {
         for (const shift of Object.keys(day.shifts) as ShiftKind[]) {
+          if (isHolidayShift(processed, day.date, shift)) continue;
           if (shift in WEEKEND_SHIFT_LOOKUP) {
+            day.shifts[shift] = '';
+          }
+        }
+      }
+    }
+  }
+
+  if (run == 'clear-weekdays') {
+    const processed = processCallSchedule(data);
+    for (const week of data.weeks) {
+      for (const day of week.days) {
+        for (const shift of Object.keys(day.shifts) as ShiftKind[]) {
+          if (isHolidayShift(processed, day.date, shift)) continue;
+          if (shift in WEEKDAY_SHIFT_LOOKUP) {
             day.shifts[shift] = '';
           }
         }
@@ -152,13 +175,19 @@ async function main() {
   }
 
   switch (run) {
+    case 'delete-previous':
+      const x = storage.versions.pop();
+      console.log(`Dropped ${x?.name}`);
+      break;
     case 'clear-weekends':
     case 're-import-holiday':
     case 'infer-weekends':
     case 'infer-weekdays':
     case 'add-priority-weekend':
+    case 'clear-weekdays':
       const text = mapEnum(run, {
         'clear-weekends': 'Cleared weekends to start over',
+        'clear-weekdays': 'Cleared weekday calls to start over',
         're-import-holiday': 'Re-imported fixed holiday schedule',
         'infer-weekends': 'Auto-assigned weekends',
         'infer-weekdays': 'Auto-assigned weekdays',
