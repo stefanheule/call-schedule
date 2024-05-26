@@ -52,7 +52,7 @@ type RunType =
   | 'clear-weekends';
 
 function runType(): RunType {
-  return 'noop';
+  return 'infer-weekends';
 }
 
 async function main() {

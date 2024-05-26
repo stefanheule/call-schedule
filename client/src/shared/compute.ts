@@ -20,6 +20,7 @@ import {
   UnavailablePeople,
   WEEKDAY_SHIFT_LOOKUP,
   WEEKEND_SHIFT_LOOKUP,
+  isHolidayShift,
   isNoCallRotation,
 } from './types';
 import { assertIsoDate } from './check-type.generated';
@@ -285,8 +286,8 @@ export const WEEKDAY_CALL_TARGET: Record<CallPoolPerson, number> = {
   MAD: 2,
   // Seniors
   AA: 24,
-  DC: 25,
-  AJ: 25,
+  DC: 24,
+  AJ: 24,
   // Research
   LX: 19,
   CC: 19,
@@ -302,24 +303,24 @@ export const WEEKDAY_CALL_TARGET: Record<CallPoolPerson, number> = {
   NR: 11,
 };
 export const WEEKEND_CALL_TARGET: Record<CallPoolPerson, number> = {
-  MAD: 5,
+  MAD: 3, // +2 holiday
   // Seniors
-  AA: 9,
-  DC: 9,
-  AJ: 9,
+  AA: 8,
+  DC: 8,
+  AJ: 8,
   // Research
-  LX: 8, // 10, but 2 redistributed due to maternity leave
-  CC: 11,
+  LX: 7, // 9, but 2 redistributed due to maternity leave
+  CC: 9,
   // Year 3
-  MB: 12,
-  RB: 13,
-  MJ: 12,
-  TM: 12,
+  MB: 10,
+  RB: 10,
+  MJ: 10,
+  TM: 10,
   // Year 2
-  GN: 14,
-  KO: 14,
-  CPu: 14,
-  NR: 14,
+  GN: 13,
+  KO: 13,
+  CPu: 13,
+  NR: 13,
 };
 
 export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
@@ -477,10 +478,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           info.isWorking = true;
         }
 
-        // Almost all shifts are at least 2 days, but there are some holiday day shifts.
-        // To make sure we don't let people be on day shift and then on call again the next day,
-        // we just pretend day shifts are 2 days also.
-        for (let i = 0; i < Math.max(2, shiftConfig.days); i++) {
+        for (let i = 0; i < shiftConfig.days; i++) {
           const nextD = nextDay(day.date, i);
           if (nextD > data.lastDay || nextD < data.firstDay) continue;
           const nextDayInfo = assertNonNull(
@@ -489,7 +487,6 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           nextDayInfo.shifts.push({
             shift: shift,
             day: day.date,
-            isFakeEntry: i >= shiftConfig.days,
           });
         }
       }
@@ -531,7 +528,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
             const nextD = nextDay(day.date, i);
             if (nextD > data.lastDay || nextD < data.firstDay) continue;
             const info = assertNonNull(result.day2person2info[nextD][person]);
-            const otherShifts = info.shifts.filter(s => !s.isFakeEntry);
+            const otherShifts = info.shifts;
             if (info.onVacation) {
               hardReason = `on vacation`;
               break;
@@ -607,7 +604,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     return data.shiftConfigs[info.shift].name;
   }
 
-  // hard 0. no illegal calls
+  // hard 0a. no call on vacation or non-call rotations
   forEveryDay(data, (day, _) => {
     for (const person of PEOPLE) {
       const today = assertNonNull(result.day2person2info[day][person]);
@@ -624,6 +621,25 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
             elements: [elementIdForShift(shift.day, shift.shift)],
           };
         }
+      }
+    }
+  });
+
+  // hard 0b: not multiple calls on same day
+  forEveryDay(data, (day, _) => {
+    for (const person of PEOPLE) {
+      const today = assertNonNull(result.day2person2info[day][person]);
+      const shifts = today.shifts.filter(x => x.day == day);
+      if (shifts.length > 1) {
+        result.issues[generateIssueKey()] = {
+          kind: 'consecutive-call',
+          startDay: day,
+          message: `Multiple call on ${day} for ${person}: ${shifts
+            .map(x => shiftName(x.shift))
+            .join(', ')}`,
+          isHard: true,
+          elements: shifts.map(s => elementIdForShift(s.day, s.shift)),
+        };
       }
     }
   });
@@ -655,24 +671,51 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   //   },
   //   1,
   // );
+  // forEveryDay(
+  //   data,
+  //   (day, _) => {
+  //     for (const person of PEOPLE) {
+  //       const today = assertNonNull(result.day2person2info[day][person]);
+  //       if (today.shifts.length <= 1) continue;
+  //       // if (data.shiftConfigs[today.shift].days != 2) continue;
+  //       // if (data.shiftConfigs[tomorrow.shift].days != 2) continue;
+  //       const texts = today.shifts.map(
+  //         s => `${shiftName(s.shift)} on ${s.day}`,
+  //       );
+  //       const startDay = today.shifts.map(s => s.day).sort()[0] as IsoDate;
+  //       result.issues[generateIssueKey()] = {
+  //         kind: 'consecutive-call',
+  //         startDay,
+  //         message: `Consecutive call for ${person}: ${texts.join(', ')}`,
+  //         isHard: true,
+  //         elements: today.shifts.map(s => elementIdForShift(s.day, s.shift)),
+  //       };
+  //     }
+  //   },
+  //   1,
+  // );
   forEveryDay(
     data,
     (day, _) => {
       for (const person of PEOPLE) {
-        const today = assertNonNull(result.day2person2info[day][person]);
-        if (today.shifts.length <= 1) continue;
-        // if (data.shiftConfigs[today.shift].days != 2) continue;
-        // if (data.shiftConfigs[tomorrow.shift].days != 2) continue;
-        const texts = today.shifts.map(
-          s => `${shiftName(s.shift)} on ${s.day}`,
+        const today = assertNonNull(result.day2person2info[day][person]).shifts;
+        const tomorrow = assertNonNull(
+          result.day2person2info[nextDay(day)][person],
+        ).shifts.filter(
+          t => !today.find(x => x.shift == t.shift && x.day == t.day),
         );
-        const startDay = today.shifts.map(s => s.day).sort()[0] as IsoDate;
+
+        if (today.length == 0 || tomorrow.length == 0) continue;
+
+        const allShifts = [...today, ...tomorrow];
+        const texts = allShifts.map(s => `${shiftName(s.shift)} on ${s.day}`);
+        const startDay = today.map(s => s.day).sort()[0] as IsoDate;
         result.issues[generateIssueKey()] = {
           kind: 'consecutive-call',
           startDay,
           message: `Consecutive call for ${person}: ${texts.join(', ')}`,
           isHard: true,
-          elements: today.shifts.map(s => elementIdForShift(s.day, s.shift)),
+          elements: allShifts.map(s => elementIdForShift(s.day, s.shift)),
         };
       }
     },
@@ -801,28 +844,65 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   });
 
-  // soft 1. every other weeknight call // TODO: should weekends count for this?
+  // soft 1. every other weeknight call
+  // forEveryDay(
+  //   data,
+  //   (day, _) => {
+  //     const dayPlusOne = nextDay(day, 2);
+  //     for (const person of PEOPLE) {
+  //       const today = assertNonNull(result.day2person2info[day][person]);
+  //       const tomorrow = assertNonNull(
+  //         result.day2person2info[dayPlusOne][person],
+  //       );
+  //       if (!today.shift || !tomorrow.shift) continue;
+  //       // if (data.shiftConfigs[today.shift].days != 2) continue;
+  //       // if (data.shiftConfigs[tomorrow.shift].days != 2) continue;
+  //       result.issues[generateIssueKey()] = {
+  //         kind: 'almost-consecutive-call',
+  //         startDay: day,
+  //         message: `Two calls only 1 day apart: ${person} on call ${day} and ${dayPlusOne}`,
+  //         isHard: false,
+  //         elements: [
+  //           elementIdForShift(day, today.shift),
+  //           elementIdForShift(dayPlusOne, tomorrow.shift),
+  //         ],
+  //       };
+  //     }
+  //   },
+  //   2,
+  // );
   forEveryDay(
     data,
     (day, _) => {
-      const dayPlusOne = nextDay(day, 2);
       for (const person of PEOPLE) {
-        const today = assertNonNull(result.day2person2info[day][person]);
+        const today = assertNonNull(result.day2person2info[day][person]).shifts;
         const tomorrow = assertNonNull(
-          result.day2person2info[dayPlusOne][person],
+          result.day2person2info[nextDay(day)][person],
+        ).shifts;
+        const dayAfterTomorrow = assertNonNull(
+          result.day2person2info[nextDay(day, 2)][person],
+        ).shifts.filter(
+          t => !today.find(x => x.shift == t.shift && x.day == t.day),
         );
-        if (!today.shift || !tomorrow.shift) continue;
-        // if (data.shiftConfigs[today.shift].days != 2) continue;
-        // if (data.shiftConfigs[tomorrow.shift].days != 2) continue;
+
+        if (
+          !(
+            today.length !== 0 &&
+            tomorrow.length == 0 &&
+            dayAfterTomorrow.length !== 0
+          )
+        )
+          continue;
+
+        const allShifts = [...today, ...tomorrow];
+        const texts = allShifts.map(s => `${shiftName(s.shift)} on ${s.day}`);
+        const startDay = today.map(s => s.day).sort()[0] as IsoDate;
         result.issues[generateIssueKey()] = {
           kind: 'almost-consecutive-call',
-          startDay: day,
-          message: `Two calls only 1 day apart: ${person} on call ${day} and ${dayPlusOne}`,
+          startDay,
+          message: `Two calls only 1 day apart: ${person}: ${texts.join(', ')}`,
           isHard: false,
-          elements: [
-            elementIdForShift(day, today.shift),
-            elementIdForShift(dayPlusOne, tomorrow.shift),
-          ],
+          elements: allShifts.map(s => elementIdForShift(s.day, s.shift)),
         };
       }
     },
@@ -950,6 +1030,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       if (!(person in result.callCounts)) continue;
       const callCount = result.callCounts[person];
       if (info.shift) {
+        if (isHolidayShift(result, day, info.shift)) continue;
         if (info.shift in WEEKDAY_SHIFT_LOOKUP) {
           if (
             dayOfWeek == 'sun' ||
@@ -980,6 +1061,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       for (const [s, person] of Object.entries(day.shifts)) {
         const shift = s as ShiftKind;
         const isMaternity = isLxNotTakingCallDueToMaternity(day.date);
+        if (isHolidayShift(result, day.date, shift)) continue;
         if (shift in WEEKDAY_SHIFT_LOOKUP) {
           if (!person) {
             result.unassignedCalls.weekday += 1;
