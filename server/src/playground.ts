@@ -26,7 +26,7 @@ import {
 } from './shared/types';
 
 import * as datefns from 'date-fns';
-import { IsoDate, dateToIsoDate, isoDateToDate, mapEnum } from 'check-type';
+import { IsoDate, dateToIsoDate, deepCopy, isoDateToDate, mapEnum } from 'check-type';
 import {
   WEEKDAY_CALL_TARGET,
   WEEKEND_CALL_TARGET,
@@ -74,7 +74,7 @@ async function main() {
 
   // Move existing assignments over
   const latest = storage.versions[storage.versions.length - 1];
-  let data = latest.callSchedule;
+  let data = deepCopy(latest.callSchedule);
   console.log(`Latest = ${latest.name}`);
 
   if (run == 're-import-holiday' || run == 'add-priority-weekend') {
