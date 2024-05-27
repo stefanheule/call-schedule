@@ -150,6 +150,7 @@ export async function exportSchedule(
           shifts[nextDay(day, 1)][exportShift] = call;
           shifts[nextDay(day, 2)][exportShift] = call;
           shifts[nextDay(day, 3)][exportShift] = call;
+          break;
         case 'day_2x_uw':
         case 'day_2x_nwhsch':
           shifts[nextDay(day, 1)][exportShift] = call;
