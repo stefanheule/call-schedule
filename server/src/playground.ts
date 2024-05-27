@@ -18,6 +18,7 @@ import {
   RotationKind,
   RotationSchedule,
   ShiftKind,
+  StoredCallSchedules,
   VacationSchedule,
   WEEKDAY_SHIFT_LOOKUP,
   WEEKEND_SHIFT_LOOKUP,
@@ -64,7 +65,9 @@ export type RunType =
   | 'delete-previous'
   | 'export'
   | 'clear-weekends'
-  | 'clear-weekdays';
+  | 'clear-weekdays'
+  | 'rename-36'
+  | 'use-power';
 
 function runType(): RunType {
   if (process.argv.length < 3) return 'noop';
@@ -83,8 +86,6 @@ async function main() {
   });
 
   // Re-import everything
-  const reimportedData = await importPreviousSchedule();
-  clearSchedule(reimportedData);
 
   // Move existing assignments over
   const latest = storage.versions[storage.versions.length - 1];
@@ -92,6 +93,9 @@ async function main() {
   console.log(`Latest = ${latest.name}`);
 
   if (run == 're-import-holiday' || run == 'add-priority-weekend') {
+    const reimportedData = await importPreviousSchedule();
+    clearSchedule(reimportedData);
+
     const previousData = data;
     data = reimportedData;
     previousData.weeks.forEach((week, weekIndex) => {
@@ -193,11 +197,71 @@ async function main() {
     return;
   }
 
+  if (run == 'use-power') {
+    const reimportedData = await importPreviousSchedule();
+    data.shiftConfigs = reimportedData.shiftConfigs;
+    function findDate(date: string): Day {
+      for (const week of data.weeks) {
+        for (let idx = 0; idx < week.days.length; idx++) {
+          const day = week.days[idx];
+          if (day.date === date) {
+            return day;
+          }
+        }
+      }
+      throw new Error(`Tried to find ${date}, but doesn't exist.`);
+    }
+    function datePlusN(date: string, n: number): IsoDate {
+      const day = isoDateToDate(date as IsoDate);
+      day.setDate(day.getDate() + n);
+      return dateToIsoDate(day);
+    }
+
+    // Override holidays
+    data.holidays = {
+      '2024-07-04': 'Indep. Day',
+      '2024-09-02': 'Labor Day',
+      '2024-10-14': 'Indigenous Ppl',
+      '2024-11-11': 'Veterans Day',
+      '2024-11-28': 'Thanksgiving',
+      '2024-11-29': 'Thanksgiving',
+      '2024-12-25': 'Christmas',
+      '2025-01-01': 'New Year',
+      '2025-01-20': 'MLK Day',
+      '2025-02-17': "President's Day",
+      '2025-05-26': 'Memorial Day',
+      '2025-06-19': 'Juneteenth',
+    };
+
+    for (const [date, _] of Object.entries(data.holidays)) {
+      const dateObj = isoDateToDate(datePlusN(date, 0));
+
+      // For monday holidays, change to power.
+      if (dateObj.getDay() === 1) {
+        const friday = findDate(datePlusN(date, -3));
+        const sunday = findDate(datePlusN(date, -1));
+        const monday = findDate(date);
+        const oldSunday = sunday.shifts.south_24;
+        const oldFriday = friday.shifts.weekend_south;
+        sunday.shifts = {};
+        delete friday.shifts.weekend_south;
+        friday.shifts.south_power = oldFriday;
+        delete monday.shifts.weekday_south;
+        monday.shifts.south_24 = oldSunday;
+      }
+    }
+  }
+
   switch (run) {
+    case 'rename-36':
+      rename36(storage);
+      console.log(`Renamed south_36 to south_34`);
+      break;
     case 'delete-previous':
       const x = storage.versions.pop();
       console.log(`Dropped ${x?.name}`);
       break;
+    case 'use-power':
     case 'clear-weekends':
     case 're-import-holiday':
     case 'infer-weekends':
@@ -211,6 +275,7 @@ async function main() {
         'infer-weekends': 'Auto-assigned weekends',
         'infer-weekdays': 'Auto-assigned weekdays',
         'add-priority-weekend': 'Added priority weekends',
+        'use-power': 'Use power weekends for Monday holidays',
       });
       storage.versions.push(scheduleToStoredSchedule(data, text));
       console.log(`Saving as: '${text}'`);
@@ -251,6 +316,21 @@ async function main() {
   // );
 }
 
+function rename36(storage: StoredCallSchedules) {
+  // for (const version of storage.versions) {
+  //   version.callSchedule.shiftConfigs.south_34 = version.callSchedule.shiftConfigs.south_36;
+  //   delete version.callSchedule.shiftConfigs.south_36;
+  //   for (const week of version.callSchedule.weeks) {
+  //     for (const day of week.days) {
+  //       if ('south_36' in day.shifts) {
+  //         day.shifts.south_34 = day.shifts.south_36;
+  //         delete day.shifts.south_36;
+  //       }
+  //     }
+  //   }
+  // }
+}
+
 type CellType = {
   text: string;
   color?: string;
@@ -269,12 +349,12 @@ function MkBold<T extends SimpleCellType | SimpleCellType[]>(cell: T): T {
   result.bold = true;
   return result as T;
 }
-function MkColor<T extends SimpleCellType | SimpleCellType[]>(
+function _MkColor<T extends SimpleCellType | SimpleCellType[]>(
   cell: T,
   color: string,
 ): T {
   if (Array.isArray(cell)) {
-    return cell.map(c => MkColor(c, color)) as T;
+    return cell.map(c => _MkColor(c, color)) as T;
   }
   const result = simpleCellToCell(cell);
   result.color = color;
@@ -300,9 +380,11 @@ type ExportShiftKind =
   | 'weekend_uw'
   | 'weekend_nwhsch'
   | 'day_uw'
+  | 'day_va'
   | 'day_nwhsch'
   | 'south_24'
-  | 'south_36';
+  | 'south_34'
+  | 'south_power';
 
 const EXPORT_SHIFT_ORDER: ExportShiftKind[] = [
   'weekend_nwhsch',
@@ -312,7 +394,9 @@ const EXPORT_SHIFT_ORDER: ExportShiftKind[] = [
   'day_nwhsch',
   'day_uw',
   'south_24',
-  'south_36',
+  'south_34',
+  'south_power',
+  'day_va',
 ];
 
 const HOLIDAY_COLOR = '#ffeeee';
@@ -355,7 +439,7 @@ async function exportSchedule(data: CallSchedule) {
       switch (shift) {
         case 'weekday_south':
         case 'south_24':
-        case 'south_36':
+        case 'south_34':
         case 'day_uw':
         case 'day_nwhsch':
           break;
@@ -365,6 +449,10 @@ async function exportSchedule(data: CallSchedule) {
           shifts[nextDay(day, 1)][exportShift] = call;
           shifts[nextDay(day, 2)][exportShift] = call;
           break;
+        case 'south_power':
+          shifts[nextDay(day, 1)][exportShift] = call;
+          shifts[nextDay(day, 2)][exportShift] = call;
+          shifts[nextDay(day, 3)][exportShift] = call;
         case 'day_2x_uw':
         case 'day_2x_nwhsch':
           shifts[nextDay(day, 1)][exportShift] = call;
@@ -439,14 +527,16 @@ async function exportSchedule(data: CallSchedule) {
 
     for (const shift of EXPORT_SHIFT_ORDER) {
       const shiftName = mapEnum(shift, {
-        weekday_south: 'Weekday South',
-        weekend_south: 'Weekend South',
-        weekend_uw: 'Weekend UW',
-        weekend_nwhsch: 'Weekend NWH/SCH',
+        weekday_south: 'Weekday South (5pm-7am)',
+        weekend_south: 'Weekend South (5pm-5pm)',
+        weekend_uw: 'Weekend UW (5pm-5pm)',
+        weekend_nwhsch: 'Weekend NWH/SCH (5pm-5pm)',
         day_uw: 'Day UW (7am-5pm)',
         day_nwhsch: 'Day NWH/SCH (7am-5pm)',
-        south_24: 'South 24',
-        south_36: 'South 36 (',
+        day_va: 'Day VA (7am-5pm)',
+        south_24: 'South 24 (7am-7am)',
+        south_34: 'South 34 (7am-5pm)',
+        south_power: 'Weekend South Power (5pm-7am)',
       });
       const sd = shiftData[shift];
       if (sd) {
@@ -1021,6 +1111,12 @@ async function importPreviousSchedule() {
         hospitals: ['UW'],
         days: 1,
       },
+      day_va: {
+        kind: 'day_va',
+        name: `VA Day`,
+        hospitals: ['VA'],
+        days: 1,
+      },
       day_2x_nwhsch: {
         kind: 'day_2x_nwhsch',
         name: `NWH/SCH 2 Day`,
@@ -1038,6 +1134,12 @@ async function importPreviousSchedule() {
         name: `South 24`,
         hospitals: SOUTH_HOSPITALS,
         days: 2,
+      },
+      south_power: {
+        kind: 'south_power',
+        name: `South Power`,
+        hospitals: SOUTH_HOSPITALS,
+        days: 4,
       },
       // power_nwhsch: {
       //   kind: 'power_nwhsch',
@@ -1057,9 +1159,9 @@ async function importPreviousSchedule() {
       //   hospitals: SOUTH_HOSPITALS,
       //   days: 3,
       // },
-      south_36: {
-        kind: 'south_36',
-        name: `South 36`,
+      south_34: {
+        kind: 'south_34',
+        name: `South 34`,
         hospitals: SOUTH_HOSPITALS,
         days: 2,
       },
@@ -1211,17 +1313,27 @@ async function importPreviousSchedule() {
     for (const [date, name] of Object.entries(data.holidays)) {
       const dateObj = isoDateToDate(datePlusN(date, 0));
 
+      if (name == 'Indigenous Ppl') {
+        const monday = findDate(date);
+        monday.shifts.day_va = '';
+        continue;
+      }
+
       // Monday holidays
       if (dateObj.getDay() === 1) {
+        const friday = findDate(datePlusN(date, -3));
         const sunday = findDate(datePlusN(date, -1));
         const monday = findDate(date);
-        sunday.shifts = {
-          south_24: '',
+        sunday.shifts = {};
+        friday.shifts = {
+          weekend_nwhsch: '',
+          weekend_uw: '',
+          south_power: '',
         };
         monday.shifts = {
           day_nwhsch: '',
           day_uw: '',
-          weekday_south: '',
+          south_24: '',
         };
       }
 
@@ -1254,7 +1366,7 @@ async function importPreviousSchedule() {
       thursday.shifts = {
         day_2x_nwhsch: '',
         day_2x_uw: '',
-        south_36: '',
+        south_34: '',
       };
       // friday.shifts = {
       //   power_south: '',

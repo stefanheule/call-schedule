@@ -419,10 +419,17 @@ function holidayShiftsToString(holidayShifts: HolidayShift[]): string {
         calls += 1;
         hours += 24;
         break;
-      case 'south_36':
+      case 'south_34':
         calls += 1;
-        hours += 36;
+        hours += 34;
         break;
+      case 'south_power':
+        calls += 1;
+        hours += 60;
+        break;
+      case 'day_va':
+        calls += 1;
+        hours += 10;
       // case 'power_uw':
       // case 'power_nwhsch':
       // case 'power_south':
@@ -954,7 +961,7 @@ function RenderShift({
   const day = data.weeks[id.weekIndex].days[id.dayIndex];
   const personId = day.shifts[id.shiftName] ?? '';
   const personPicker = usePersonPicker();
-  const name = data.shiftConfigs[id.shiftName].name;
+  const name = assertNonNull(data.shiftConfigs[id.shiftName]).name;
   const processed = useProcessedData();
   const elId = elementIdForShift(day.date, id.shiftName);
   const hasIssue = processed.element2issueKind[elId];
@@ -1281,7 +1288,7 @@ function PersonPickerDialog() {
   const [data] = useData();
   const processed = useProcessedData();
   const config = personPicker.config;
-  const shiftConfig = data.shiftConfigs[config.shift];
+  const shiftConfig = assertNonNull(data.shiftConfigs[config.shift]);
   const inference = inferShift(data, processed, config.day, config.shift);
   const initialRating = rate(data, processed);
 

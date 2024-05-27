@@ -304,10 +304,10 @@ export const WEEKDAY_CALL_TARGET: Record<CallPoolPerson, number> = {
   LX: 19,
   CC: 19,
   // Year 3
-  MB: 24,
-  RB: 23,
-  MJ: 23,
-  TM: 23,
+  MB: 23,
+  RB: 22,
+  MJ: 22,
+  TM: 22,
   // Year 2
   GN: 11,
   KO: 11,
@@ -317,8 +317,8 @@ export const WEEKDAY_CALL_TARGET: Record<CallPoolPerson, number> = {
 export const WEEKEND_CALL_TARGET: Record<CallPoolPerson, number> = {
   MAD: 4, // +1 holiday
   // Seniors
-  AA: 8,
-  DC: 8,
+  AA: 9,
+  DC: 9,
   AJ: 8,
   // Research
   LX: 7, // 9, but 2 redistributed due to maternity leave
@@ -326,7 +326,7 @@ export const WEEKEND_CALL_TARGET: Record<CallPoolPerson, number> = {
   // Year 3
   MB: 11,
   RB: 11,
-  MJ: 10,
+  MJ: 11,
   TM: 11,
   // Year 2
   GN: 12,
@@ -484,7 +484,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         const shift = s as ShiftKind;
         if (person === '' || person === undefined) continue;
 
-        const shiftConfig = data.shiftConfigs[shift];
+        const shiftConfig = assertNonNull(data.shiftConfigs[shift]);
         for (let i = 0; i <= shiftConfig.days - 1; i++) {
           const info = result.day2person2info[nextDay(day.date, i)]?.[person];
           if (!info) continue;
@@ -508,13 +508,15 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           day_2x_nwhsch: 0,
           day_2x_uw: 0,
           day_uw: 0,
+          day_va: 0,
           day_nwhsch: 0,
           weekday_south: 1,
           weekend_south: 3,
           weekend_uw: 3,
           weekend_nwhsch: 3,
           south_24: 2,
-          south_36: 2,
+          south_34: 2,
+          south_power: 4,
         });
         for (let i = 0; i < lenDays; i++) {
           const nextD = nextDay(day.date, i);
@@ -552,7 +554,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       result.day2shift2unavailablePeople[day.date] = {};
       for (const s of Object.keys(day.shifts)) {
         const shift = s as ShiftKind;
-        const shiftConfig = data.shiftConfigs[shift];
+        const shiftConfig = assertNonNull(data.shiftConfigs[shift]);
         const unavailablePeople: {
           [Property in Person]?: {
             reason: string;
@@ -600,8 +602,13 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   }
   for (const [date, holiday] of Object.entries(data.holidays)) {
     const dow = dateToDayOfWeek(date);
-    const shifts = [];
-    if (holiday.includes('Thanksgiving')) {
+    const shifts: { day: string; shift: ShiftKind }[] = [];
+    if (holiday == 'Indigenous Ppl') {
+      shifts.push({
+        day: date,
+        shift: 'day_va',
+      });
+    } else if (holiday.includes('Thanksgiving')) {
       if (dow == 'thu') {
         shifts.push(...shiftsOfDay(nextDay(date, 0)));
         shifts.push(...shiftsOfDay(nextDay(date, 1)));
@@ -637,9 +644,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   }
 
   function shiftName(info: DayPersonInfo | ShiftKind): string {
-    if (typeof info == 'string') return data.shiftConfigs[info].name;
+    if (typeof info == 'string')
+      return assertNonNull(data.shiftConfigs[info]).name;
     if (!info.shift) throw new Error('No shift');
-    return data.shiftConfigs[info.shift].name;
+    return assertNonNull(data.shiftConfigs[info.shift]).name;
   }
 
   // hard 0a. no call on vacation or non-call rotations
@@ -971,9 +979,11 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         );
         if (!today.shift || !nextWeekend.shift || !nextNextWeekend.shift)
           continue;
-        if (data.shiftConfigs[today.shift].days != 3) continue;
-        if (data.shiftConfigs[nextWeekend.shift].days != 3) continue;
-        if (data.shiftConfigs[nextNextWeekend.shift].days != 3) continue;
+        if (assertNonNull(data.shiftConfigs[today.shift]).days < 3) continue;
+        if (assertNonNull(data.shiftConfigs[nextWeekend.shift]).days < 3)
+          continue;
+        if (assertNonNull(data.shiftConfigs[nextNextWeekend.shift]).days < 3)
+          continue;
         result.issues[generateIssueKey()] = {
           kind: 'every-other-weekend-call',
           startDay: day,
@@ -1010,7 +1020,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     for (const person of PEOPLE) {
       const today = assertNonNull(result.day2person2info[day][person]);
       if (!today.shift) continue;
-      const call = data.shiftConfigs[today.shift].hospitals;
+      const call = assertNonNull(data.shiftConfigs[today.shift]).hospitals;
       if (today.rotation == 'Research') continue;
       if (today.rotation == 'Alaska') continue;
       if (today.rotation == 'NF') continue;
@@ -1083,10 +1093,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       if (info.shift) {
         if (isHolidayShift(result, day, info.shift)) continue;
         if (info.shift in WEEKDAY_SHIFT_LOOKUP) {
-          if (
-            dayOfWeek == 'sun' ||
-            (dayOfWeek == 'mon' && data.holidays[day] !== undefined)
-          ) {
+          if (dayOfWeek == 'sun') {
             callCount.sunday += 1;
           } else {
             callCount.weekday += 1;
