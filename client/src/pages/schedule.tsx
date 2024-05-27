@@ -74,6 +74,8 @@ import { rpcSaveCallSchedules } from './rpc';
 import { LoadingIndicator } from '../common/loading';
 import { VList, VListHandle } from 'virtua';
 import DoNotDisturbIcon from '@mui/icons-material/DoNotDisturb';
+import { saveAs } from 'file-saver';
+import { exportSchedule } from '../shared/export';
 
 const DAY_SPACING = `2px`;
 
@@ -248,6 +250,20 @@ export function RenderCallSchedule() {
                     />
                     Show rotations
                   </Row> */}
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={async () => {
+                      const buffer = await exportSchedule(data);
+                      const blob = new Blob([buffer], {
+                        // cspell:disable-next-line
+                        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                      });
+                      saveAs(blob, 'Call-Schedule-AY2025.xlsx');
+                    }}
+                  >
+                    Download
+                  </Button>
                   <Button
                     variant="outlined"
                     size="small"
