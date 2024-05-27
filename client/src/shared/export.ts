@@ -40,17 +40,17 @@ function MkBold<T extends SimpleCellType | SimpleCellType[]>(cell: T): T {
   result.bold = true;
   return result as T;
 }
-function _MkColor<T extends SimpleCellType | SimpleCellType[]>(
-  cell: T,
-  color: string,
-): T {
-  if (Array.isArray(cell)) {
-    return cell.map(c => _MkColor(c, color)) as T;
-  }
-  const result = simpleCellToCell(cell);
-  result.color = color;
-  return result as T;
-}
+// function _MkColor<T extends SimpleCellType | SimpleCellType[]>(
+//   cell: T,
+//   color: string,
+// ): T {
+//   if (Array.isArray(cell)) {
+//     return cell.map(c => _MkColor(c, color)) as T;
+//   }
+//   const result = simpleCellToCell(cell);
+//   result.color = color;
+//   return result as T;
+// }
 function Mk<T extends SimpleCellType | SimpleCellType[]>(
   cell: T,
   config: Omit<CellType, 'text'>,
@@ -90,7 +90,7 @@ const EXPORT_SHIFT_ORDER: ExportShiftKind[] = [
   'day_va',
 ];
 
-const _HOLIDAY_COLOR = '#ffeeee';
+// const _HOLIDAY_COLOR = '#ffeeee';
 const HOLIDAY_BORDER = '#ff0000';
 const SPECIAL_BORDER = '#0000ff';
 const TABLE_BORDER = '#888888';
