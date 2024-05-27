@@ -896,6 +896,31 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   });
 
+  // hard 7. no weekend call before NF
+  forEveryDay(data, (day, _) => {
+    const dow = dateToDayOfWeek(day);
+    if (dow != 'fri') return;
+    for (const person of CALL_POOL) {
+      const friday = result.day2person2info?.[day]?.[person];
+      const monday = result.day2person2info?.[nextDay(day, 3)]?.[person];
+      if (friday && monday) {
+        if (
+          friday.rotation != 'NF' &&
+          monday.rotation == 'NF' &&
+          friday.shift
+        ) {
+          result.issues[generateIssueKey()] = {
+            kind: 'priority-weekend',
+            startDay: day,
+            message: `Call before NF for ${person} on ${day}`,
+            isHard: true,
+            elements: [elementIdForShift(day, friday.shift)],
+          };
+        }
+      }
+    }
+  });
+
   // soft 1. every other weeknight call
   // forEveryDay(
   //   data,
