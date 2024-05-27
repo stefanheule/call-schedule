@@ -3,7 +3,6 @@ import {
   assertNonNull,
   dateToIsoDatetime,
   isoDateToDate,
-  mapEnumWithDefault,
   sleep,
 } from 'check-type';
 import { Children, Column, ElementSpacer, Row } from '../common/flex';
@@ -25,7 +24,6 @@ import {
   RotationDetails,
   Hospital2People,
   SHIFT_ORDER,
-  CallScheduleProcessed,
   MaybeCallPoolPerson,
   CallPoolPerson,
   CALL_POOL,
@@ -53,8 +51,11 @@ import {
 } from '@mui/material';
 import { WarningOutlined, ErrorOutlined } from '@mui/icons-material';
 import {
+  HolidayShift,
   WEEKDAY_CALL_TARGET,
   WEEKEND_CALL_TARGET,
+  collectHolidayCall,
+  countHolidayShifts,
   elementIdForDay,
   elementIdForShift,
   inferShift,
@@ -62,6 +63,7 @@ import {
   rate,
   ratingMinus,
   ratingToString,
+  yearToColor,
 } from '../shared/compute';
 import { useHotkeys } from 'react-hotkeys-hook';
 import Snackbar from '@mui/material/Snackbar';
@@ -387,57 +389,8 @@ export function RenderCallSchedule() {
   );
 }
 
-type HolidayShift = {
-  shift: ShiftKind;
-  day: string;
-  holiday: string;
-};
-
 function holidayShiftsToString(holidayShifts: HolidayShift[]): string {
-  let hours = 0;
-  let calls = 0;
-  for (const holidayShift of holidayShifts) {
-    switch (holidayShift.shift) {
-      case 'day_uw':
-      case 'day_nwhsch':
-      case 'weekday_south':
-        calls += 1;
-        hours += 10;
-        break;
-      case 'weekend_south':
-      case 'weekend_uw':
-      case 'weekend_nwhsch':
-        calls += 1;
-        hours += 48;
-        break;
-      case 'day_2x_uw':
-      case 'day_2x_nwhsch':
-        calls += 1;
-        hours += 20;
-        break;
-      case 'south_24':
-        calls += 1;
-        hours += 24;
-        break;
-      case 'south_34':
-        calls += 1;
-        hours += 34;
-        break;
-      case 'south_power':
-        calls += 1;
-        hours += 60;
-        break;
-      case 'day_va':
-        calls += 1;
-        hours += 10;
-      // case 'power_uw':
-      // case 'power_nwhsch':
-      // case 'power_south':
-      //   calls += 1;
-      //   hours += 60;
-      //   break;
-    }
-  }
+  const { calls, hours } = countHolidayShifts(holidayShifts);
   if (holidayShifts.length == 0) return `none`;
   return `${hours}h or ${calls} calls: ${holidayShifts
     .map(
@@ -447,33 +400,6 @@ function holidayShiftsToString(holidayShifts: HolidayShift[]): string {
         } (${h.holiday})`,
     )
     .join(', ')}`;
-}
-
-function collectHolidayCall(
-  person: Person,
-  data: CallSchedule,
-  processed: CallScheduleProcessed,
-): string {
-  const holidayCalls: HolidayShift[] = [];
-  for (const day in processed.day2shift2isHoliday) {
-    const index = processed.day2weekAndDay[day];
-    for (const s in processed.day2shift2isHoliday[day]) {
-      const shift = s as ShiftKind;
-      const personOnCall =
-        data.weeks[index.weekIndex].days[index.dayIndex].shifts[shift];
-      if (personOnCall == person) {
-        const holiday = assertNonNull(
-          processed.day2shift2isHoliday[day][shift],
-        );
-        holidayCalls.push({
-          shift,
-          day,
-          holiday,
-        });
-      }
-    }
-  }
-  return holidayShiftsToString(holidayCalls);
 }
 
 const SHOW_TARGETS = true;
@@ -516,7 +442,11 @@ function RenderCallCounts() {
                   width: '23px',
                 }}
               />
-              <Text>{collectHolidayCall(person, data, processed)}</Text>
+              <Text>
+                {holidayShiftsToString(
+                  collectHolidayCall(person, data, processed),
+                )}
+              </Text>
             </Row>
           ))}
         </Column>
@@ -1050,46 +980,6 @@ function personToColor(
 ): string {
   const personConfig = person ? data.people[person] : undefined;
   return yearToColor(personConfig?.year, dark);
-}
-
-function yearToColor(year: string | undefined, dark: boolean = false): string {
-  const color = mapEnumWithDefault(
-    year as string,
-    {
-      R: '#baffc9', // green
-      '2': '#ffffba', // yellow
-      '3': '#ffdfba', // orange
-      S: '#ffb3ba', // red
-      M: '#bae1ff', // blue
-    },
-    '#ccc',
-  );
-  if (dark) return shadeColor(color, -20);
-  return color;
-}
-
-function shadeColor(color: string, percent: number) {
-  let R = parseInt(color.substring(1, 3), 16);
-  let G = parseInt(color.substring(3, 5), 16);
-  let B = parseInt(color.substring(5, 7), 16);
-
-  R = (R * (100 + percent)) / 100;
-  G = (G * (100 + percent)) / 100;
-  B = (B * (100 + percent)) / 100;
-
-  R = R < 255 ? R : 255;
-  G = G < 255 ? G : 255;
-  B = B < 255 ? B : 255;
-
-  R = Math.round(R);
-  G = Math.round(G);
-  B = Math.round(B);
-
-  const RR = R.toString(16).length == 1 ? '0' + R.toString(16) : R.toString(16);
-  const GG = G.toString(16).length == 1 ? '0' + G.toString(16) : G.toString(16);
-  const BB = B.toString(16).length == 1 ? '0' + B.toString(16) : B.toString(16);
-
-  return '#' + RR + GG + BB;
 }
 
 function omitFields<T extends object, K extends keyof T>(
