@@ -412,7 +412,7 @@ const people: {
   KO: {
     name: 'KO',
     year: '2',
-    priorityWeekendSaturday: '2024-10-12',
+    priorityWeekendSaturday: '2024-08-31',
   },
   CPu: {
     name: 'CPu',
