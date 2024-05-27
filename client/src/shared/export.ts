@@ -84,10 +84,10 @@ const EXPORT_SHIFT_ORDER: ExportShiftKind[] = [
   'weekday_south',
   'day_nwhsch',
   'day_uw',
+  'day_va',
   'south_24',
   'south_34',
   'south_power',
-  'day_va',
 ];
 
 // const _HOLIDAY_COLOR = '#ffeeee';
