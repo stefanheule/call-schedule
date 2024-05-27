@@ -755,7 +755,7 @@ async function importPreviousSchedule() {
   const SOUTH_HOSPITALS: HospitalKind[] = ['HMC', 'VA'];
   const NWHSCH_HOSPITALS: HospitalKind[] = ['NWH', 'SCH'];
   const data: CallSchedule = {
-    firstDay: '2024-07-01',
+    firstDay: '2024-06-30',
     lastDay: '2025-06-30',
     weeks: [],
     shiftConfigs: {
