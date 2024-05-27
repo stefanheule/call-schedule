@@ -32,22 +32,25 @@ export type WeekendShiftKind = (typeof WEEKEND_SHIFTS)[number];
 export const SPECIAL_SHIFTS = [
   'day_uw',
   'day_nwhsch',
+  'day_va',
   'day_2x_uw',
   'day_2x_nwhsch',
   'south_24',
-  'south_36',
+  'south_34',
+  'south_power',
+
   // 'power_uw',
   // 'power_nwhsch',
-  // 'power_south',
-  // 'thanksgiving_south',
 ] as const;
 export const SPECIAL_SHIFT_LOOKUP: Record<SpecialShiftKind, boolean> = {
   day_uw: true,
   day_nwhsch: true,
+  day_va: true,
   day_2x_uw: true,
   day_2x_nwhsch: true,
   south_24: true,
-  south_36: true,
+  south_34: true,
+  south_power: true,
   // power_uw: true,
   // power_nwhsch: true,
   // power_south: true,
@@ -67,12 +70,14 @@ export const SHIFT_ORDER: ShiftKind[] = [
   'day_2x_uw',
   // 'power_uw',
   'south_24',
-  'south_36',
+  'south_34',
+  'south_power',
   // South
   // 'power_south',
   'weekday_south',
   'weekend_south',
   // 'thanksgiving_south',
+  'day_va',
 ];
 
 export const HOSPITALS = ['UW', 'VA', 'HMC', 'SCH', 'NWH'] as const;
@@ -217,7 +222,7 @@ export type CallSchedule = {
   weeks: Week[];
 
   shiftConfigs: {
-    [Property in ShiftKind]: ShiftConfig;
+    [Property in ShiftKind]?: ShiftConfig;
   };
 
   people: {
