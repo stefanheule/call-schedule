@@ -28,6 +28,7 @@ import {
 import * as datefns from 'date-fns';
 import {
   IsoDate,
+  assertNonNull,
   dateToIsoDate,
   deepCopy,
   isoDateToDate,
@@ -188,7 +189,7 @@ async function main() {
   }
 
   if (run == 'export') {
-    exportSchedule(data);
+    await exportSchedule(data);
     return;
   }
 
@@ -250,20 +251,149 @@ async function main() {
   // );
 }
 
-function exportSchedule(data: CallSchedule) {
+type CellType = {
+  text: string;
+  color?: string;
+  italic?: boolean;
+  background?: string;
+  bold?: boolean;
+};
+
+type SimpleCellType = CellType | string;
+
+function MkBold<T extends SimpleCellType | SimpleCellType[]>(cell: T): T {
+  if (Array.isArray(cell)) {
+    return cell.map(c => MkBold(c)) as T;
+  }
+  const result = simpleCellToCell(cell);
+  result.bold = true;
+  return result as T;
+}
+function MkColor<T extends SimpleCellType | SimpleCellType[]>(
+  cell: T,
+  color: string,
+): T {
+  if (Array.isArray(cell)) {
+    return cell.map(c => MkColor(c, color)) as T;
+  }
+  const result = simpleCellToCell(cell);
+  result.color = color;
+  return result as T;
+}
+function Mk<T extends SimpleCellType | SimpleCellType[]>(
+  cell: T,
+  config: Omit<CellType, 'text'>,
+): T {
+  if (Array.isArray(cell)) {
+    return cell.map(c => Mk(c, config)) as T;
+  }
+  const result = {
+    ...config,
+    ...simpleCellToCell(cell),
+  };
+  return result as T;
+}
+
+type ExportShiftKind =
+  | 'weekday_south'
+  | 'weekend_south'
+  | 'weekend_uw'
+  | 'weekend_nwhsch'
+  | 'day_uw'
+  | 'day_nwhsch'
+  | 'south_24'
+  | 'south_36';
+
+const EXPORT_SHIFT_ORDER: ExportShiftKind[] = [
+  'weekday_south',
+  'weekend_nwhsch',
+  'weekend_uw',
+  'weekend_south',
+  'day_nwhsch',
+  'day_uw',
+  'south_24',
+  'south_36',
+];
+
+const HOLIDAY_COLOR = '#ffeeee';
+async function exportSchedule(data: CallSchedule) {
   const processed = processCallSchedule(data);
-  const rows: string[][] = [];
+  const rows: SimpleCellType[][] = [];
+
+  const shifts: {
+    [day: string]: {
+      [Property in ExportShiftKind]?: {
+        person: string;
+        isHoliday: boolean;
+      };
+    };
+  } = {};
+  let day = data.firstDay;
+  while (day <= data.lastDay) {
+    shifts[day] = {};
+    day = nextDay(day);
+  }
+
+  day = data.firstDay;
+  while (day <= data.lastDay) {
+    const idx = processed.day2weekAndDay[day];
+    for (const [s, person] of Object.entries(
+      data.weeks[idx.weekIndex].days[idx.dayIndex].shifts,
+    )) {
+      const shift = s as ShiftKind;
+      const call = {
+        person,
+        isHoliday: Boolean(isHolidayShift(processed, day, shift)),
+      };
+      const exportShift =
+        shift == 'day_2x_nwhsch'
+          ? 'day_nwhsch'
+          : shift == 'day_2x_uw'
+            ? 'day_uw'
+            : shift;
+      shifts[day][exportShift] = call;
+      switch (shift) {
+        case 'weekday_south':
+        case 'south_24':
+        case 'south_36':
+        case 'day_uw':
+        case 'day_nwhsch':
+          break;
+        case 'weekend_south':
+        case 'weekend_uw':
+        case 'weekend_nwhsch':
+          shifts[nextDay(day, 1)][exportShift] = call;
+          shifts[nextDay(day, 2)][exportShift] = call;
+          break;
+        case 'day_2x_uw':
+        case 'day_2x_nwhsch':
+          shifts[nextDay(day, 1)][exportShift] = call;
+          break;
+      }
+    }
+    day = nextDay(day);
+  }
 
   for (const week of data.weeks) {
     const dates = [];
-    const shifts: string[][] = [[], [], []];
+    const shiftData: {
+      [Property in ExportShiftKind]?: SimpleCellType[];
+    } = {};
     const vacations = [];
     const priorityWeekend = [];
     const holidays = [];
+    let dayIndex = 0;
     for (const day of week.days) {
-      dates.push(datefns.format(isoDateToDate(day.date), 'EEEE, M/d/yyyy'));
+      dates.push(datefns.format(isoDateToDate(day.date), 'EEE, M/d/yyyy'));
       holidays.push(
-        data.holidays[day.date] ?? data.specialDays[day.date] ?? '',
+        data.holidays[day.date]
+          ? {
+              text: data.holidays[day.date],
+              background: HOLIDAY_COLOR,
+            }
+          : data.specialDays[day.date]
+            ? { text: data.specialDays[day.date], background: '#eeeeff' }
+            : '',
       );
       const peopleOnVacation = CALL_POOL.filter(p => {
         const info = processed.day2person2info[day.date]?.[p];
@@ -277,47 +407,143 @@ function exportSchedule(data: CallSchedule) {
       });
       priorityWeekend.push(peoplePriorityWeekend.join(', '));
 
-      let i = 0;
-      for (const [s, person] of Object.entries(day.shifts)) {
-        const shift = s as ShiftKind;
-        const shiftName = mapEnum(shift, {
-          weekday_south: 'South overnight',
-          weekend_south: 'Weekend South',
-          weekend_uw: 'Weekend UW',
-          weekend_nwhsch: 'Weekend NWH/SCH',
-          day_nwhsch: 'NWH/SCH Day Shift',
-          day_uw: 'UW Day Shift',
-          day_2x_nwhsch: 'NWH/SCH Day Shift (Thu and Fri, 10h each)',
-          day_2x_uw: 'UW Day Shift (Thu and Fri, 10h each)',
-          south_24: 'South 24h',
-          south_36: 'South 36h',
-        });
-        shifts[i].push(`${shiftName}: ${person}`);
-        i += 1;
+      for (const [s, person] of Object.entries(shifts[day.date] ?? {})) {
+        const shift = s as ExportShiftKind;
+        if (!shiftData[shift]) {
+          shiftData[shift] = [];
+        }
+        assertNonNull(shiftData[shift])[dayIndex] = {
+          text: person.person,
+          background: person.isHoliday ? HOLIDAY_COLOR : undefined,
+        };
       }
-      for (; i < 3; i++) {
-        shifts[i].push('');
+      dayIndex += 1;
+    }
+    rows.push(MkBold(['', ...dates]));
+    rows.push([MkBold('Holidays/Special'), ...holidays]);
+    const LESS_IMPORTANT_STYLE = {
+      color: '#555555',
+      italic: true,
+    } as const;
+    if (!vacations.every(x => x == '')) {
+      rows.push(Mk([MkBold('Vacations'), ...vacations], LESS_IMPORTANT_STYLE));
+    }
+    if (!priorityWeekend.every(x => x == '')) {
+      rows.push(
+        Mk(
+          [MkBold('Priority Weekend'), ...priorityWeekend],
+          LESS_IMPORTANT_STYLE,
+        ),
+      );
+    }
+
+    for (const shift of EXPORT_SHIFT_ORDER) {
+      const shiftName = mapEnum(shift, {
+        weekday_south: 'Weekday South',
+        weekend_south: 'Weekend South',
+        weekend_uw: 'Weekend UW',
+        weekend_nwhsch: 'Weekend NWH/SCH',
+        day_uw: 'Day UW (7am-5pm)',
+        day_nwhsch: 'Day NWH/SCH (7am-5pm)',
+        south_24: 'South 24',
+        south_36: 'South 36 (',
+      });
+      const sd = shiftData[shift];
+      if (sd) {
+        rows.push([
+          MkBold(shiftName),
+          ...[0, 1, 2, 3, 4, 5, 6].map(i => sd[i] ?? ''),
+        ]);
       }
     }
-    rows.push(['', ...dates]);
-    rows.push(['Holidays/Special', ...holidays]);
-    rows.push(['Vacations', ...vacations]);
-    rows.push(['Priority Weekend', ...priorityWeekend]);
-    rows.push(['Call shifts', ...shifts[0]]);
-    rows.push(['', ...shifts[1]]);
-    rows.push(['', ...shifts[2]]);
+
     rows.push([]);
     rows.push([]);
   }
 
-  const buffer = xlsx.build([
-    { name: 'Call Schedule AY2025', data: rows, options: {} },
+  await rowsToXlsx([
+    {
+      name: 'Call Schedule AY2025',
+      rows,
+    },
   ]);
+}
+
+function simpleCellToCell(cell: SimpleCellType): CellType {
+  if (typeof cell === 'string') {
+    return { text: cell };
+  }
+  return cell;
+}
+
+import * as ExcelJS from 'exceljs';
+async function rowsToXlsx(
+  sheets: {
+    name: string;
+    simpleRows: SimpleCellType[][];
+  }[],
+) {
+  const workbook = new ExcelJS.Workbook();
+
+  for (const sheet of sheets) {
+    const rows = sheet.simpleRows.map(row => row.map(simpleCellToCell));
+    const worksheet = workbook.addWorksheet(sheet.name);
+
+    let rowIndex = 1;
+    for (const row of rows) {
+      let colIndex = 1;
+      for (const cell of row) {
+        const excelCell = worksheet.getCell(rowIndex, colIndex);
+        excelCell.value = cell.text;
+        if (cell.color) {
+          if (!excelCell.font) excelCell.font = {};
+          excelCell.font.color = { argb: 'FF' + cell.color.replace('#', '') };
+        }
+        if (cell.italic) {
+          if (!excelCell.font) excelCell.font = {};
+          excelCell.font.italic = true;
+        }
+        if (cell.bold) {
+          if (!excelCell.font) excelCell.font = {};
+          excelCell.font.bold = true;
+        }
+        if (cell.background) {
+          excelCell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF' + cell.background.replace('#', '') },
+          };
+        }
+        excelCell.alignment = {
+          wrapText: true,
+        };
+        colIndex += 1;
+      }
+
+      rowIndex += 1;
+    }
+
+    worksheet.columns.forEach(column => {
+      if (!column.eachCell) return;
+      let maxLength = 0;
+      column.eachCell(cell => {
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
+        const columnLength = cell.value ? cell.value.toString().length : 10;
+        if (columnLength > maxLength) {
+          maxLength = columnLength;
+        }
+      });
+      column.width = maxLength + 2; // Adding some padding to the width
+    });
+  }
+
+  // Save the workbook to a file
+  const buffer = await workbook.xlsx.writeBuffer();
   const outputFile = `${__dirname}/../../Call-Schedule-AY2025.xlsx`;
   if (fs.existsSync(outputFile)) {
     fs.unlinkSync(outputFile);
   }
-  fs.writeFileSync(outputFile, buffer);
+  fs.writeFileSync(outputFile, buffer as Buffer);
 }
 
 const people: {
