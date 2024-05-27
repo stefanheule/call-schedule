@@ -304,7 +304,7 @@ export const WEEKDAY_CALL_TARGET: Record<CallPoolPerson, number> = {
   LX: 19,
   CC: 19,
   // Year 3
-  MB: 23,
+  MB: 24,
   RB: 23,
   MJ: 23,
   TM: 23,
@@ -646,6 +646,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   forEveryDay(data, (day, _) => {
     for (const person of PEOPLE) {
       const today = assertNonNull(result.day2person2info[day][person]);
+      if (day == '2024-06-30') continue;
       if (!today.shifts) continue;
       if (isNoCallRotation(today.rotation) || today.onVacation) {
         for (const shift of today.shifts) {
