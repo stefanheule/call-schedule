@@ -514,9 +514,9 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           weekend_south: 3,
           weekend_uw: 3,
           weekend_nwhsch: 3,
-          south_24: 2,
+          south_24: 1,
           south_34: 2,
-          south_power: 4,
+          south_power: 3,
         });
         for (let i = 0; i < lenDays; i++) {
           const nextD = nextDay(day.date, i);
@@ -947,7 +947,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         )
           continue;
 
-        const allShifts = [...today, ...tomorrow];
+        const allShifts = [...today, ...dayAfterTomorrow];
         const texts = allShifts.map(s => `${shiftName(s.shift)} on ${s.day}`);
         const startDay = today.map(s => s.day).sort()[0] as IsoDate;
         result.issues[generateIssueKey()] = {
