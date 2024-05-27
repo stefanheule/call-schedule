@@ -1137,7 +1137,7 @@ async function importPreviousSchedule() {
       },
       south_power: {
         kind: 'south_power',
-        name: `South Power`,
+        name: `South Pwr`,
         hospitals: SOUTH_HOSPITALS,
         days: 4,
       },

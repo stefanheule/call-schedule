@@ -440,7 +440,12 @@ function holidayShiftsToString(holidayShifts: HolidayShift[]): string {
   }
   if (holidayShifts.length == 0) return `none`;
   return `${hours}h or ${calls} calls: ${holidayShifts
-    .map(h => `${h.shift} on ${h.day} (${h.holiday})`)
+    .map(
+      h =>
+        `${h.shift == 'south_power' ? 'power_weekend_south' : h.shift} on ${
+          h.day
+        } (${h.holiday})`,
+    )
     .join(', ')}`;
 }
 
@@ -471,7 +476,7 @@ function collectHolidayCall(
   return holidayShiftsToString(holidayCalls);
 }
 
-const SHOW_TARGETS = false;
+const SHOW_TARGETS = true;
 function RenderCallCounts() {
   const processed = useProcessedData();
   const [data] = useData();
