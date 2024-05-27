@@ -910,7 +910,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           friday.shift
         ) {
           result.issues[generateIssueKey()] = {
-            kind: 'priority-weekend',
+            kind: 'call-before-nf',
             startDay: day,
             message: `Call before NF for ${person} on ${day}`,
             isHard: true,

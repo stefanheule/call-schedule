@@ -392,6 +392,7 @@ export const ISSUE_KINDS_HARD = [
   'less-than-4-off-in-28',
   'maternity',
   'priority-weekend',
+  'call-before-nf',
 ] as const;
 export const ISSUE_KINDS_SOFT = [
   'almost-consecutive-call',

@@ -386,6 +386,7 @@ export function RenderCallSchedule() {
                   {processed.issueCounts.soft})
                 </Heading>
                 {Object.entries(processed.issues)
+                  // .filter(([_, issue]) => issue.kind !== 'cross-coverage')
                   .sort((a, b) => a[1].startDay.localeCompare(b[1].startDay))
                   .map(([id, issue]) => (
                     <RuleViolation
