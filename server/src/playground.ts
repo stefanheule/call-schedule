@@ -305,10 +305,10 @@ type ExportShiftKind =
   | 'south_36';
 
 const EXPORT_SHIFT_ORDER: ExportShiftKind[] = [
-  'weekday_south',
   'weekend_nwhsch',
   'weekend_uw',
   'weekend_south',
+  'weekday_south',
   'day_nwhsch',
   'day_uw',
   'south_24',
@@ -480,13 +480,13 @@ import * as ExcelJS from 'exceljs';
 async function rowsToXlsx(
   sheets: {
     name: string;
-    simpleRows: SimpleCellType[][];
+    rows: SimpleCellType[][];
   }[],
 ) {
   const workbook = new ExcelJS.Workbook();
 
   for (const sheet of sheets) {
-    const rows = sheet.simpleRows.map(row => row.map(simpleCellToCell));
+    const rows = sheet.rows.map(row => row.map(simpleCellToCell));
     const worksheet = workbook.addWorksheet(sheet.name);
 
     let rowIndex = 1;
