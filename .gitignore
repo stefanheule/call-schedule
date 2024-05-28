@@ -6,6 +6,7 @@
 data/
 Call-Schedule-AY2025.xlsx
 backup*.json
+input-files/
 
 # Generated files
 **/check-type.generated.ts
