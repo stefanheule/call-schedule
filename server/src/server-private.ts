@@ -24,7 +24,6 @@ import {
 } from './shared/check-type.generated';
 import { Request, Response } from 'express';
 import { exceptionToString } from 'check-type';
-import initialData from './shared/init.json';
 import { scheduleToStoredSchedule } from './shared/compute';
 import { loadStorage, storeStorage } from './storage';
 
@@ -46,9 +45,11 @@ async function main() {
           req: Request,
           res: Response<LoadCallScheduleResponse | string>,
         ) => {
+          const start = Date.now();
+          console.log('start');
           try {
             const request = assertLoadCallScheduleRequest(req.body);
-            const storage = loadStorage();
+            const storage = loadStorage({ noCheck: true });
             let result;
             if (request.ts) {
               result = storage.versions.find(v => v.ts === request.ts);
@@ -56,14 +57,13 @@ async function main() {
                 throw new Error(`Cannot find version with ts ${request.ts}`);
             } else {
               if (storage.versions.length == 0) {
-                res.send(assertCallSchedule(initialData));
-                return;
+                throw new Error(`No versions found`);
               }
               result = storage.versions[storage.versions.length - 1];
             }
 
             result.callSchedule.isPublic = IS_PUBLIC;
-            res.send(result.callSchedule);
+            res.send(assertCallSchedule(result.callSchedule));
             return;
           } catch (e) {
             console.log(e);
