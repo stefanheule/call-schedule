@@ -1059,6 +1059,12 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       if (data.people[person].year == 'S' && today.shift == 'weekday_south') {
         continue;
       }
+      // don't consider north to south coverage
+      if (
+        call.every(c => c == 'HMC' || c == 'VA') &&
+        rotationHospitals.every(h => h == 'NWH' || h == 'UW' || h == 'SCH')
+      )
+        continue;
       if (call.every(c => !rotationHospitals.includes(c))) {
         result.issues[generateIssueKey()] = {
           kind: 'cross-coverage',
