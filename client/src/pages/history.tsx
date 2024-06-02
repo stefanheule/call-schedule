@@ -12,22 +12,28 @@ import { Button, IconButton, Snackbar } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useData } from './data-context';
 import CloseIcon from '@mui/icons-material/Close';
+import { Ui } from '../App';
 
 export function HistoryPage() {
   const [schedules, setSchedules] = useState<
     undefined | StoredCallScheduleMetaData[]
   >(undefined);
   const navigate = useNavigate();
+  const [data] = useData();
   const [isLoading, setIsLoading] = useState(false);
 
   useAsync(async () => {
-    if (schedules === undefined) {
+    if (schedules === undefined && data.isPublic !== true) {
       const result = await rpcListCallSchedules({
         kind: 'list',
       });
       setSchedules(result.schedules);
     }
-  }, [schedules]);
+  }, [schedules, data.isPublic]);
+
+  if (data.isPublic === true) {
+    return <Ui />;
+  }
 
   return (
     <MainLayout>

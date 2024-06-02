@@ -35,7 +35,7 @@ export const ROUTES: (RouteObject & {
 
 const router = createBrowserRouter(ROUTES);
 
-function Ui() {
+export function Ui() {
   const [localData, setLocalData] = React.useState<LocalData>({
     highlightedPeople: {},
     history: [],

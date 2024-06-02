@@ -264,13 +264,15 @@ export function RenderCallSchedule() {
                   >
                     Download
                   </Button>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={() => navigate('/history')}
-                  >
-                    History
-                  </Button>
+                  {!data.isPublic && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => navigate('/history')}
+                    >
+                      History
+                    </Button>
+                  )}
                   <Button
                     variant="outlined"
                     size="small"
