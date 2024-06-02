@@ -13,6 +13,16 @@ export type ShiftConfig = {
 export type Year = '1' | '2' | '3' | 'S' | 'C' | 'R' | 'M';
 export type YearOnSchedule = '2' | '3' | 'S' | 'R' | 'M';
 
+export const CHIEF_SHIFTS = [
+  'backup_weekday',
+  'backup_weekend',
+  'backup_holiday',
+  'backup_weekday_r2',
+  'backup_weekend_r2',
+  'backup_holiday_r2',
+] as const;
+export type ChiefShiftKind = (typeof CHIEF_SHIFTS)[number];
+
 export const WEEKDAY_SHIFTS = ['weekday_south'] as const;
 export const WEEKDAY_SHIFT_LOOKUP: Record<WeekdayShiftKind, boolean> = {
   weekday_south: true,
@@ -164,9 +174,15 @@ export type Person = (typeof ALL_PEOPLE)[number];
 export type UnassignedPerson = '';
 export type MaybePerson = Person | UnassignedPerson;
 export type MaybeCallPoolPerson = CallPoolPerson | UnassignedPerson;
+export const ALL_CHIEFS = ['DK', 'LZ', 'TW', 'CP'] as const;
+export type Chief = (typeof ALL_CHIEFS)[number];
+export type MaybeChief = Chief | UnassignedPerson;
 
 export type ShiftId = DayId & {
   shiftName: ShiftKind;
+};
+export type ChiefShiftId = DayId & {
+  shiftName: ChiefShiftKind;
 };
 
 export function shiftIdToString(shiftId: ShiftId) {
@@ -190,6 +206,10 @@ export type Day = {
 
   shifts: {
     [Symbol in ShiftKind]?: MaybeCallPoolPerson;
+  };
+
+  backupShifts: {
+    [Symbol in ChiefShiftKind]?: MaybeChief;
   };
 };
 
@@ -249,11 +269,19 @@ export type RotationConfig = RotationDetails & {
   start: string;
 };
 
-export type Action = {
-  previous: MaybeCallPoolPerson | undefined;
-  next: MaybeCallPoolPerson | undefined;
-  shift: ShiftId;
-};
+export type Action =
+  | {
+      kind: 'regular';
+      previous: MaybeCallPoolPerson | undefined;
+      next: MaybeCallPoolPerson | undefined;
+      shift: ShiftId;
+    }
+  | {
+      kind: 'backup';
+      previous: MaybeChief | undefined;
+      next: MaybeChief | undefined;
+      shift: ChiefShiftId;
+    };
 
 export type LocalData = {
   highlightedPeople: {
@@ -356,6 +384,10 @@ export type CallScheduleProcessed = {
     [day: string]: {
       [Property in ShiftKind]?: string;
     };
+  };
+
+  day2isR2EarlyCall: {
+    [day: string]: boolean;
   };
 };
 

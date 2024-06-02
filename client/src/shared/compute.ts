@@ -8,10 +8,12 @@ import {
   uuid,
 } from 'check-type';
 import {
+  ALL_PEOPLE,
   CALL_POOL,
   CallPoolPerson,
   CallSchedule,
   CallScheduleProcessed,
+  ChiefShiftKind,
   DayPersonInfo,
   HospitalKind,
   ISSUE_KINDS_HARD,
@@ -243,7 +245,10 @@ export function scheduleToStoredSchedule(
 export function elementIdForDay(date: string): string {
   return `day-${date}`;
 }
-export function elementIdForShift(date: string, shift: ShiftKind): string {
+export function elementIdForShift(
+  date: string,
+  shift: ShiftKind | ChiefShiftKind,
+): string {
   return `shift-${shift}-on-day-${date}`;
 }
 
@@ -350,6 +355,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       soft: 0,
       softCrossCoverage: 0,
     },
+    day2isR2EarlyCall: {},
     callCounts: {
       MAD: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
       // Seniors
@@ -649,6 +655,36 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       return assertNonNull(data.shiftConfigs[info]).name;
     if (!info.shift) throw new Error('No shift');
     return assertNonNull(data.shiftConfigs[info.shift]).name;
+  }
+
+  // Compute if the first NF is an R2
+  const r2s = ALL_PEOPLE.filter(p => data.people[p].year == '2');
+  for (const r2 of r2s) {
+    let foundFirstNf = false;
+    for (const week of data.weeks) {
+      for (const day of week.days) {
+        const isNf = result.day2person2info[day.date][r2]?.rotation == 'NF';
+        if (isNf) {
+          foundFirstNf = true;
+          result.day2isR2EarlyCall[day.date] = true;
+        } else if (foundFirstNf) {
+          break;
+        }
+      }
+    }
+  }
+
+  // Compute call of R2s in first 8 weeks
+  const lastDayOfFirst8Weeks = nextDay(data.firstDay, 8 * 7 - 1);
+  for (const week of data.weeks) {
+    for (const day of week.days) {
+      if (day.date > lastDayOfFirst8Weeks) break;
+      for (const person of Object.values(day.shifts)) {
+        if ((r2s as string[]).includes(person)) {
+          result.day2isR2EarlyCall[day.date] = true;
+        }
+      }
+    }
   }
 
   // hard 0a. no call on vacation or non-call rotations

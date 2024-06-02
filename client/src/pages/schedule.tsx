@@ -3,6 +3,7 @@ import {
   assertNonNull,
   dateToIsoDatetime,
   isoDateToDate,
+  mapEnum,
   sleep,
 } from 'check-type';
 import { Children, Column, ElementSpacer, Row } from '../common/flex';
@@ -13,7 +14,6 @@ import {
   PersonConfig,
   ShiftId,
   WeekId,
-  YearOnSchedule,
   Year,
   yearToString,
   LocalData,
@@ -25,8 +25,10 @@ import {
   Hospital2People,
   SHIFT_ORDER,
   MaybeCallPoolPerson,
-  CallPoolPerson,
   CALL_POOL,
+  ChiefShiftKind,
+  MaybeChief,
+  ChiefShiftId,
 } from '../shared/types';
 import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
@@ -76,6 +78,10 @@ import { VList, VListHandle } from 'virtua';
 import DoNotDisturbIcon from '@mui/icons-material/DoNotDisturb';
 import { saveAs } from 'file-saver';
 import { exportSchedule } from '../shared/export';
+import {
+  assertMaybeCallPoolPerson,
+  assertMaybeChief,
+} from '../shared/check-type.generated';
 
 const DAY_SPACING = `2px`;
 
@@ -111,7 +117,12 @@ export function RenderCallSchedule() {
               data.weeks[lastAction.shift.weekIndex].days[
                 lastAction.shift.dayIndex
               ];
-            day.shifts[lastAction.shift.shiftName] = lastAction.previous;
+            if (lastAction.kind == 'regular') {
+              day.shifts[lastAction.shift.shiftName] = lastAction.previous;
+            } else {
+              day.backupShifts[lastAction.shift.shiftName] =
+                lastAction.previous;
+            }
             if (localData.unsavedChanges === 0) {
               localData.firstUnsavedChange = dateToIsoDatetime(new Date());
             }
@@ -141,7 +152,11 @@ export function RenderCallSchedule() {
               data.weeks[lastAction.shift.weekIndex].days[
                 lastAction.shift.dayIndex
               ];
-            day.shifts[lastAction.shift.shiftName] = lastAction.next;
+            if (lastAction.kind == 'regular') {
+              day.shifts[lastAction.shift.shiftName] = lastAction.next;
+            } else {
+              day.backupShifts[lastAction.shift.shiftName] = lastAction.next;
+            }
             if (localData.unsavedChanges === 0) {
               localData.firstUnsavedChange = dateToIsoDatetime(new Date());
             }
@@ -514,8 +529,10 @@ function RenderCallCounts() {
                         (target: {WEEKDAY_CALL_TARGET[person]}){' '}
                       </Text>
                     )}
-                    <Text inline>out of which {counts.sunday} are sundays{' '}</Text>
-                    <Text inline>/{' '}</Text>
+                    <Text inline>
+                      out of which {counts.sunday} are sundays{' '}
+                    </Text>
+                    <Text inline>/ </Text>
                     <Text
                       inline
                       style={{
@@ -540,7 +557,7 @@ function RenderCallCounts() {
                         (target: {WEEKEND_CALL_TARGET[person]}){' '}
                       </Text>
                     )}
-                    <Text inline>/{' '}</Text>
+                    <Text inline>/ </Text>
                     <Text inline>{counts.nf} NF</Text>
                   </Text>
                 </Row>
@@ -675,6 +692,7 @@ function RenderWeek({
 const DAY_WIDTH = 110;
 const DAY_PADDING = 5;
 const DAY_VACATION_HEIGHT = '37px';
+const DAY_BACKUP_HEIGHT = '23px';
 const DAY_HOSPITALS_HEIGHT = '90px';
 const DAY_BORDER = `1px solid black`;
 const DAY_BOX_STYLE: React.CSSProperties = {
@@ -717,6 +735,16 @@ function RenderLegend({ showRotations }: { showRotations: boolean }) {
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
       <Column style={{ ...DAY_BOX_STYLE, minHeight: DAY_VACATION_HEIGHT }}>
         <Text>Vacations</Text> <Text> (prio. wknd)</Text>
+      </Column>
+      <Column style={{ borderBottom: DAY_BORDER }}></Column>
+      <Column
+        style={{
+          ...DAY_BOX_STYLE,
+          minHeight: DAY_BACKUP_HEIGHT,
+          padding: `3px ${DAY_PADDING}px`,
+        }}
+      >
+        <Text>Backup call</Text>
       </Column>
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
       <Column style={{ ...DAY_BOX_STYLE }}>
@@ -842,6 +870,22 @@ function RenderDay({
         </Row>
       </Column>
       <Column style={{ borderBottom: DAY_BORDER }}></Column>
+      <Column
+        style={{
+          ...DAY_BOX_STYLE,
+          minHeight: DAY_BACKUP_HEIGHT,
+          padding: '3px',
+        }}
+      >
+        {Object.entries(day.backupShifts).map(([shiftName]) => (
+          <RenderBackupShift
+            id={{ ...id, shiftName: shiftName as ChiefShiftKind }}
+            setWarningSnackbar={setWarningSnackbar}
+            key={`${day.date}-${shiftName}`}
+          />
+        ))}
+      </Column>
+      <Column style={{ borderBottom: DAY_BORDER }}></Column>
       <Column style={{ ...DAY_BOX_STYLE, padding: '3px' }}>
         {Object.entries(day.shifts)
           .sort(
@@ -913,6 +957,79 @@ function RenderHospital({
   );
 }
 
+function RenderBackupShift({
+  id,
+  setWarningSnackbar,
+}: {
+  id: ChiefShiftId;
+  setWarningSnackbar: (v: string) => void;
+}) {
+  const [data, setData] = useData();
+  const [, setLocalData] = useLocalData();
+  const day = data.weeks[id.weekIndex].days[id.dayIndex];
+  const personPicker = usePersonPicker();
+  const personId = day.backupShifts[id.shiftName] ?? '';
+  const backupShiftName = mapEnum(id.shiftName, {
+    backup_weekday: 'Day',
+    backup_weekend: 'Weekend',
+    backup_holiday: 'Holiday',
+    backup_weekday_r2: 'Day R2',
+    backup_weekend_r2: 'Weekend R2',
+    backup_holiday_r2: 'Holiday',
+  });
+  return (
+    <RenderShiftGeneric
+      dayId={id}
+      personId={personId}
+      name={backupShiftName}
+      shiftId={id.shiftName}
+      onClick={() => {
+        personPicker.requestDialog(
+          p => {
+            const person = assertMaybeChief(p);
+            if (data.isPublic) {
+              setWarningSnackbar(
+                `You won't be able to save your changes, this is a read-only version of the call schedule application`,
+              );
+            }
+            const previous =
+              data.weeks[id.weekIndex].days[id.dayIndex].backupShifts[
+                id.shiftName
+              ];
+            setData((d: CallSchedule) => {
+              d.weeks[id.weekIndex].days[id.dayIndex].backupShifts[
+                id.shiftName
+              ] = person;
+              return { ...d };
+            });
+            setLocalData((d: LocalData) => {
+              d.history.push({
+                kind: 'backup',
+                previous,
+                next: person,
+                shift: id,
+              });
+              d.undoHistory = [];
+              if (d.unsavedChanges === 0) {
+                d.firstUnsavedChange = dateToIsoDatetime(new Date());
+              }
+              d.unsavedChanges += 1;
+              return { ...d };
+            });
+          },
+          {
+            kind: 'backup',
+            currentPersonId: personId,
+            day: day.date,
+            shift: id.shiftName,
+            shiftName: backupShiftName,
+          },
+        );
+      }}
+    />
+  );
+}
+
 function RenderShift({
   id,
   setWarningSnackbar,
@@ -922,12 +1039,82 @@ function RenderShift({
 }) {
   const [data, setData] = useData();
   const [, setLocalData] = useLocalData();
-  const day = data.weeks[id.weekIndex].days[id.dayIndex];
-  const personId = day.shifts[id.shiftName] ?? '';
-  const personPicker = usePersonPicker();
-  const name = assertNonNull(data.shiftConfigs[id.shiftName]).name;
   const processed = useProcessedData();
-  const elId = elementIdForShift(day.date, id.shiftName);
+  const day = data.weeks[id.weekIndex].days[id.dayIndex];
+  const personPicker = usePersonPicker();
+  const personId = day.shifts[id.shiftName] ?? '';
+  return (
+    <RenderShiftGeneric
+      dayId={id}
+      personId={personId}
+      name={assertNonNull(data.shiftConfigs[id.shiftName]).name}
+      shiftId={id.shiftName}
+      dashedBorder={Boolean(
+        processed.day2shift2isHoliday?.[day.date]?.[id.shiftName],
+      )}
+      onClick={() => {
+        personPicker.requestDialog(
+          p => {
+            const person = assertMaybeCallPoolPerson(p);
+            if (data.isPublic) {
+              setWarningSnackbar(
+                `You won't be able to save your changes, this is a read-only version of the call schedule application`,
+              );
+            }
+            const previous =
+              data.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName];
+            setData((d: CallSchedule) => {
+              d.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName] =
+                person;
+              return { ...d };
+            });
+            setLocalData((d: LocalData) => {
+              d.history.push({
+                kind: 'regular',
+                previous,
+                next: person,
+                shift: id,
+              });
+              d.undoHistory = [];
+              if (d.unsavedChanges === 0) {
+                d.firstUnsavedChange = dateToIsoDatetime(new Date());
+              }
+              d.unsavedChanges += 1;
+              return { ...d };
+            });
+          },
+          {
+            kind: 'regular',
+            currentPersonId: personId,
+            day: day.date,
+            shift: id.shiftName,
+            shiftName: assertNonNull(data.shiftConfigs[id.shiftName]).name,
+          },
+        );
+      }}
+    />
+  );
+}
+
+function RenderShiftGeneric({
+  dayId,
+  personId,
+  name,
+  shiftId,
+  dashedBorder,
+  onClick,
+}: {
+  dayId: DayId;
+  personId: MaybePerson;
+  name: string;
+  shiftId: ShiftKind | ChiefShiftKind;
+  dashedBorder?: boolean;
+  onClick?: () => void;
+}) {
+  const [data] = useData();
+  const day = data.weeks[dayId.weekIndex].days[dayId.dayIndex];
+  const processed = useProcessedData();
+  const elId = elementIdForShift(day.date, shiftId);
   const hasIssue = processed.element2issueKind[elId];
   // useEffect(() => {
   //   if (day.date == '2024-07-04') {
@@ -944,9 +1131,7 @@ function RenderShift({
       style={{
         boxSizing: 'border-box',
         border: `1px solid #aaa`,
-        borderStyle: processed.day2shift2isHoliday?.[day.date]?.[id.shiftName]
-          ? 'dashed'
-          : 'solid',
+        borderStyle: dashedBorder ? 'dashed' : 'solid',
         marginBottom: `1px`,
         cursor: 'pointer',
         padding: '1px 3px',
@@ -958,42 +1143,7 @@ function RenderShift({
               : 'rgb(255, 252, 170)',
         borderRadius: '3px',
       }}
-      onClick={() => {
-        personPicker.requestDialog(
-          person => {
-            if (data.isPublic) {
-              setWarningSnackbar(
-                `You won't be able to save your changes, this is a read-only version of the call schedule application`,
-              );
-            }
-            const previous =
-              data.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName];
-            setData((d: CallSchedule) => {
-              d.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName] =
-                person;
-              return { ...d };
-            });
-            setLocalData((d: LocalData) => {
-              d.history.push({
-                previous,
-                next: person,
-                shift: id,
-              });
-              d.undoHistory = [];
-              if (d.unsavedChanges === 0) {
-                d.firstUnsavedChange = dateToIsoDatetime(new Date());
-              }
-              d.unsavedChanges += 1;
-              return { ...d };
-            });
-          },
-          {
-            currentPersonId: personId,
-            day: day.date,
-            shift: id.shiftName,
-          },
-        );
-      }}
+      onClick={onClick}
     >
       <Text>{name}</Text>
       <ElementSpacer />
@@ -1112,18 +1262,28 @@ export const ColorPill = forwardRef(function ColorPillImp(
   );
 });
 
-type PersonPickerConfig = {
-  currentPersonId: MaybeCallPoolPerson;
-  shift: ShiftKind;
-  day: IsoDate;
-};
+type PersonPickerConfig =
+  | {
+      kind: 'regular';
+      currentPersonId: MaybeCallPoolPerson;
+      shift: ShiftKind;
+      day: IsoDate;
+      shiftName: string;
+    }
+  | {
+      kind: 'backup';
+      currentPersonId: MaybeChief;
+      shift: ChiefShiftKind;
+      day: IsoDate;
+      shiftName: string;
+    };
 
 type PersonPickerType = {
   requestDialog: (
-    callback: (person: MaybeCallPoolPerson) => void,
+    callback: (person: MaybePerson) => void,
     config: PersonPickerConfig,
   ) => void;
-  handleDialogResult: (person: MaybeCallPoolPerson) => void;
+  handleDialogResult: (person: MaybePerson) => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   config: PersonPickerConfig;
@@ -1141,13 +1301,15 @@ export const PersonPickerProvider = ({ children }: Children) => {
   const [isOpen, setIsOpen] = useState(false);
   const [onResult, setOnResult] = useState(() => (_: MaybePerson) => {});
   const [config, setConfig] = useState<PersonPickerConfig>({
+    kind: 'regular',
     currentPersonId: '',
     shift: 'day_nwhsch',
     day: '2024-05-23' as IsoDate,
+    shiftName: '',
   });
 
   const requestDialog = (
-    callback: (person: MaybeCallPoolPerson) => void,
+    callback: (person: MaybePerson) => void,
     config: PersonPickerConfig,
   ) => {
     setIsOpen(true);
@@ -1155,7 +1317,7 @@ export const PersonPickerProvider = ({ children }: Children) => {
     setConfig(config);
   };
 
-  const handleDialogResult = (person: MaybeCallPoolPerson) => {
+  const handleDialogResult = (person: MaybePerson) => {
     setIsOpen(false);
     onResult(person);
   };
@@ -1177,20 +1339,20 @@ export const PersonPickerProvider = ({ children }: Children) => {
 
 function getYearToPeople(
   data: CallSchedule,
-): Record<YearOnSchedule, (PersonConfig & { id: CallPoolPerson })[]> {
-  const yearToPeople: Record<
-    YearOnSchedule,
-    (PersonConfig & { id: CallPoolPerson })[]
-  > = {
-    '2': [],
-    '3': [],
-    S: [],
-    R: [],
-    M: [],
-  };
+  years: Year[] = ['2', '3', 'S', 'R', 'M'],
+): {
+  [year in Year]?: (PersonConfig & { id: Person })[];
+} {
+  const yearToPeople: {
+    [year in Year]?: (PersonConfig & { id: Person })[];
+  } = {};
   for (const [id, person] of Object.entries(data.people)) {
-    if (person.year == '1' || person.year == 'C') continue;
-    yearToPeople[person.year].push({ ...person, id: id as CallPoolPerson });
+    if (!years.includes(person.year)) continue;
+    if (!yearToPeople[person.year]) yearToPeople[person.year] = [];
+    assertNonNull(yearToPeople[person.year]).push({
+      ...person,
+      id: id as Person,
+    });
   }
   return yearToPeople;
 }
@@ -1212,11 +1374,17 @@ function PersonPickerDialog() {
   const [data] = useData();
   const processed = useProcessedData();
   const config = personPicker.config;
-  const shiftConfig = assertNonNull(data.shiftConfigs[config.shift]);
-  const inference = inferShift(data, processed, config.day, config.shift);
+  const inference =
+    config.kind == 'backup'
+      ? undefined
+      : inferShift(data, processed, config.day, config.shift);
   const initialRating = rate(data, processed);
+  const isBackup = config.kind == 'backup';
 
-  const yearToPeople = getYearToPeople(data);
+  const yearToPeople = getYearToPeople(
+    data,
+    isBackup ? ['C'] : ['2', '3', 'S', 'R', 'M'],
+  );
   const buttonWidth = 200;
   return (
     <Dialog
@@ -1234,7 +1402,7 @@ function PersonPickerDialog() {
     >
       <Column style={{ padding: '20px' }} spacing="10px">
         <Heading>
-          {shiftConfig.name} on {config.day}
+          {config.shiftName} on {config.day}
         </Heading>
         <Row crossAxisAlignment="start">
           {Object.entries(yearToPeople).map(([year, people]) =>
@@ -1254,7 +1422,9 @@ function PersonPickerDialog() {
                 </Text>
                 <Column spacing="3px" crossAxisAlignment="end">
                   {people.map(person => {
-                    const unavailable = inference.unavailablePeople[person.id];
+                    const unavailable = inference
+                      ? inference.unavailablePeople[person.id]
+                      : undefined;
 
                     const renderedPerson = (
                       <RenderPerson
@@ -1276,7 +1446,8 @@ function PersonPickerDialog() {
                         }
                       />
                     );
-                    const rating = inference.best?.ratings?.[person.id]?.rating;
+                    const rating =
+                      inference?.best?.ratings?.[person.id]?.rating;
                     return (
                       <Row key={person.name} spacing={'2px'}>
                         {rating && (
@@ -1348,20 +1519,22 @@ function PersonPickerDialog() {
           >
             Clear assigned person
           </Button>
-          <Button
-            variant="contained"
-            size="small"
-            style={{
-              width: buttonWidth,
-            }}
-            disabled={!inference.best}
-            onClick={() => {
-              personPicker.handleDialogResult(inference.best?.person ?? '');
-            }}
-          >
-            {inference.best && `Auto-assign (${inference.best.person})`}
-            {!inference.best && `Nobody available`}
-          </Button>
+          {config.kind == 'regular' && (
+            <Button
+              variant="contained"
+              size="small"
+              style={{
+                width: buttonWidth,
+              }}
+              disabled={!inference?.best}
+              onClick={() => {
+                personPicker.handleDialogResult(inference?.best?.person ?? '');
+              }}
+            >
+              {inference?.best && `Auto-assign (${inference?.best.person})`}
+              {!inference?.best && `Nobody available`}
+            </Button>
+          )}
         </Row>
       </Column>
     </Dialog>

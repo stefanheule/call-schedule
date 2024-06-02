@@ -67,6 +67,7 @@ export type RunType =
   | 'clear-weekends'
   | 'clear-weekdays'
   | 'rename-36'
+  | 'add-chief-shifts'
   | 'use-power';
 
 function runType(): RunType {
@@ -82,16 +83,47 @@ async function main() {
   const run = runType();
 
   const storage = loadStorage({
-    noCheck: run == 'change-type',
+    noCheck: run == 'change-type' || run == 'add-chief-shifts',
   });
 
-  // Re-import everything
-
-  // Move existing assignments over
   const latest = storage.versions[storage.versions.length - 1];
   let data = deepCopy(latest.callSchedule);
   console.log(`Latest = ${latest.name}`);
 
+  if (run == 'add-chief-shifts') {
+    const processed = processCallSchedule(data);
+
+    for (const week of data.weeks) {
+      for (const day of week.days) {
+        const isR2 = processed.day2isR2EarlyCall[day.date] === true;
+        const dow = dateToDayOfWeek(day.date);
+        day.backupShifts = {};
+        if (dow == 'sat' || dow == 'sun') continue;
+        if (dow == 'fri') {
+          if (isR2) {
+            day.backupShifts.backup_weekend_r2 = '';
+          } else {
+            day.backupShifts.backup_weekend = '';
+          }
+        } else {
+          if (isR2) {
+            day.backupShifts.backup_weekday_r2 = '';
+          } else {
+            day.backupShifts.backup_weekday = '';
+          }
+        }
+      }
+    }
+
+    assertCallSchedule(data);
+    latest.callSchedule = data;
+    storeStorage(storage);
+
+    console.log(`Added chief shifts`);
+    return;
+  }
+
+  // Move existing assignments over
   if (run == 're-import-holiday' || run == 'add-priority-weekend') {
     const reimportedData = await importPreviousSchedule();
     clearSchedule(reimportedData);
@@ -950,6 +982,7 @@ async function importPreviousSchedule() {
           shifts: {
             weekday_south: week.south[1 + i],
           },
+          backupShifts: {},
         });
       }
       // Weekend call (on Friday)
@@ -960,11 +993,13 @@ async function importPreviousSchedule() {
           weekend_uw: week.uw[6],
           weekend_nwhsch: week.north[6],
         },
+        backupShifts: {},
       });
       // Saturday (no shifts)
       days.push({
         date: sundayPlus(6),
         shifts: {},
+        backupShifts: {},
       });
 
       const newWeek: Week = {
