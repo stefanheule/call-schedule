@@ -485,54 +485,64 @@ function RenderCallCounts() {
                 <Row spacing="2px">
                   <Text
                     style={{
-                      fontWeight:
-                        counts.weekday + counts.sunday >
-                        WEEKDAY_CALL_TARGET[person]
-                          ? 'bold'
-                          : 'normal',
+                      display: 'block',
                     }}
                   >
-                    {counts.weekday + counts.sunday} weekday
-                  </Text>
-                  {SHOW_TARGETS && (
                     <Text
+                      inline
                       style={{
                         fontWeight:
-                          counts.weekday + counts.sunday <
+                          counts.weekday + counts.sunday >
                           WEEKDAY_CALL_TARGET[person]
                             ? 'bold'
                             : 'normal',
                       }}
                     >
-                      (target: {WEEKDAY_CALL_TARGET[person]})
+                      {counts.weekday + counts.sunday} weekday{' '}
                     </Text>
-                  )}
-                  <Text>out of which {counts.sunday} are sundays</Text>
-                  <Text>/</Text>
-                  <Text
-                    style={{
-                      fontWeight:
-                        counts.weekend > WEEKEND_CALL_TARGET[person]
-                          ? 'bold'
-                          : 'normal',
-                    }}
-                  >
-                    {counts.weekend} weekend
-                  </Text>
-                  {SHOW_TARGETS && (
+                    {SHOW_TARGETS && (
+                      <Text
+                        inline
+                        style={{
+                          fontWeight:
+                            counts.weekday + counts.sunday <
+                            WEEKDAY_CALL_TARGET[person]
+                              ? 'bold'
+                              : 'normal',
+                        }}
+                      >
+                        (target: {WEEKDAY_CALL_TARGET[person]}){' '}
+                      </Text>
+                    )}
+                    <Text inline>out of which {counts.sunday} are sundays{' '}</Text>
+                    <Text inline>/{' '}</Text>
                     <Text
+                      inline
                       style={{
                         fontWeight:
-                          counts.weekend < WEEKEND_CALL_TARGET[person]
+                          counts.weekend > WEEKEND_CALL_TARGET[person]
                             ? 'bold'
                             : 'normal',
                       }}
                     >
-                      (target: {WEEKEND_CALL_TARGET[person]})
+                      {counts.weekend} weekend{' '}
                     </Text>
-                  )}
-                  <Text>/</Text>
-                  <Text>{counts.nf} NF</Text>
+                    {SHOW_TARGETS && (
+                      <Text
+                        inline
+                        style={{
+                          fontWeight:
+                            counts.weekend < WEEKEND_CALL_TARGET[person]
+                              ? 'bold'
+                              : 'normal',
+                        }}
+                      >
+                        (target: {WEEKEND_CALL_TARGET[person]}){' '}
+                      </Text>
+                    )}
+                    <Text inline>/{' '}</Text>
+                    <Text inline>{counts.nf} NF</Text>
+                  </Text>
                 </Row>
               </Row>
             );
