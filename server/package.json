@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "start": "yarn start-public & yarn start-private",
-    "start-public": "tsx watch src/server-public.ts",
-    "start-private": "tsx watch src/server-private.ts",
+    "start-public": "CALL_SCHEDULE_PUBLIC=yes tsx watch src/server-private.ts",
+    "start-private": "CALL_SCHEDULE_PUBLIC=no tsx watch src/server-private.ts",
     "build": "rm -rf build && tsc && yarn sentry:sourcemaps",
     "postbuild": "cp package.json build/package.json && cp yarn.lock build/yarn.lock",
     "sentry:sourcemaps": "sentry-cli sourcemaps inject --org stefanheule --project call-schedule-server ./build && sentry-cli sourcemaps upload --org stefanheule --project call-schedule-server ./build"

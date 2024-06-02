@@ -33,6 +33,7 @@ export const AXIOS_PROPS = {
 };
 
 const IS_PUBLIC = process.env['CALL_SCHEDULE_PUBLIC'] === 'yes';
+console.log(`IS_PUBLIC: ${IS_PUBLIC}`);
 
 async function main() {
   await setupExpressServer({
@@ -45,8 +46,6 @@ async function main() {
           req: Request,
           res: Response<LoadCallScheduleResponse | string>,
         ) => {
-          const start = Date.now();
-          console.log('start');
           try {
             const request = assertLoadCallScheduleRequest(req.body);
             const storage = loadStorage({ noCheck: true });

@@ -5,8 +5,12 @@ module.exports = {
       script: 'yarn client start',
     },
     {
-      name: 'CALL_SCHEDULE_PUBLIC=no cs-server',
-      script: 'yarn server start',
+      name: 'cs-server-private',
+      script: 'yarn server start-private',
+    },
+    {
+      name: 'cs-server-public',
+      script: 'yarn server start-public',
     },
     {
       name: 'cs-codegen',
