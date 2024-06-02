@@ -684,6 +684,18 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           result.day2isR2EarlyCall[day.date] = true;
         }
       }
+      // for weekends, also check monday
+      const dow = dateToDayOfWeek(day.date);
+      if (dow == 'fri') {
+        const monday = nextDay(day.date, 3);
+        for (const person of Object.values(
+          assertNonNull(result.day2person2info[monday]),
+        )) {
+          if ((r2s as string[]).includes(person.rotation)) {
+            result.day2isR2EarlyCall[monday] = true;
+          }
+        }
+      }
     }
   }
 
