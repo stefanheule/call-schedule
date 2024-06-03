@@ -468,7 +468,7 @@ function RenderCallCounts() {
   const [data] = useData();
   const [holiday, setHoliday] = useState<
     'regular' | 'holiday' | 'backup' | 'backup_holiday'
-  >('backup');
+  >('regular');
   return (
     <Column>
       <Row>
