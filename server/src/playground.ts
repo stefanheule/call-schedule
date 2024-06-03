@@ -77,6 +77,18 @@ function runType(): RunType {
   return assertRunType(arg);
 }
 
+function findDate(data: CallSchedule, date: string): Day {
+  for (const week of data.weeks) {
+    for (let idx = 0; idx < week.days.length; idx++) {
+      const day = week.days[idx];
+      if (day.date === date) {
+        return day;
+      }
+    }
+  }
+  throw new Error(`Tried to find ${date}, but doesn't exist.`);
+}
+
 async function main() {
   await globalSetup();
 
@@ -91,28 +103,66 @@ async function main() {
   console.log(`Latest = ${latest.name}`);
 
   if (run == 'add-chief-shifts') {
-    const processed = processCallSchedule(data);
-
     for (const week of data.weeks) {
       for (const day of week.days) {
-        const isR2 = processed.day2isR2EarlyCall[day.date] === true;
         const dow = dateToDayOfWeek(day.date);
         day.backupShifts = {};
         if (dow == 'sat' || dow == 'sun') continue;
         if (dow == 'fri') {
-          if (isR2) {
-            day.backupShifts.backup_weekend_r2 = '';
-          } else {
-            day.backupShifts.backup_weekend = '';
-          }
+          day.backupShifts.backup_weekend = '';
         } else {
-          if (isR2) {
-            day.backupShifts.backup_weekday_r2 = '';
-          } else {
-            day.backupShifts.backup_weekday = '';
-          }
+          day.backupShifts.backup_weekday = '';
         }
       }
+    }
+
+    // holiday backup call
+    for (const [date, name] of Object.entries(data.holidays)) {
+      const dow = dateToDayOfWeek(date);
+
+      if (name == 'Indigenous Ppl') {
+        continue;
+      }
+
+      // Monday holidays
+      if (dow == 'mon') {
+        const friday = findDate(data, nextDay(date, -3));
+        const monday = findDate(data, date);
+        friday.backupShifts = {
+          backup_holiday: '',
+        };
+        monday.backupShifts = {};
+      }
+
+      // Handled below
+      else if (name === 'Thanksgiving') {
+        continue;
+      }
+
+      // Wednesday/Thursday holidays
+      else if (dow == 'wed' || dow == 'thu') {
+        const weekday = findDate(data, date);
+        const dayBefore = findDate(data, nextDay(date, -1));
+        dayBefore.backupShifts = {
+          backup_holiday: '',
+        };
+        weekday.backupShifts = {};
+      } else {
+        throw new Error(
+          `Don't know how to handle call for holiday ${name} on ${date}`,
+        );
+      }
+    }
+
+    // Thanksgiving
+    {
+      const date = '2024-11-28';
+      const thursday = findDate(data, date);
+      const friday = findDate(data, nextDay(date, 1));
+      thursday.backupShifts = {
+        backup_holiday: '',
+      };
+      friday.backupShifts = {};
     }
 
     assertCallSchedule(data);
@@ -237,22 +287,6 @@ async function main() {
   if (run == 'use-power') {
     const reimportedData = await importPreviousSchedule();
     data.shiftConfigs = reimportedData.shiftConfigs;
-    function findDate(date: string): Day {
-      for (const week of data.weeks) {
-        for (let idx = 0; idx < week.days.length; idx++) {
-          const day = week.days[idx];
-          if (day.date === date) {
-            return day;
-          }
-        }
-      }
-      throw new Error(`Tried to find ${date}, but doesn't exist.`);
-    }
-    function datePlusN(date: string, n: number): IsoDate {
-      const day = isoDateToDate(date as IsoDate);
-      day.setDate(day.getDate() + n);
-      return dateToIsoDate(day);
-    }
 
     // Override holidays
     data.holidays = {
@@ -271,13 +305,11 @@ async function main() {
     };
 
     for (const [date, _] of Object.entries(data.holidays)) {
-      const dateObj = isoDateToDate(datePlusN(date, 0));
-
       // For monday holidays, change to power.
-      if (dateObj.getDay() === 1) {
-        const friday = findDate(datePlusN(date, -3));
-        const sunday = findDate(datePlusN(date, -1));
-        const monday = findDate(date);
+      if (dateToDayOfWeek(date) === 'mon') {
+        const friday = findDate(data, nextDay(date, -3));
+        const sunday = findDate(data, nextDay(date, -1));
+        const monday = findDate(data, date);
         const oldSunday = sunday.shifts.south_24;
         const oldFriday = friday.shifts.weekend_south;
         sunday.shifts = {};
@@ -1012,23 +1044,6 @@ async function importPreviousSchedule() {
       sunday = sundayPlus(7);
     }
 
-    function findDate(date: string): Day {
-      for (const week of data.weeks) {
-        for (let idx = 0; idx < week.days.length; idx++) {
-          const day = week.days[idx];
-          if (day.date === date) {
-            return day;
-          }
-        }
-      }
-      throw new Error(`Tried to find ${date}, but doesn't exist.`);
-    }
-    function datePlusN(date: string, n: number): IsoDate {
-      const day = isoDateToDate(date as IsoDate);
-      day.setDate(day.getDate() + n);
-      return dateToIsoDate(day);
-    }
-
     // Override holidays
     data.holidays = {
       '2024-07-04': 'Indep. Day',
@@ -1046,19 +1061,19 @@ async function importPreviousSchedule() {
     };
 
     for (const [date, name] of Object.entries(data.holidays)) {
-      const dateObj = isoDateToDate(datePlusN(date, 0));
+      const dow = dateToDayOfWeek(date);
 
       if (name == 'Indigenous Ppl') {
-        const monday = findDate(date);
+        const monday = findDate(data, date);
         monday.shifts.day_va = '';
         continue;
       }
 
       // Monday holidays
-      if (dateObj.getDay() === 1) {
-        const friday = findDate(datePlusN(date, -3));
-        const sunday = findDate(datePlusN(date, -1));
-        const monday = findDate(date);
+      if (dow === 'mon') {
+        const friday = findDate(data, nextDay(date, -3));
+        const sunday = findDate(data, nextDay(date, -1));
+        const monday = findDate(data, date);
         sunday.shifts = {};
         friday.shifts = {
           weekend_nwhsch: '',
@@ -1072,16 +1087,19 @@ async function importPreviousSchedule() {
         };
       }
 
+      // Handled below
+      else if (name === 'Thanksgiving') {
+        continue;
+      }
+
       // Wednesday/Thursday holidays
-      else if (dateObj.getDay() === 3 || dateObj.getDay() === 4) {
-        const weekday = findDate(date);
+      else if (dow == 'wed' || dow == 'thu') {
+        const weekday = findDate(data, date);
         weekday.shifts = {
           day_nwhsch: '',
           day_uw: '',
           south_24: '',
         };
-      } else if (name === 'Thanksgiving') {
-        continue; // handled below
       } else {
         throw new Error(
           `Don't know how to handle call for holiday ${name} on ${date}`,
@@ -1092,7 +1110,7 @@ async function importPreviousSchedule() {
     // Thanksgiving
     {
       const date = '2024-11-28';
-      const thursday = findDate(date);
+      const thursday = findDate(data, date);
       // const friday = findDate(datePlusN(date, 1));
       // const wednesday = findDate(datePlusN(date, -1));
       // wednesday.shifts = {

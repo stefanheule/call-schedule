@@ -31,7 +31,6 @@ import {
   ChiefShiftId,
   ALL_CHIEFS,
   Chief,
-  Day,
   CallScheduleProcessed,
 } from '../shared/types';
 import { useData, useLocalData, useProcessedData } from './data-context';
@@ -441,34 +440,13 @@ function holidayShiftsToString(holidayShifts: HolidayShift[]): string {
 }
 
 function computeBackupCallTallies(
-  data: CallSchedule,
+  _data: CallSchedule,
   processed: CallScheduleProcessed,
 ): [Chief, string][] {
   return ALL_CHIEFS.map(chief => {
-    const backup = data.weeks
-      .flatMap(week => week.days)
-      .flatMap(day => {
-        const result: [Day, ChiefShiftKind][] = (
-          Object.keys(day.backupShifts) as ChiefShiftKind[]
-        ).map(shift => [day, shift]);
-        return result;
-      })
-      .filter(([day, shift]) => day.backupShifts[shift] == chief);
-    const aggregate: {
-      [shift in ChiefShiftKind]?: number;
-    } = {};
-    for (const [day, shift] of backup) {
-      aggregate[shift] = (aggregate[shift] || 0) + 1;
-    }
     return [
       chief,
-      `weekday: ${aggregate.backup_weekday ?? 0} + ${
-        aggregate.backup_weekday_r2 ?? 0
-      } (R2), weekend: ${aggregate.backup_weekend ?? 0} + ${
-        aggregate.backup_weekend_r2 ?? 0
-      } (R2), holiday: ${aggregate.backup_holiday ?? 0} + ${
-        aggregate.backup_holiday_r2 ?? 0
-      } (R2)`,
+      `weekday: ${processed.backupCallCounts[chief].regular.weekday} + ${processed.backupCallCounts[chief].r2.weekday} (R2), weekend: ${processed.backupCallCounts[chief].regular.weekend} + ${processed.backupCallCounts[chief].r2.weekend} (R2), holiday: ${processed.backupCallCounts[chief].regular.holiday} + ${processed.backupCallCounts[chief].r2.holiday} (R2)`,
     ];
   });
 }
@@ -1023,6 +1001,7 @@ function RenderBackupShift({
 }) {
   const [data, setData] = useData();
   const [, setLocalData] = useLocalData();
+  const processed = useProcessedData();
   const day = data.weeks[id.weekIndex].days[id.dayIndex];
   const personPicker = usePersonPicker();
   const personId = day.backupShifts[id.shiftName] ?? '';
@@ -1030,9 +1009,6 @@ function RenderBackupShift({
     backup_weekday: 'Day',
     backup_weekend: 'Weekend',
     backup_holiday: 'Holiday',
-    backup_weekday_r2: 'Day R2',
-    backup_weekend_r2: 'Weekend R2',
-    backup_holiday_r2: 'Holiday',
   });
   return (
     <RenderShiftGeneric
@@ -1040,6 +1016,7 @@ function RenderBackupShift({
       personId={personId}
       name={backupShiftName}
       shiftId={id.shiftName}
+      dashedBorder={processed.day2isR2EarlyCall[day.date]}
       onClick={() => {
         personPicker.requestDialog(
           p => {

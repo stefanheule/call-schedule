@@ -17,9 +17,6 @@ export const CHIEF_SHIFTS = [
   'backup_weekday',
   'backup_weekend',
   'backup_holiday',
-  'backup_weekday_r2',
-  'backup_weekend_r2',
-  'backup_holiday_r2',
 ] as const;
 export type ChiefShiftKind = (typeof CHIEF_SHIFTS)[number];
 
@@ -354,6 +351,13 @@ export type CallScheduleProcessed = {
   shiftCounts: ShiftCount;
 
   callCounts: Record<CallPoolPerson, CallCount>;
+  backupCallCounts: Record<
+    Chief,
+    {
+      regular: BackupCallCount;
+      r2: BackupCallCount;
+    }
+  >;
   unassignedCalls: {
     weekend: number;
     weekday: number;
@@ -413,6 +417,12 @@ export type CallCount = {
   sunday: number;
   nf: number;
   weekend: number;
+};
+
+export type BackupCallCount = {
+  weekday: number;
+  weekend: number;
+  holiday: number;
 };
 
 export const ISSUE_KINDS_HARD = [

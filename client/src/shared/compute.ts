@@ -2,6 +2,7 @@ import {
   IsoDate,
   assertNonNull,
   dateToIsoDatetime,
+  deepCopy,
   lexicalCompare,
   mapEnum,
   mapEnumWithDefault,
@@ -346,6 +347,19 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
 
   const PEOPLE = Object.keys(data.people) as Person[];
 
+  const emptyBackupCallCount = {
+    regular: {
+      weekday: 0,
+      weekend: 0,
+      holiday: 0,
+    },
+    r2: {
+      weekday: 0,
+      weekend: 0,
+      holiday: 0,
+    },
+  };
+
   const result: CallScheduleProcessed = {
     issues: {},
     day2person2info: {},
@@ -375,6 +389,12 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       KO: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
       CPu: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
       NR: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
+    },
+    backupCallCounts: {
+      LZ: deepCopy(emptyBackupCallCount),
+      CP: deepCopy(emptyBackupCallCount),
+      TW: deepCopy(emptyBackupCallCount),
+      DK: deepCopy(emptyBackupCallCount),
     },
     shiftCounts: {
       total: 0,
@@ -661,14 +681,16 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   const r2s = ALL_PEOPLE.filter(p => data.people[p].year == '2');
   for (const r2 of r2s) {
     let foundFirstNf = false;
+    let exit = false;
     for (const week of data.weeks) {
       for (const day of week.days) {
+        if (exit) break;
         const isNf = result.day2person2info[day.date][r2]?.rotation == 'NF';
         if (isNf) {
           foundFirstNf = true;
           result.day2isR2EarlyCall[day.date] = true;
         } else if (foundFirstNf) {
-          break;
+          exit = true;
         }
       }
     }
@@ -684,16 +706,34 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           result.day2isR2EarlyCall[day.date] = true;
         }
       }
-      // for weekends, also check monday
-      const dow = dateToDayOfWeek(day.date);
-      if (dow == 'fri') {
-        const monday = nextDay(day.date, 3);
-        for (const person of Object.values(
-          assertNonNull(result.day2person2info[monday]),
-        )) {
-          if ((r2s as string[]).includes(person.rotation)) {
-            result.day2isR2EarlyCall[monday] = true;
-          }
+      // Also check for R2 shifts on any following days until a new backup shift starts
+      for (let i = 1; i < 7; i++) {
+        const index = result.day2weekAndDay[nextDay(day.date, i)];
+        const nDay = data.weeks[index.weekIndex].days[index.dayIndex];
+        if (Object.keys(nDay.backupShifts).length > 0) break;
+        result.day2isR2EarlyCall[nDay.date] = true;
+      }
+    }
+  }
+
+  // Backup call counts
+  for (const week of data.weeks) {
+    for (const day of week.days) {
+      if (day.date > data.lastDay || day.date < data.firstDay) continue;
+      for (const [s, person] of Object.entries(day.backupShifts)) {
+        const shift = s as ChiefShiftKind;
+        if (person == '') continue;
+        const field = result.day2isR2EarlyCall[day.date] ? 'r2' : 'regular';
+        switch (shift) {
+          case 'backup_holiday':
+            result.backupCallCounts[person][field].holiday += 1;
+            break;
+          case 'backup_weekend':
+            result.backupCallCounts[person][field].weekend += 1;
+            break;
+          case 'backup_weekday':
+            result.backupCallCounts[person][field].weekday += 1;
+            break;
         }
       }
     }
