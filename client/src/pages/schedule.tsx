@@ -695,7 +695,10 @@ function Highlight() {
     <Column spacing="5px">
       <Heading>Highlight</Heading>
       {Object.entries(year2people)
-        .sort((a, b) => YEAR_ORDER.indexOf(a[0]) - YEAR_ORDER.indexOf(b[0]))
+        .sort(
+          (a, b) =>
+            YEAR_ORDER.indexOf(a[0] as Year) - YEAR_ORDER.indexOf(b[0] as Year),
+        )
         .map(([year, people]) => (
           <Row key={year}>
             <Text style={{ width: '60px' }}>{yearToString(year as Year)}</Text>
