@@ -1040,7 +1040,7 @@ function RenderBackupShift({
   const personPicker = usePersonPicker();
   const personId = day.backupShifts[id.shiftName] ?? '';
   const backupShiftName = mapEnum(id.shiftName, {
-    backup_weekday: 'Day',
+    backup_weekday: 'Weekday',
     backup_weekend: 'Weekend',
     backup_holiday: 'Holiday',
   });
