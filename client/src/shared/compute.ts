@@ -352,11 +352,13 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       weekday: 0,
       weekend: 0,
       holiday: 0,
+      holiday_hours: 0,
     },
     r2: {
       weekday: 0,
       weekend: 0,
       holiday: 0,
+      holiday_hours: 0,
     },
   };
 
@@ -727,6 +729,15 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         switch (shift) {
           case 'backup_holiday':
             result.backupCallCounts[person][field].holiday += 1;
+            let days = 1;
+            for (let i = 1; i < 7; i++) {
+              const index = result.day2weekAndDay[nextDay(day.date, i)];
+              const nDay = data.weeks[index.weekIndex].days[index.dayIndex];
+              if (Object.keys(nDay.backupShifts).length > 0) break;
+              days += 1;
+            }
+            result.backupCallCounts[person][field].holiday_hours +=
+              (days - 1) * 24 + 14;
             break;
           case 'backup_weekend':
             result.backupCallCounts[person][field].weekend += 1;

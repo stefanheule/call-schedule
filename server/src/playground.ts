@@ -159,9 +159,11 @@ async function main() {
       const date = '2024-11-28';
       const thursday = findDate(data, date);
       const friday = findDate(data, nextDay(date, 1));
-      thursday.backupShifts = {
+      const wednesday = findDate(data, nextDay(date, -1));
+      wednesday.backupShifts = {
         backup_holiday: '',
       };
+      thursday.backupShifts = {};
       friday.backupShifts = {};
     }
 

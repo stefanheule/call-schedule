@@ -440,14 +440,24 @@ function holidayShiftsToString(holidayShifts: HolidayShift[]): string {
 }
 
 function computeBackupCallTallies(
-  _data: CallSchedule,
   processed: CallScheduleProcessed,
+  holiday: boolean,
 ): [Chief, string][] {
   return ALL_CHIEFS.map(chief => {
-    return [
-      chief,
-      `weekday: ${processed.backupCallCounts[chief].regular.weekday} + ${processed.backupCallCounts[chief].r2.weekday} (R2), weekend: ${processed.backupCallCounts[chief].regular.weekend} + ${processed.backupCallCounts[chief].r2.weekend} (R2), holiday: ${processed.backupCallCounts[chief].regular.holiday} + ${processed.backupCallCounts[chief].r2.holiday} (R2)`,
-    ];
+    const result = [];
+    for (const type of !holiday
+      ? (['weekday', 'weekend'] as const)
+      : (['holiday', 'holiday_hours'] as const)) {
+      result.push(
+        `${type.replace('_', ' ')}: ${
+          processed.backupCallCounts[chief].regular[type] +
+          processed.backupCallCounts[chief].r2[type]
+        } = ${processed.backupCallCounts[chief].regular[type]} + ${
+          processed.backupCallCounts[chief].r2[type]
+        } (R2)`,
+      );
+    }
+    return [chief, result.join(', ')];
   });
 }
 
@@ -455,9 +465,9 @@ const SHOW_TARGETS = true;
 function RenderCallCounts() {
   const processed = useProcessedData();
   const [data] = useData();
-  const [holiday, setHoliday] = useState<'regular' | 'holiday' | 'backup'>(
-    'backup',
-  );
+  const [holiday, setHoliday] = useState<
+    'regular' | 'holiday' | 'backup' | 'backup_holiday'
+  >('backup');
   return (
     <Column>
       <Row>
@@ -476,19 +486,37 @@ function RenderCallCounts() {
           onChange={(_, v) => setHoliday(assertNonNull(v) as 'regular')}
         >
           <ToggleButton size="small" value="regular">
-            Regular
+            Reg
           </ToggleButton>
           <ToggleButton size="small" value="holiday">
             Holiday
           </ToggleButton>
-          <ToggleButton size="small" value="holiday">
+          <ToggleButton size="small" value="backup">
             Backup
+          </ToggleButton>
+          <ToggleButton size="small" value="backup_holiday">
+            Backup Hol
           </ToggleButton>
         </ToggleButtonGroup>
       </Row>
       {holiday == 'backup' && (
         <Column spacing="5px">
-          {computeBackupCallTallies(data, processed).map(([person, info]) => (
+          {computeBackupCallTallies(processed, false).map(([person, info]) => (
+            <Row key={person} spacing={'3px'}>
+              <RenderPerson
+                person={person}
+                style={{
+                  width: '23px',
+                }}
+              />
+              <Text>{info}</Text>
+            </Row>
+          ))}
+        </Column>
+      )}
+      {holiday == 'backup_holiday' && (
+        <Column spacing="5px">
+          {computeBackupCallTallies(processed, true).map(([person, info]) => (
             <Row key={person} spacing={'3px'}>
               <RenderPerson
                 person={person}

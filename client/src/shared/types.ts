@@ -422,6 +422,7 @@ export type CallCount = {
 export type BackupCallCount = {
   weekday: number;
   weekend: number;
+  holiday_hours: number;
   holiday: number;
 };
 
