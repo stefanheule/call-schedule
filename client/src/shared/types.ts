@@ -12,6 +12,7 @@ export type ShiftConfig = {
 
 export type Year = '1' | '2' | '3' | 'S' | 'C' | 'R' | 'M';
 export type YearOnSchedule = '2' | '3' | 'S' | 'R' | 'M';
+export const YEAR_ORDER = ['1', '2', '3', 'S', 'R', 'M', 'C'] as const;
 
 export const CHIEF_SHIFTS = [
   'backup_weekday',

@@ -32,6 +32,7 @@ import {
   ALL_CHIEFS,
   Chief,
   CallScheduleProcessed,
+  YEAR_ORDER,
 } from '../shared/types';
 import { useData, useLocalData, useProcessedData } from './data-context';
 import * as datefns from 'date-fns';
@@ -689,33 +690,35 @@ const ERROR_COLOR = 'hsl(0, 70%, 50%)';
 function Highlight() {
   const [data] = useData();
   const [_, setLocalData] = useLocalData();
-  const year2people = getYearToPeople(data);
+  const year2people = getYearToPeople(data, ['2', '3', 'S', 'R', 'M', 'C']);
   return (
     <Column spacing="5px">
       <Heading>Highlight</Heading>
-      {Object.entries(year2people).map(([year, people]) => (
-        <Row key={year}>
-          <Text style={{ width: '60px' }}>{yearToString(year as Year)}</Text>
-          <Row spacing="5px">
-            {people.map(person => (
-              <RenderPerson
-                key={person.id}
-                person={person.id}
-                style={{
-                  cursor: 'pointer',
-                }}
-                onClick={() => {
-                  setLocalData((localData: LocalData) => {
-                    localData.highlightedPeople[person.id] =
-                      !localData.highlightedPeople[person.id];
-                    return { ...localData };
-                  });
-                }}
-              />
-            ))}
+      {Object.entries(year2people)
+        .sort((a, b) => YEAR_ORDER.indexOf(a[0]) - YEAR_ORDER.indexOf(b[0]))
+        .map(([year, people]) => (
+          <Row key={year}>
+            <Text style={{ width: '60px' }}>{yearToString(year as Year)}</Text>
+            <Row spacing="5px">
+              {people.map(person => (
+                <RenderPerson
+                  key={person.id}
+                  person={person.id}
+                  style={{
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => {
+                    setLocalData((localData: LocalData) => {
+                      localData.highlightedPeople[person.id] =
+                        !localData.highlightedPeople[person.id];
+                      return { ...localData };
+                    });
+                  }}
+                />
+              ))}
+            </Row>
           </Row>
-        </Row>
-      ))}
+        ))}
     </Column>
   );
 }
