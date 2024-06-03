@@ -9,6 +9,7 @@ import {
   uuid,
 } from 'check-type';
 import {
+  ALL_CHIEFS,
   ALL_PEOPLE,
   CALL_POOL,
   CallPoolPerson,
@@ -769,6 +770,22 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           };
         }
       }
+    }
+  });
+
+  // hard 0a for backup
+  forEveryDay(data, (day, _) => {
+    for (const person of ALL_CHIEFS) {
+      const index = result.day2weekAndDay[day];
+      const dayInfo = data.weeks[index.weekIndex].days[index.dayIndex];
+      if (!Object.values(dayInfo.backupShifts).includes(person)) continue;
+      result.issues[generateIssueKey()] = {
+        kind: 'rotation-without-call',
+        startDay: day,
+        message: `No backup call during vacation of ${person} on ${day}.`,
+        isHard: true,
+        elements: [elementIdForDay(day)],
+      };
     }
   });
 
