@@ -776,8 +776,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   // hard 0a for backup
   forEveryDay(data, (day, _) => {
     for (const person of ALL_CHIEFS) {
+      const today = result.day2person2info[day][person];
       const index = result.day2weekAndDay[day];
       const dayInfo = data.weeks[index.weekIndex].days[index.dayIndex];
+      if (today && !today.onVacation) continue;
       if (!Object.values(dayInfo.backupShifts).includes(person)) continue;
       result.issues[generateIssueKey()] = {
         kind: 'rotation-without-call',
