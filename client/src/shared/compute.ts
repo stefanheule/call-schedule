@@ -1386,7 +1386,18 @@ export function yearToColor(
     },
     '#ccc',
   );
-  if (dark) return shadeColor(color, -20);
+  if (dark)
+    return mapEnumWithDefault(
+      year as string,
+      {
+        R: '#2f4f2f', // dark green
+        '2': '#8b8b00', // dark yellow
+        '3': '#cd5c00', // dark orange
+        S: '#b22222', // dark red
+        M: '#1e90ff', // dark blue
+      },
+      '#333', // dark grey as default
+    );
   return color;
 }
 

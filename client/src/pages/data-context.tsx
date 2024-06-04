@@ -8,6 +8,7 @@ import { createContext, useContext } from 'react';
 export const DataContext = createContext<
   | {
       data: CallSchedule;
+      initialData: CallSchedule;
       setData: React.Dispatch<React.SetStateAction<CallSchedule>>;
       processed: CallScheduleProcessed;
     }
@@ -32,6 +33,14 @@ export function useData(): [
     throw new Error('useData must be used within a DataProvider');
   }
   return [context.data, context.setData];
+}
+
+export function useInitialData(): CallSchedule {
+  const context = useContext(DataContext);
+  if (!context) {
+    throw new Error('useData must be used within a DataProvider');
+  }
+  return context.initialData;
 }
 
 export function useLocalData(): [

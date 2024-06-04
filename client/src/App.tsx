@@ -15,6 +15,7 @@ import { LoadingIndicator } from './common/loading';
 import { useAsync } from './common/hooks';
 import { rpcLoadCallSchedules } from './pages/rpc';
 import { Text } from './common/text';
+import { deepCopy } from 'check-type';
 
 export const ROUTES: (RouteObject & {
   navigationTitle?: string;
@@ -55,12 +56,17 @@ export function Ui() {
 
 function App() {
   const [data, setData] = React.useState<CallSchedule | undefined>(undefined);
+  const [initialData, setInitialData] = React.useState<
+    CallSchedule | undefined
+  >(undefined);
   const [error, setError] = React.useState('');
 
   useAsync(async () => {
     if (data === undefined) {
       try {
-        setData(await rpcLoadCallSchedules({}));
+        const d = await rpcLoadCallSchedules({});
+        setData(d);
+        setInitialData(deepCopy(d));
       } catch (e) {
         console.log(e);
         setError(`Failed to fetch latest schedule. Please reload the page.`);
@@ -77,7 +83,7 @@ function App() {
     );
   }
 
-  if (data === undefined) {
+  if (data === undefined || initialData === undefined) {
     return (
       <MainLayout>
         <LoadingIndicator />
@@ -91,6 +97,7 @@ function App() {
     <DataContext.Provider
       value={{
         data,
+        initialData,
         setData: setData as unknown as React.Dispatch<
           React.SetStateAction<CallSchedule>
         >,

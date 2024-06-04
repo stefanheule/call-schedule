@@ -1,12 +1,13 @@
 import {
   IsoDate,
   assertNonNull,
+  dateToIsoDate,
   dateToIsoDatetime,
   isoDateToDate,
   mapEnum,
   sleep,
 } from 'check-type';
-import { Children, Column, ElementSpacer, Row } from '../common/flex';
+import { Children, Column, ElementSpacer, Row, Spaced } from '../common/flex';
 import { DefaultTextSize, Heading, Text } from '../common/text';
 import {
   CallSchedule,
@@ -33,8 +34,15 @@ import {
   Chief,
   CallScheduleProcessed,
   YEAR_ORDER,
+  Action,
+  CHIEF_SHIFTS,
 } from '../shared/types';
-import { useData, useLocalData, useProcessedData } from './data-context';
+import {
+  useData,
+  useInitialData,
+  useLocalData,
+  useProcessedData,
+} from './data-context';
 import * as datefns from 'date-fns';
 import React, {
   createContext,
@@ -97,6 +105,10 @@ export function RenderCallSchedule() {
   const processed = useProcessedData();
   const navigate = useNavigate();
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [suggestDialogOpen, setSuggestDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importDoneDialogOpen, setImportDoneDialogOpen] = useState(false);
   const [saveName, setSaveName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const weekListRef = useRef<VListHandle>(null);
@@ -293,17 +305,25 @@ export function RenderCallSchedule() {
                     </Button>
                   )}
                   <Button
-                    variant="outlined"
+                    variant={
+                      data.isPublic === true && localData.unsavedChanges > 0
+                        ? 'contained'
+                        : 'outlined'
+                    }
                     size="small"
                     disabled={
-                      localData.unsavedChanges == 0 || data.isPublic === true
+                      localData.unsavedChanges == 0 && data.isPublic !== true
                     }
                     onClick={() => {
-                      setSaveName('');
-                      setSaveDialogOpen(true);
+                      if (data.isPublic) {
+                        setSuggestDialogOpen(true);
+                      } else {
+                        setSaveName('');
+                        setSaveDialogOpen(true);
+                      }
                     }}
                     style={{
-                      width: '150px',
+                      width: '170px',
                     }}
                   >
                     {data.isPublic !== true &&
@@ -314,8 +334,86 @@ export function RenderCallSchedule() {
                     {data.isPublic !== true &&
                       localData.unsavedChanges == 0 &&
                       `Saved`}
-                    {data.isPublic === true && `View only version`}
+                    {data.isPublic === true && `Suggest call trade`}
                   </Button>
+                  {!data.isPublic && (
+                    <Button
+                      style={{
+                        width: '160px',
+                      }}
+                      variant="outlined"
+                      size="small"
+                      onClick={() => {
+                        setImportDialogOpen(true);
+                        setImportDoneDialogOpen(false);
+                        // setImportText('');
+                      }}
+                    >
+                      Import call swap
+                    </Button>
+                  )}
+                  <Dialog
+                    open={importDialogOpen}
+                    maxWidth="xl"
+                    onClose={() => setImportDialogOpen(false)}
+                  >
+                    <RenderImportCallSwitchDialog
+                      setImportDialogOpen={setImportDialogOpen}
+                      setImportDoneDialogOpen={setImportDoneDialogOpen}
+                      importText={importText}
+                      setImportText={setImportText}
+                    />
+                  </Dialog>
+                  <Dialog
+                    open={suggestDialogOpen}
+                    maxWidth="xl"
+                    onClose={() => setSuggestDialogOpen(false)}
+                  >
+                    <RenderSuggestCallSwitchDialog
+                      setCopyPasteSnackbar={setCopyPasteSnackbar}
+                      setSuggestDialogOpen={setSuggestDialogOpen}
+                    />
+                  </Dialog>
+                  <Dialog
+                    open={importDoneDialogOpen}
+                    maxWidth="xl"
+                    onClose={() => {
+                      setImportDoneDialogOpen(false);
+                      setImportDialogOpen(false);
+                    }}
+                  >
+                    <Column
+                      style={{ padding: '20px', minWidth: '450px' }}
+                      spacing="10px"
+                    >
+                      <Row>
+                        <Heading>Import done</Heading>
+                      </Row>
+                      <Text
+                        style={{
+                          fontSize: '16px',
+                        }}
+                      >
+                        The call swaps have been applied, but are NOT SAVED YET.
+                      </Text>
+                      <Row
+                        style={{ marginTop: '10px' }}
+                        mainAxisAlignment="end"
+                        spacing="10px"
+                      >
+                        <Button
+                          variant="outlined"
+                          onClick={() => {
+                            setImportDoneDialogOpen(false);
+                            setImportDialogOpen(false);
+                          }}
+                          disabled={isSaving}
+                        >
+                          Done
+                        </Button>
+                      </Row>
+                    </Column>
+                  </Dialog>
                   <Dialog
                     open={saveDialogOpen}
                     maxWidth="xl"
@@ -424,6 +522,504 @@ export function RenderCallSchedule() {
       </Column>
       <PersonPickerDialog />
     </PersonPickerProvider>
+  );
+}
+
+function compareData(
+  before: CallSchedule,
+  after: CallSchedule,
+):
+  | {
+      kind: 'error';
+      message: string;
+    }
+  | {
+      kind: 'ok';
+      changes: Action[];
+    } {
+  const changes: Action[] = [];
+  for (let weekIndex = 0; weekIndex < before.weeks.length; weekIndex++) {
+    const beforeWeek = before.weeks[weekIndex];
+    const afterWeek = after.weeks[weekIndex];
+    for (let dayIndex = 0; dayIndex < beforeWeek.days.length; dayIndex++) {
+      const beforeDay = beforeWeek.days[dayIndex];
+      const afterDay = afterWeek.days[dayIndex];
+
+      // Regular shifts
+      for (const s of Object.keys(beforeDay.shifts)) {
+        const shiftName = s as ShiftKind;
+        const beforePerson = beforeDay.shifts[shiftName];
+        const afterPerson = afterDay.shifts[shiftName];
+        if (beforePerson === undefined || afterPerson === undefined) {
+          return {
+            kind: 'error',
+            message: `Shift ${shiftName} is missing in one of the schedules for ${beforeDay.date}`,
+          };
+        }
+        if (beforePerson !== afterPerson) {
+          changes.push({
+            kind: 'regular',
+            shift: {
+              weekIndex,
+              dayIndex,
+              shiftName: shiftName,
+            },
+            previous: beforePerson,
+            next: afterPerson,
+          });
+        }
+      }
+
+      // Backup shifts
+      for (const s of Object.keys(beforeDay.backupShifts)) {
+        const shiftName = s as ChiefShiftKind;
+        const beforePerson = beforeDay.backupShifts[shiftName];
+        const afterPerson = afterDay.backupShifts[shiftName];
+        if (beforePerson === undefined || afterPerson === undefined) {
+          return {
+            kind: 'error',
+            message: `Backup shift ${shiftName} is missing in one of the schedules for ${beforeDay.date}`,
+          };
+        }
+        if (beforePerson !== afterPerson) {
+          changes.push({
+            kind: 'backup',
+            shift: {
+              weekIndex,
+              dayIndex,
+              shiftName: shiftName,
+            },
+            previous: beforePerson,
+            next: afterPerson,
+          });
+        }
+      }
+    }
+  }
+  return {
+    kind: 'ok',
+    changes,
+  };
+}
+
+function serializePerson(s: string) {
+  return s == '' ? 'nobody' : s;
+}
+function deserializePerson(s: string): string {
+  return s == 'nobody' ? '' : s;
+}
+const SHIFT_SERIALIZATION_MAP = {
+  weekday_south: 'Weekday South',
+  weekend_south: 'Weekend South',
+  weekend_uw: 'Weekend at UW',
+  weekend_nwhsch: 'Weekend at NWH/SCH',
+  day_uw: 'Day Shift at UW',
+  day_nwhsch: 'Day Shift at NWH/SCH',
+  day_va: 'Day Shift VA',
+  day_2x_uw: 'Two Day Shifts at UW',
+  day_2x_nwhsch: 'Two Day Shifts at NWH/SCH',
+  south_24: 'South 24h',
+  south_34: 'South 34h',
+  south_power: 'South Power Weekend',
+  backup_weekday: 'Backup Call Weekday',
+  backup_weekend: 'Backup Call Weekend',
+  backup_holiday: 'Backup Call Holiday',
+} as const;
+function serializeShift(s: ChiefShiftKind | ShiftKind) {
+  return mapEnum(s, SHIFT_SERIALIZATION_MAP);
+}
+function deserializeShift(s: string): ShiftKind | ChiefShiftKind {
+  for (const [k, v] of Object.entries(SHIFT_SERIALIZATION_MAP)) {
+    if (v == s) return k as ShiftKind;
+  }
+  throw new Error(`Invalid shift: ${s}`);
+}
+function serializeDate(d: IsoDate) {
+  return datefns.format(isoDateToDate(d), 'eee, d/M/yyyy');
+}
+
+function RenderImportCallSwitchDialog({
+  setImportDialogOpen,
+  setImportDoneDialogOpen,
+  importText,
+  setImportText,
+}: {
+  setImportDialogOpen: (v: boolean) => void;
+  setImportDoneDialogOpen: (v: boolean) => void;
+  importText: string;
+  setImportText: (v: string) => void;
+}) {
+  const [, setData] = useData();
+  const processed = useProcessedData();
+  const [localData, setLocalData] = useLocalData();
+
+  let content = undefined;
+
+  const errors = [];
+  const actions: Action[] = [];
+  for (let line of importText.split('\n')) {
+    line = line.trim();
+    if (line == '') continue;
+    const match = line.match(
+      /^(\d+)\. Replace (.+) with (.+) for (.+) on (.+)$/,
+    );
+    if (!match) {
+      errors.push(`Invalid call switch: ${line}`);
+      continue;
+    }
+    const [_, _1, previous_, next_, shift_, date_] = match;
+    const dateMatch = date_.match(/^(\w+), (\d+)\/(\d+)\/(\d+)$/);
+    if (!dateMatch) {
+      errors.push(`Invalid date: ${date_}`);
+      continue;
+    }
+    const [_2, _3, day, month, year] = dateMatch;
+    const dateObj = new Date(
+      parseInt(year),
+      parseInt(month) - 1,
+      parseInt(day),
+    );
+    if (dateObj.toString() == 'Invalid Date') {
+      errors.push(`Invalid date: ${date_}`);
+      continue;
+    }
+    const date = dateToIsoDate(dateObj);
+    const index = processed.day2weekAndDay[date];
+    if (index === undefined) {
+      errors.push(`Invalid date: ${date}`);
+      continue;
+    }
+    try {
+      const s = deserializeShift(shift_);
+      if (CHIEF_SHIFTS.includes(s as ChiefShiftKind)) {
+        const shift = s as ChiefShiftKind;
+        try {
+          const next = assertMaybeChief(deserializePerson(next_));
+          const previous = assertMaybeChief(deserializePerson(previous_));
+          actions.push({
+            kind: 'backup',
+            previous,
+            next,
+            shift: {
+              ...index,
+              shiftName: shift,
+            },
+          });
+        } catch {
+          errors.push(`Invalid chief: ${next_} or ${previous_}`);
+          continue;
+        }
+      } else {
+        const shift = s as ShiftKind;
+        try {
+          const next = assertMaybeCallPoolPerson(deserializePerson(next_));
+          const previous = assertMaybeCallPoolPerson(
+            deserializePerson(previous_),
+          );
+          actions.push({
+            kind: 'regular',
+            previous,
+            next,
+            shift: {
+              ...index,
+              shiftName: shift,
+            },
+          });
+        } catch {
+          errors.push(`Invalid person: ${next_} or ${previous_}`);
+          continue;
+        }
+      }
+    } catch {
+      errors.push(`Invalid shift: ${shift_}`);
+      continue;
+    }
+  }
+
+  if (localData.unsavedChanges != 0) {
+    content = (
+      <Column>
+        <Text>
+          Error: You have unsaved changes. First, save them, or reload the page
+          to discard those changes.
+        </Text>
+      </Column>
+    );
+  } else {
+    content = (
+      <Column>
+        <Text>What call swaps would you like to import?</Text>
+        <ElementSpacer />
+        <TextField
+          minRows={6}
+          multiline
+          placeholder="Paste the proposed call switch here"
+          variant="outlined"
+          value={importText}
+          onChange={ev => setImportText(ev.target.value)}
+        />
+        <DefaultTextSize defaultSize={'12px'}>
+          {errors.length > 0 && (
+            <Column>
+              <Text color={ERROR_COLOR}>
+                Cannot understand the swaps. Maybe they were not generated by
+                this page?
+              </Text>
+              {errors.map((e, i) => (
+                <Text key={i} color={ERROR_COLOR}>
+                  {e}
+                </Text>
+              ))}
+            </Column>
+          )}
+          {errors.length == 0 && actions.length > 0 && (
+            <Text color={OKAY_COLOR}>
+              Ready to import {actions.length} call changes.
+            </Text>
+          )}
+        </DefaultTextSize>
+      </Column>
+    );
+  }
+
+  return (
+    <DefaultTextSize defaultSize={'16px'}>
+      <Column
+        style={{ padding: '20px', minWidth: '600px', maxWidth: '600px' }}
+        spacing="10px"
+      >
+        <Row>
+          <Heading>Import a call swap</Heading>
+        </Row>
+        {content}
+        <Row
+          style={{ marginTop: '10px' }}
+          mainAxisAlignment="end"
+          spacing="10px"
+        >
+          {localData.unsavedChanges == 0 && (
+            <Button
+              variant="contained"
+              onClick={async () => {
+                setLocalData((localData: LocalData) => {
+                  const lastAction = localData.undoHistory.pop();
+                  setData((data: CallSchedule) => {
+                    for (const action of actions) {
+                      const day =
+                        data.weeks[action.shift.weekIndex].days[
+                          action.shift.dayIndex
+                        ];
+                      if (action.kind == 'regular') {
+                        day.shifts[action.shift.shiftName] = action.next;
+                      } else {
+                        day.backupShifts[action.shift.shiftName] = action.next;
+                      }
+                    }
+                    localData.firstUnsavedChange = dateToIsoDatetime(
+                      new Date(),
+                    );
+                    localData.unsavedChanges += actions.length;
+                    localData.history = actions;
+                    return { ...data };
+                  });
+                  if (!lastAction) return localData;
+                  return { ...localData };
+                });
+                setImportDoneDialogOpen(true);
+                setImportDialogOpen(false);
+              }}
+            >
+              Apply changes
+            </Button>
+          )}
+          <Button variant="outlined" onClick={() => setImportDialogOpen(false)}>
+            Close
+          </Button>
+        </Row>
+      </Column>
+    </DefaultTextSize>
+  );
+}
+
+function RenderSuggestCallSwitchDialog({
+  setSuggestDialogOpen,
+  setCopyPasteSnackbar,
+}: {
+  setSuggestDialogOpen: (v: boolean) => void;
+  setCopyPasteSnackbar: (v: string) => void;
+}) {
+  const [data] = useData();
+  // data.weeks[1].days[3].shifts['weekday_south'] = 'AA';
+  // data.weeks[0].days[1].shifts['weekday_south'] = 'GN';
+  // data.weeks[0].days[1].backupShifts['backup_weekday'] = 'LZ';
+  // data.weeks[0].days[3].shifts['weekday_south'] = 'MAD';
+  const initialData = useInitialData();
+  const compared = compareData(initialData, data);
+
+  let content = undefined;
+
+  if (compared.kind == 'error') {
+    content = (
+      <Row>
+        <Text>An error occurred: {compared.message}</Text>
+      </Row>
+    );
+  } else if (compared.changes.length == 0) {
+    content = (
+      <Column>
+        <Row>
+          <Heading>How do I suggest a call trade?</Heading>
+        </Row>
+        <Text
+          style={{
+            fontWeight: 'bold',
+          }}
+        >
+          First, make some call trades
+        </Text>
+        <Text>
+          You can directly make your call swaps on this page by clicking on the
+          call shift you want to change, and then selecting the person you want
+          to swap with.
+        </Text>
+        <Text
+          style={{
+            fontWeight: 'bold',
+          }}
+        >
+          Then, come back here
+        </Text>
+        <Text>
+          You'll get a summary of the changes that can be sent to the chiefs.
+        </Text>
+      </Column>
+    );
+  } else {
+    content = (
+      <Column>
+        <Row>
+          <Heading>Suggest a call trade</Heading>
+        </Row>
+        <Text>You made the following call trades:</Text>
+        <ElementSpacer />
+        <Column
+          style={{
+            marginLeft: '10px',
+          }}
+          spacing="4px"
+        >
+          {compared.changes.map((change, i) => {
+            const personStyle: React.CSSProperties = {
+              padding: '0 0.3em',
+              borderRadius: '4px',
+              // boxShadow: '0 0 5px rgba(0, 0, 0, 0.1)',
+            };
+            return (
+              <Row key={i}>
+                <Text>
+                  <Spaced spacing="3px">
+                    <Text inline>{i + 1}. Replace</Text>
+                    <Text
+                      inline
+                      style={
+                        change.previous == ''
+                          ? undefined
+                          : {
+                              ...personStyle,
+                              backgroundColor: personToColor(
+                                data,
+                                change.previous,
+                              ),
+                            }
+                      }
+                    >
+                      {serializePerson(change.previous)}
+                    </Text>
+                    <Text inline>with</Text>
+                    <Text
+                      inline
+                      style={
+                        change.next == ''
+                          ? undefined
+                          : {
+                              ...personStyle,
+                              backgroundColor: personToColor(data, change.next),
+                            }
+                      }
+                    >
+                      {serializePerson(change.next)}
+                    </Text>
+                    <Text inline>
+                      for {serializeShift(change.shift.shiftName)} on{' '}
+                      {serializeDate(
+                        data.weeks[change.shift.weekIndex].days[
+                          change.shift.dayIndex
+                        ].date,
+                      )}
+                    </Text>
+                  </Spaced>
+                </Text>
+              </Row>
+            );
+          })}
+        </Column>
+        <ElementSpacer />
+        <Text>
+          If this looks right, then copy the text above and send it to your
+          chiefs. They can automatically import it after review.
+        </Text>
+      </Column>
+    );
+  }
+
+  return (
+    <DefaultTextSize defaultSize={'16px'}>
+      <Column
+        style={{ padding: '20px', minWidth: '600px', maxWidth: '600px' }}
+        spacing="10px"
+      >
+        {content}
+        <Row
+          style={{ marginTop: '10px' }}
+          mainAxisAlignment="end"
+          spacing="10px"
+        >
+          {compared.kind == 'ok' && compared.changes.length > 0 && (
+            <Button
+              variant="contained"
+              onClick={async () => {
+                const text = compared.changes
+                  .map(
+                    (change, i) =>
+                      `${i + 1}. Replace ${serializePerson(
+                        change.previous,
+                      )} with ${serializePerson(
+                        change.next,
+                      )} for ${serializeShift(
+                        change.shift.shiftName,
+                      )} on ${serializeDate(
+                        data.weeks[change.shift.weekIndex].days[
+                          change.shift.dayIndex
+                        ].date,
+                      )}`,
+                  )
+                  .join('\n');
+                await navigator.clipboard.writeText(text);
+                setCopyPasteSnackbar('Copied to clipboard!');
+              }}
+            >
+              Copy to clipboard
+            </Button>
+          )}
+          <Button
+            variant="outlined"
+            onClick={() => setSuggestDialogOpen(false)}
+          >
+            Close
+          </Button>
+        </Row>
+      </Column>
+    </DefaultTextSize>
   );
 }
 
@@ -684,6 +1280,7 @@ function RuleViolation({
   );
 }
 
+const OKAY_COLOR = '#00CC00';
 const WARNING_COLOR = '#FFCC00';
 const ERROR_COLOR = 'hsl(0, 70%, 50%)';
 
@@ -1060,10 +1657,11 @@ function RenderBackupShift({
                 `You won't be able to save your changes, this is a read-only version of the call schedule application`,
               );
             }
-            const previous =
+            const previous = assertNonNull(
               data.weeks[id.weekIndex].days[id.dayIndex].backupShifts[
                 id.shiftName
-              ];
+              ],
+            );
             setData((d: CallSchedule) => {
               d.weeks[id.weekIndex].days[id.dayIndex].backupShifts[
                 id.shiftName
@@ -1129,8 +1727,9 @@ function RenderShift({
                 `You won't be able to save your changes, this is a read-only version of the call schedule application`,
               );
             }
-            const previous =
-              data.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName];
+            const previous = assertNonNull(
+              data.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName],
+            );
             setData((d: CallSchedule) => {
               d.weeks[id.weekIndex].days[id.dayIndex].shifts[id.shiftName] =
                 person;

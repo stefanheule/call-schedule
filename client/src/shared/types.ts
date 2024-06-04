@@ -270,14 +270,14 @@ export type RotationConfig = RotationDetails & {
 export type Action =
   | {
       kind: 'regular';
-      previous: MaybeCallPoolPerson | undefined;
-      next: MaybeCallPoolPerson | undefined;
+      previous: MaybeCallPoolPerson;
+      next: MaybeCallPoolPerson;
       shift: ShiftId;
     }
   | {
       kind: 'backup';
-      previous: MaybeChief | undefined;
-      next: MaybeChief | undefined;
+      previous: MaybeChief;
+      next: MaybeChief;
       shift: ChiefShiftId;
     };
 
