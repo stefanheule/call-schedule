@@ -74,9 +74,6 @@ import {
   elementIdForShift,
   inferShift,
   nextDay,
-  rate,
-  ratingMinus,
-  ratingToString,
   yearToColor,
 } from '../shared/compute';
 import { useHotkeys } from 'react-hotkeys-hook';
@@ -1709,6 +1706,17 @@ function RenderShift({
   const day = data.weeks[id.weekIndex].days[id.dayIndex];
   const personPicker = usePersonPicker();
   const personId = day.shifts[id.shiftName] ?? '';
+  // useEffect(() => {
+  //   if (day.date == '2024-07-04') {
+  //     personPicker.requestDialog(() => {}, {
+  //       kind: 'regular',
+  //       currentPersonId: '',
+  //       day: day.date,
+  //       shift: id.shiftName,
+  //       shiftName: assertNonNull(data.shiftConfigs[id.shiftName]).name,
+  //     });
+  //   }
+  // }, []);
   return (
     <RenderShiftGeneric
       dayId={id}
@@ -1783,15 +1791,6 @@ function RenderShiftGeneric({
   const processed = useProcessedData();
   const elId = elementIdForShift(day.date, shiftId);
   const hasIssue = processed.element2issueKind[elId];
-  // useEffect(() => {
-  //   if (day.date == '2024-07-04') {
-  //     personPicker.requestDialog(() => {}, {
-  //       currentPersonId: '',
-  //       day: day.date,
-  //       shift: id.shiftName,
-  //     });
-  //   }
-  // }, []);
   return (
     <Row
       id={elId}
@@ -2045,7 +2044,7 @@ function PersonPickerDialog() {
     config.kind == 'backup'
       ? undefined
       : inferShift(data, processed, config.day, config.shift);
-  const initialRating = rate(data, processed);
+  // const initialRating = rate(data, processed);
   const isBackup = config.kind == 'backup';
 
   const yearToPeople = getYearToPeople(
@@ -2072,97 +2071,105 @@ function PersonPickerDialog() {
           {config.shiftName} on {config.day}
         </Heading>
         <Row crossAxisAlignment="start">
-          {Object.entries(yearToPeople).map(([year, people]) =>
-            people.length == 0 ? null : (
-              <Column
-                key={year}
-                style={{ marginRight: '20px', width: '110px' }}
-                crossAxisAlignment="end"
-              >
-                <Text
-                  style={{
-                    fontWeight: 'bold',
-                    color: yearToColor(year, true),
-                  }}
+          {Object.entries(yearToPeople)
+            .sort(
+              (a, b) =>
+                YEAR_ORDER.indexOf(a[0] as Year) -
+                YEAR_ORDER.indexOf(b[0] as Year),
+            )
+            .map(([year, people]) =>
+              people.length == 0 ? null : (
+                <Column
+                  key={year}
+                  style={{ marginRight: '20px', width: '110px' }}
+                  crossAxisAlignment="end"
                 >
-                  {yearToString(year as Year)}
-                </Text>
-                <Column spacing="3px" crossAxisAlignment="end">
-                  {people.map(person => {
-                    const unavailable = inference
-                      ? inference.unavailablePeople[person.id]
-                      : undefined;
+                  <Text
+                    style={{
+                      fontWeight: 'bold',
+                      color: yearToColor(year, true),
+                    }}
+                  >
+                    {yearToString(year as Year)}
+                  </Text>
+                  <Column spacing="3px" crossAxisAlignment="end">
+                    {people.map(person => {
+                      const unavailable = inference
+                        ? inference.unavailablePeople[person.id]
+                        : undefined;
 
-                    const renderedPerson = (
-                      <RenderPerson
-                        person={person.id}
-                        large
-                        style={{
-                          cursor: 'pointer',
-                          opacity: !unavailable
-                            ? undefined
-                            : unavailable.soft
-                              ? 0.5
-                              : 0.3,
-                        }}
-                        selected={
-                          personPicker.config.currentPersonId === person.id
-                        }
-                        onClick={() =>
-                          personPicker.handleDialogResult(person.id)
-                        }
-                      />
-                    );
-                    const rating =
-                      inference?.best?.ratings?.[person.id]?.rating;
-                    return (
-                      <Row key={person.name} spacing={'2px'}>
-                        {rating && (
-                          <Text
-                            style={{
-                              color: '#ccc',
-                              fontSize: '12px',
-                            }}
-                          >
-                            {ratingToString(ratingMinus(rating, initialRating))}
-                          </Text>
-                        )}
-                        <DoNotDisturbIcon
-                          sx={{
-                            color: !unavailable
-                              ? 'white'
-                              : unavailable.soft
-                                ? WARNING_COLOR
-                                : ERROR_COLOR,
-                            fontSize: 15,
-                          }}
-                        />
-                        <Row
+                      const renderedPerson = (
+                        <RenderPerson
+                          person={person.id}
+                          large
                           style={{
-                            width: 50,
+                            cursor: 'pointer',
+                            opacity: !unavailable
+                              ? undefined
+                              : unavailable.soft
+                                ? 0.5
+                                : 0.3,
                           }}
-                          mainAxisAlignment="end"
-                        >
-                          {unavailable && (
-                            <LightTooltip
-                              title={unavailable.reason}
+                          selected={
+                            personPicker.config.currentPersonId === person.id
+                          }
+                          onClick={() =>
+                            personPicker.handleDialogResult(person.id)
+                          }
+                        />
+                      );
+                      // const rating =
+                      //   inference?.best?.ratings?.[person.id]?.rating;
+                      return (
+                        <Row key={person.name} spacing={'2px'}>
+                          {/* {rating && (
+                            <Text
                               style={{
-                                fontSize: '20px',
+                                color: '#ccc',
+                                fontSize: '12px',
                               }}
-                              enterDelay={500}
                             >
-                              {renderedPerson}
-                            </LightTooltip>
-                          )}
-                          {!unavailable && renderedPerson}
+                              {ratingToString(
+                                ratingMinus(rating, initialRating),
+                              )}
+                            </Text>
+                          )} */}
+                          <DoNotDisturbIcon
+                            sx={{
+                              color: !unavailable
+                                ? 'white'
+                                : unavailable.soft
+                                  ? WARNING_COLOR
+                                  : ERROR_COLOR,
+                              fontSize: 15,
+                            }}
+                          />
+                          <Row
+                            style={{
+                              width: 50,
+                            }}
+                            mainAxisAlignment="end"
+                          >
+                            {unavailable && (
+                              <LightTooltip
+                                title={unavailable.reason}
+                                style={{
+                                  fontSize: '20px',
+                                }}
+                                enterDelay={500}
+                              >
+                                {renderedPerson}
+                              </LightTooltip>
+                            )}
+                            {!unavailable && renderedPerson}
+                          </Row>
                         </Row>
-                      </Row>
-                    );
-                  })}
+                      );
+                    })}
+                  </Column>
                 </Column>
-              </Column>
-            ),
-          )}
+              ),
+            )}
         </Row>
         <Row
           style={{ marginTop: '10px' }}

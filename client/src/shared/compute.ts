@@ -6,7 +6,6 @@ import {
   lexicalCompare,
   mapEnum,
   mapEnumWithDefault,
-  uuid,
 } from 'check-type';
 import {
   ALL_CHIEFS,
@@ -20,6 +19,7 @@ import {
   HospitalKind,
   ISSUE_KINDS_HARD,
   ISSUE_KINDS_SOFT,
+  Issue,
   Person,
   ShiftKind,
   StoredCallSchedule,
@@ -69,6 +69,11 @@ export type InferenceResult = {
   unavailablePeople: UnavailablePeople;
 };
 
+function addIssue(processed: CallScheduleProcessed, issue: Issue) {
+  const key = `${issue.kind}_${issue.startDay}_${issue.message}`;
+  processed.issues[key] = issue;
+}
+
 export function inferShift(
   data: CallSchedule,
   processed: CallScheduleProcessed,
@@ -86,9 +91,7 @@ export function inferShift(
     return empty;
   }
   const day = data.weeks[dayAndWeek.weekIndex].days[dayAndWeek.dayIndex];
-  const people = availablePeopleForShift(processed, date, shift).filter(
-    p => data.people[p].year !== '2',
-  );
+  const people = availablePeopleForShift(processed, date, shift);
 
   if (people.length == 0) {
     if (config?.enableLog) {
@@ -112,6 +115,21 @@ export function inferShift(
       processed: processed2,
     };
 
+    function collectNewIssues(
+      before: CallScheduleProcessed,
+      after: CallScheduleProcessed,
+      hard: boolean,
+    ) {
+      const result = [];
+      for (const [issueKeyAfter, issueAfter] of Object.entries(after.issues)) {
+        if (issueAfter.isHard !== hard) continue;
+        if (!(issueKeyAfter in before.issues)) {
+          result.push(issueAfter.message);
+        }
+      }
+      return result;
+    }
+
     // Compute unavailablePeople
     if (config?.skipUnavailablePeople !== true) {
       if (
@@ -120,7 +138,9 @@ export function inferShift(
       ) {
         unavailablePeople[p] = {
           soft: false,
-          reason: 'Hard rule violation',
+          reason: `Hard: ${collectNewIssues(processed, processed2, true).join(
+            ', ',
+          )}`,
         };
       } else if (
         processed2.issueCounts.hard == processed.issueCounts.hard &&
@@ -128,7 +148,9 @@ export function inferShift(
       ) {
         unavailablePeople[p] = {
           soft: true,
-          reason: 'Soft rule violation',
+          reason: `Soft: ${collectNewIssues(processed, processed2, false).join(
+            ', ',
+          )}`,
         };
       }
     }
@@ -759,7 +781,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       if (!today.shifts) continue;
       if (isNoCallRotation(today.rotation) || today.onVacation) {
         for (const shift of today.shifts) {
-          result.issues[generateIssueKey()] = {
+          addIssue(result, {
             kind: 'rotation-without-call',
             startDay: day,
             message: `No call during ${
@@ -767,7 +789,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
             }: ${person} is on call for ${shiftName(shift.shift)}.`,
             isHard: true,
             elements: [elementIdForShift(shift.day, shift.shift)],
-          };
+          });
         }
       }
     }
@@ -781,13 +803,13 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       const dayInfo = data.weeks[index.weekIndex].days[index.dayIndex];
       if (today && !today.onVacation) continue;
       if (!Object.values(dayInfo.backupShifts).includes(person)) continue;
-      result.issues[generateIssueKey()] = {
+      addIssue(result, {
         kind: 'rotation-without-call',
         startDay: day,
         message: `No backup call during vacation of ${person} on ${day}.`,
         isHard: true,
         elements: [elementIdForDay(day)],
-      };
+      });
     }
   });
 
@@ -797,7 +819,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       const today = assertNonNull(result.day2person2info[day][person]);
       const shifts = today.shifts.filter(x => x.day == day);
       if (shifts.length > 1) {
-        result.issues[generateIssueKey()] = {
+        addIssue(result, {
           kind: 'consecutive-call',
           startDay: day,
           message: `Multiple call on ${day} for ${person}: ${shifts
@@ -805,7 +827,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
             .join(', ')}`,
           isHard: true,
           elements: shifts.map(s => elementIdForShift(s.day, s.shift)),
-        };
+        });
       }
     }
   });
@@ -823,7 +845,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   //       if (!today.shift || !tomorrow.shift) continue;
   //       // if (data.shiftConfigs[today.shift].days != 2) continue;
   //       // if (data.shiftConfigs[tomorrow.shift].days != 2) continue;
-  //       result.issues[generateIssueKey()] = {
+  //       addIssue(result, {
   //         kind: 'consecutive-weekday-call',
   //         startDay: day,
   //         message: `Consecutive call for ${person} on ${day} and ${dayPlusOne}`,
@@ -832,7 +854,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   //           elementIdForShift(day, today.shift),
   //           elementIdForShift(dayPlusOne, tomorrow.shift),
   //         ],
-  //       };
+  //       });
   //     }
   //   },
   //   1,
@@ -849,13 +871,13 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   //         s => `${shiftName(s.shift)} on ${s.day}`,
   //       );
   //       const startDay = today.shifts.map(s => s.day).sort()[0] as IsoDate;
-  //       result.issues[generateIssueKey()] = {
+  //       addIssue(result, {
   //         kind: 'consecutive-call',
   //         startDay,
   //         message: `Consecutive call for ${person}: ${texts.join(', ')}`,
   //         isHard: true,
   //         elements: today.shifts.map(s => elementIdForShift(s.day, s.shift)),
-  //       };
+  //       });
   //     }
   //   },
   //   1,
@@ -878,13 +900,13 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         const allShifts = [...today, ...tomorrow];
         const texts = allShifts.map(s => `${shiftName(s.shift)} on ${s.day}`);
         const startDay = today.map(s => s.day).sort()[0] as IsoDate;
-        result.issues[generateIssueKey()] = {
+        addIssue(result, {
           kind: 'consecutive-call',
           startDay,
           message: `Consecutive call for ${person}: ${texts.join(', ')}`,
           isHard: true,
           elements: allShifts.map(s => elementIdForShift(s.day, s.shift)),
-        };
+        });
       }
     },
     1,
@@ -904,7 +926,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         if (!today.shift || !nextWeekend.shift) continue;
         // if (data.shiftConfigs[today.shift].days != 3) continue;
         // if (data.shiftConfigs[nextWeekend.shift].days != 3) continue;
-        result.issues[generateIssueKey()] = {
+        addIssue(result, {
           kind: 'consecutive-weekend-call',
           startDay: day,
           message: `Consecutive weekend call for ${person} on ${day} and ${nextWeekendDay}`,
@@ -913,7 +935,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
             elementIdForShift(day, today.shift),
             elementIdForShift(nextWeekendDay, nextWeekend.shift),
           ],
-        };
+        });
       }
     },
     7,
@@ -927,7 +949,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       if (p.year != '2') continue;
       const today = assertNonNull(result.day2person2info[day][person]);
       if (!today.shift) continue;
-      result.issues[generateIssueKey()] = {
+      addIssue(result, {
         kind: 'r2-early-call',
         startDay: day,
         message: `R2 on-call first week of July: ${person} is on call ${day} for ${shiftName(
@@ -935,7 +957,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         )}.`,
         isHard: true,
         elements: [elementIdForShift(day, today.shift)],
-      };
+      });
     }
   });
 
@@ -947,7 +969,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       const today = result.day2person2info[day]?.['MAD'];
       assertNonNull(today);
       if (today?.shift) {
-        result.issues[generateIssueKey()] = {
+        addIssue(result, {
           kind: 'mad-early-call',
           startDay: day,
           message: `MAD is on call first two weeks of SCH/HMC rotation: ${day} for ${shiftName(
@@ -955,7 +977,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           )} (day ${i + 1} of their ${rotation.rotation} rotation)`,
           isHard: true,
           elements: [elementIdForShift(day, today.shift)],
-        };
+        });
       }
     }
   }
@@ -977,13 +999,13 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       const dayTwo = nextDay(data.firstDay, i);
       if (dayTwo > data.lastDay) break;
       if (offCounter < 4 && skip <= 0) {
-        result.issues[generateIssueKey()] = {
+        addIssue(result, {
           kind: 'less-than-4-off-in-28',
           startDay: dayOne,
           message: `Less than 4 days off in 28 days: between ${dayOne} and ${dayTwo} for ${person}`,
           isHard: true,
           elements: [elementIdForDay(dayOne), elementIdForDay(dayTwo)],
-        };
+        });
         skip = 27;
       }
       const infoOne = assertNonNull(result.day2person2info[dayOne][person]);
@@ -1000,7 +1022,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       const info = result.day2person2info?.[day]?.[person];
       if (info && info.onPriorityWeekend) {
         if (info.shifts.length > 0) {
-          result.issues[generateIssueKey()] = {
+          addIssue(result, {
             kind: 'priority-weekend',
             startDay: nextDay(day, -1),
             message: `Priority weekend: ${person} on ${shiftName(
@@ -1008,7 +1030,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
             )} for ${day}`,
             isHard: true,
             elements: [elementIdForShift(day, info.shifts[0].shift)],
-          };
+          });
         }
       }
     }
@@ -1027,13 +1049,13 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           monday.rotation == 'NF' &&
           friday.shift
         ) {
-          result.issues[generateIssueKey()] = {
+          addIssue(result, {
             kind: 'call-before-nf',
             startDay: day,
             message: `Call before NF for ${person} on ${day}`,
             isHard: true,
             elements: [elementIdForShift(day, friday.shift)],
-          };
+          });
         }
       }
     }
@@ -1052,7 +1074,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   //       if (!today.shift || !tomorrow.shift) continue;
   //       // if (data.shiftConfigs[today.shift].days != 2) continue;
   //       // if (data.shiftConfigs[tomorrow.shift].days != 2) continue;
-  //       result.issues[generateIssueKey()] = {
+  //       addIssue(result, {
   //         kind: 'almost-consecutive-call',
   //         startDay: day,
   //         message: `Two calls only 1 day apart: ${person} on call ${day} and ${dayPlusOne}`,
@@ -1061,7 +1083,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   //           elementIdForShift(day, today.shift),
   //           elementIdForShift(dayPlusOne, tomorrow.shift),
   //         ],
-  //       };
+  //       });
   //     }
   //   },
   //   2,
@@ -1094,13 +1116,13 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         const allShifts = [...today, ...dayAfterTomorrow];
         const texts = allShifts.map(s => `${shiftName(s.shift)} on ${s.day}`);
         const startDay = today.map(s => s.day).sort()[0] as IsoDate;
-        result.issues[generateIssueKey()] = {
+        addIssue(result, {
           kind: 'almost-consecutive-call',
           startDay,
           message: `Two calls only 1 day apart: ${person}: ${texts.join(', ')}`,
           isHard: false,
           elements: allShifts.map(s => elementIdForShift(s.day, s.shift)),
-        };
+        });
       }
     },
     2,
@@ -1128,7 +1150,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           continue;
         if (assertNonNull(data.shiftConfigs[nextNextWeekend.shift]).days < 3)
           continue;
-        result.issues[generateIssueKey()] = {
+        addIssue(result, {
           kind: 'every-other-weekend-call',
           startDay: day,
           message: `Every other weekend on call for 3 calls in a row: ${person} on ${day}, ${nextWeekendDay} and ${nextNextWeekendDay}`,
@@ -1138,7 +1160,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
             elementIdForShift(nextWeekendDay, nextWeekend.shift),
             elementIdForShift(nextNextWeekendDay, nextNextWeekend.shift),
           ],
-        };
+        });
       }
     },
     7 * 5,
@@ -1150,13 +1172,13 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     const person = 'MAD' as const;
     const today = assertNonNull(result.day2person2info[day][person]);
     if (!today.shift) return;
-    result.issues[generateIssueKey()] = {
+    addIssue(result, {
       kind: 'mad-during-aua',
       startDay: day,
       message: `MAD is on call during AUA: ${shiftName(today)} on ${day}.`,
       isHard: false,
       elements: [elementIdForShift(day, today.shift)],
-    };
+    });
   });
 
   // soft 4. no cross coverage
@@ -1184,7 +1206,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       )
         continue;
       if (call.every(c => !rotationHospitals.includes(c))) {
-        result.issues[generateIssueKey()] = {
+        addIssue(result, {
           kind: 'cross-coverage',
           startDay: day,
           message: `Cross-coverage by ${person} on ${day}: Working at ${
@@ -1192,7 +1214,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           }, but on call for ${shiftName(today)}.`,
           isHard: false,
           elements: [elementIdForShift(day, today.shift)],
-        };
+        });
       }
     }
   });
@@ -1205,7 +1227,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       if (isLxNotTakingCallDueToMaternity(day)) {
         const today = assertNonNull(result.day2person2info[day][person]);
         if (!today.shift) continue;
-        result.issues[generateIssueKey()] = {
+        addIssue(result, {
           kind: 'maternity',
           startDay: day,
           message: `On-call during maternity: ${person} on call ${day} for ${shiftName(
@@ -1213,7 +1235,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           )}.`,
           isHard: true,
           elements: [elementIdForShift(day, today.shift)],
-        };
+        });
       }
     }
   });
@@ -1327,22 +1349,22 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   for (const person of CALL_POOL) {
     const callCount = result.callCounts[person];
     if (callCount.weekday > WEEKDAY_CALL_TARGET[person]) {
-      result.issues[generateIssueKey()] = {
+      addIssue(result, {
         kind: 'over-call-target',
         startDay: data.firstDay as IsoDate,
         message: `Over weekday call target: ${person} has ${callCount.weekday} calls, target is ${WEEKDAY_CALL_TARGET[person]}.`,
         isHard: false,
         elements: [],
-      };
+      });
     }
     if (callCount.weekend > WEEKEND_CALL_TARGET[person]) {
-      result.issues[generateIssueKey()] = {
+      addIssue(result, {
         kind: 'over-call-target',
         startDay: data.firstDay as IsoDate,
         message: `Over weekend call target: ${person} has ${callCount.weekend} calls, target is ${WEEKEND_CALL_TARGET[person]}.`,
         isHard: false,
         elements: [],
-      };
+      });
     }
   }
 
@@ -1350,10 +1372,6 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     console.log('Processing took', Date.now() - start, 'ms');
   }
   return result;
-}
-
-function generateIssueKey(): string {
-  return uuid();
 }
 
 function forEveryDay(

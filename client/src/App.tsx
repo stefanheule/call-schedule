@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { MainLayout } from './pages/layout';
 import { DataContext, LocalDataContext } from './pages/data-context';
 import { RenderCallSchedule } from './pages/schedule';
@@ -60,18 +60,6 @@ function App() {
     CallSchedule | undefined
   >(undefined);
   const [error, setError] = React.useState('');
-
-  const [, setZoom] = React.useState(1);
-
-  useEffect(() => {
-    const handleResize = () => {
-      console.log('resize');
-      setZoom(z => z + 1);
-    };
-    window.addEventListener('resize', handleResize);
-    handleResize();
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   useAsync(async () => {
     if (data === undefined) {
