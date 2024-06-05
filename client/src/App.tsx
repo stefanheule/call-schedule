@@ -65,7 +65,8 @@ function App() {
 
   useEffect(() => {
     const handleResize = () => {
-      setZoom(window.devicePixelRatio);
+      console.log('resize');
+      setZoom(z => z + 1);
     };
     window.addEventListener('resize', handleResize);
     handleResize();
@@ -85,6 +86,8 @@ function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  console.log('render');
 
   if (error !== '') {
     return (
