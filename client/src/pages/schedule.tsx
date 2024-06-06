@@ -236,7 +236,7 @@ export function RenderCallSchedule() {
                   <ElementSpacer />
                 </Column>
               ))} */}
-              <VList style={{ height: '100%' }} ref={weekListRef}>
+              <VList ref={weekListRef}>
                 {Array.from({ length: 53 }).map((_, i) => (
                   <Column key={i}>
                     <RenderWeek

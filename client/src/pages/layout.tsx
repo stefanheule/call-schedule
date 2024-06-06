@@ -8,6 +8,7 @@ export function MainLayout({
   title?: string;
   children?: React.ReactNode;
 }): JSX.Element {
+  const margin = 15;
   return (
     <>
       {title !== undefined && (
@@ -17,18 +18,11 @@ export function MainLayout({
       )}
       <div
         style={{
-          height: '95vh',
+          margin: `${margin}px`,
+          height: `calc(100vh - ${2 * margin}px)`,
         }}
       >
-        <div
-          style={{
-            padding: '10px',
-            margin: '20px',
-            height: '100%',
-          }}
-        >
-          {children}
-        </div>
+        {children}
       </div>
     </>
   );

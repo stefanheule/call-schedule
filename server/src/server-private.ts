@@ -35,6 +35,7 @@ export const AXIOS_PROPS = {
 const IS_PUBLIC = process.env['CALL_SCHEDULE_PUBLIC'] === 'yes';
 console.log(`IS_PUBLIC: ${IS_PUBLIC}`);
 
+
 async function main() {
   await setupExpressServer({
     name: IS_PUBLIC ? 'call-schedule-public' : 'call-schedule-private',
