@@ -67,6 +67,7 @@ export type RunType =
   | 'clear-weekends'
   | 'clear-weekdays'
   | 'rename-36'
+  | 'import-backup'
   | 'add-chief-shifts'
   | 'use-power';
 
@@ -95,12 +96,65 @@ async function main() {
   const run = runType();
 
   const storage = loadStorage({
-    noCheck: run == 'change-type' || run == 'add-chief-shifts',
+    noCheck: true,
   });
 
   const latest = storage.versions[storage.versions.length - 1];
   let data = deepCopy(latest.callSchedule);
   console.log(`Latest = ${latest.name}`);
+
+  if (run == 'import-backup') {
+    // read csv file
+    const file = `${__dirname}/../../input-files/backup-call.csv`;
+    let weekIdx = 0;
+    for (const line of fs.readFileSync(file, 'utf-8').split('\n').slice(1)) {
+      weekIdx += 1;
+      const row = line.split(',');
+      const p = row[6];
+      if (p == 'No covg' || p == 'Covg TBD') continue;
+      const person =
+        p == 'Chloe'
+          ? 'CP'
+          : p == 'Lisa'
+            ? 'LZ'
+            : p == 'Diboro'
+              ? 'DK'
+              : p == 'Tova'
+                ? 'TW'
+                : 'MAD';
+      if (person == 'MAD') {
+        console.log({
+          weekIdx,
+          line,
+        });
+        throw new Error(`Unknown person ${p}`);
+      }
+      const week = data.weeks[weekIdx - 1];
+      if (week.days[5].backupShifts.backup_weekend === '') {
+        week.days[5].backupShifts.backup_weekend = person;
+      } else if (week.days[5].backupShifts.backup_holiday === '') {
+        week.days[5].backupShifts.backup_holiday = person;
+      } else if (week.sundayDate == '2024-11-24') {
+        // thanksgiving
+        week.days[3].backupShifts.backup_holiday = person;
+      } else {
+        console.log(
+          `Date: ${week.sundayDate}, ${week.days[5].date}, ${Object.keys(
+            week.days[5].backupShifts,
+          ).join(',')}`,
+        );
+      }
+      if (weekIdx == 51) break;
+    }
+
+    assertCallSchedule(data);
+    storage.versions.push(
+      scheduleToStoredSchedule(data, `Imported backup calls.`),
+    );
+    storeStorage(storage);
+
+    return;
+  }
 
   if (run == 'add-chief-shifts') {
     for (const week of data.weeks) {
