@@ -62,6 +62,7 @@ import {
   TooltipProps,
   styled,
   tooltipClasses,
+  useMediaQuery,
 } from '@mui/material';
 import { WarningOutlined, ErrorOutlined } from '@mui/icons-material';
 import {
@@ -92,8 +93,6 @@ import {
   assertMaybeChief,
 } from '../shared/check-type.generated';
 
-const DAY_SPACING = `2px`;
-
 export function RenderCallSchedule() {
   const [showRotations, _setShowRotations] = useState(true);
   const [copyPasteSnackbar, setCopyPasteSnackbar] = useState('');
@@ -109,6 +108,8 @@ export function RenderCallSchedule() {
   const [saveName, setSaveName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const weekListRef = useRef<VListHandle>(null);
+
+  useMediaQuery(`(min-width:${SIDEBAR_WIDTH + WEEK_WIDTH}px)`);
 
   useEffect(() => {
     window.onbeforeunload = confirmExit;
@@ -1334,7 +1335,7 @@ function RenderWeek({
   return (
     <Row
       crossAxisAlignment="start"
-      spacing={DAY_SPACING}
+      spacing={`${DAY_SPACING}px`}
       style={{
         boxSizing: 'border-box',
       }}
@@ -1352,7 +1353,11 @@ function RenderWeek({
   );
 }
 
+const DAY_SPACING = 2;
 const DAY_WIDTH = 110;
+const DAY_LEGEND_WIDTH = 80;
+const WEEK_WIDTH = DAY_WIDTH * 7 + DAY_SPACING * 7 + DAY_LEGEND_WIDTH;
+const SIDEBAR_WIDTH = 560;
 const DAY_PADDING = 5;
 const DAY_VACATION_HEIGHT = '37px';
 const DAY_BACKUP_HEIGHT = '23px';
@@ -1371,6 +1376,7 @@ function RenderLegend({ showRotations }: { showRotations: boolean }) {
         boxSizing: 'border-box',
         borderRadius: `5px`,
         minHeight: `100px`,
+        width: `${DAY_LEGEND_WIDTH}px`,
       }}
     >
       <Column

@@ -84,7 +84,9 @@ async function main() {
               return;
             }
             const request = assertSaveCallScheduleRequest(req.body);
-            const storage = loadStorage();
+            const storage = loadStorage({
+              noCheck: true,
+            });
             const nextVersion = scheduleToStoredSchedule(
               request.callSchedule,
               request.name,
