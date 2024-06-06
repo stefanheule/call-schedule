@@ -307,7 +307,7 @@ function isWeekday(day: string): boolean {
 }
 
 function isLxNotTakingCallDueToMaternity(day: string): boolean {
-  return day >= '2024-09-01' && day <= '2025-01-14';
+  return day >= '2024-09-03' && day <= '2025-01-14';
 }
 
 export function dateToDayOfWeek(
