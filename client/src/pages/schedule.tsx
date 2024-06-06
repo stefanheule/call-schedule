@@ -1638,6 +1638,18 @@ function RenderBackupShift({
     backup_weekend: 'Weekend',
     backup_holiday: 'Holiday',
   });
+  // useEffect(() => {
+  //   if (day.date == '2024-07-09') {
+  //     personPicker.requestDialog(() => {}, {
+  //       kind: 'backup',
+  //       currentPersonId: '',
+  //       day: day.date,
+  //       shift: id.shiftName,
+  //       shiftName: 'Backup',
+  //     });
+  //   }
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, []);
   return (
     <RenderShiftGeneric
       dayId={id}
@@ -1647,38 +1659,46 @@ function RenderBackupShift({
       dashedBorder={processed.day2isR2EarlyCall[day.date]}
       onClick={() => {
         personPicker.requestDialog(
-          p => {
+          (p, assignWholeWeek) => {
             const person = assertMaybeChief(p);
             if (data.isPublic) {
               setWarningSnackbar(
                 `You won't be able to save your changes, this is a read-only version of the call schedule application`,
               );
             }
-            const previous = assertNonNull(
-              data.weeks[id.weekIndex].days[id.dayIndex].backupShifts[
-                id.shiftName
-              ],
-            );
-            setData((d: CallSchedule) => {
-              d.weeks[id.weekIndex].days[id.dayIndex].backupShifts[
-                id.shiftName
-              ] = person;
-              return { ...d };
-            });
-            setLocalData((d: LocalData) => {
-              d.history.push({
-                kind: 'backup',
-                previous,
-                next: person,
-                shift: id,
+            const days = assignWholeWeek
+              ? [0, 1, 2, 3, 4, 5, 6]
+              : [id.dayIndex];
+            for (const dayIndex of days) {
+              const previous =
+                data.weeks[id.weekIndex].days[dayIndex].backupShifts[
+                  id.shiftName
+                ];
+              if (previous === undefined) continue;
+              setData((d: CallSchedule) => {
+                d.weeks[id.weekIndex].days[dayIndex].backupShifts[
+                  id.shiftName
+                ] = person;
+                return { ...d };
               });
-              d.undoHistory = [];
-              if (d.unsavedChanges === 0) {
-                d.firstUnsavedChange = dateToIsoDatetime(new Date());
-              }
-              d.unsavedChanges += 1;
-              return { ...d };
-            });
+              setLocalData((d: LocalData) => {
+                d.history.push({
+                  kind: 'backup',
+                  previous,
+                  next: person,
+                  shift: {
+                    ...id,
+                    dayIndex,
+                  },
+                });
+                d.undoHistory = [];
+                if (d.unsavedChanges === 0) {
+                  d.firstUnsavedChange = dateToIsoDatetime(new Date());
+                }
+                d.unsavedChanges += 1;
+                return { ...d };
+              });
+            }
           },
           {
             kind: 'backup',
@@ -1946,10 +1966,10 @@ type PersonPickerConfig =
 
 type PersonPickerType = {
   requestDialog: (
-    callback: (person: MaybePerson) => void,
+    callback: (person: MaybePerson, assignWholeWeek: boolean) => void,
     config: PersonPickerConfig,
   ) => void;
-  handleDialogResult: (person: MaybePerson) => void;
+  handleDialogResult: (person: MaybePerson, assignWholeWeek: boolean) => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
   config: PersonPickerConfig;
@@ -1965,7 +1985,9 @@ export function usePersonPicker(): PersonPickerType {
 
 export const PersonPickerProvider = ({ children }: Children) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [onResult, setOnResult] = useState(() => (_: MaybePerson) => {});
+  const [onResult, setOnResult] = useState(
+    () => (_: MaybePerson, _2: boolean) => {},
+  );
   const [config, setConfig] = useState<PersonPickerConfig>({
     kind: 'regular',
     currentPersonId: '',
@@ -1975,7 +1997,7 @@ export const PersonPickerProvider = ({ children }: Children) => {
   });
 
   const requestDialog = (
-    callback: (person: MaybePerson) => void,
+    callback: (person: MaybePerson, assignWholeWeek: boolean) => void,
     config: PersonPickerConfig,
   ) => {
     setIsOpen(true);
@@ -1983,9 +2005,12 @@ export const PersonPickerProvider = ({ children }: Children) => {
     setConfig(config);
   };
 
-  const handleDialogResult = (person: MaybePerson) => {
+  const handleDialogResult = (
+    person: MaybePerson,
+    assignWholeWeek: boolean,
+  ) => {
     setIsOpen(false);
-    onResult(person);
+    onResult(person, assignWholeWeek);
   };
 
   return (
@@ -2071,58 +2096,71 @@ function PersonPickerDialog() {
           {config.shiftName} on {config.day}
         </Heading>
         <Row crossAxisAlignment="start">
-          {Object.entries(yearToPeople)
-            .sort(
-              (a, b) =>
-                YEAR_ORDER.indexOf(a[0] as Year) -
-                YEAR_ORDER.indexOf(b[0] as Year),
-            )
-            .map(([year, people]) =>
-              people.length == 0 ? null : (
-                <Column
-                  key={year}
-                  style={{ marginRight: '20px', width: '110px' }}
-                  crossAxisAlignment="end"
-                >
-                  <Text
-                    style={{
-                      fontWeight: 'bold',
-                      color: yearToColor(year, true),
-                    }}
-                  >
-                    {yearToString(year as Year)}
-                  </Text>
-                  <Column spacing="3px" crossAxisAlignment="end">
-                    {people.map(person => {
-                      const unavailable = inference
-                        ? inference.unavailablePeople[person.id]
-                        : undefined;
+          {(isBackup && config.shift == 'backup_weekday'
+            ? [false, true]
+            : [false]
+          ).map(assignWholeWeek => (
+            <Row crossAxisAlignment="start" key={assignWholeWeek ? 'yes' : 'no'}>
+              {Object.entries(yearToPeople)
+                .sort(
+                  (a, b) =>
+                    YEAR_ORDER.indexOf(a[0] as Year) -
+                    YEAR_ORDER.indexOf(b[0] as Year),
+                )
+                .map(([year, people]) =>
+                  people.length == 0 ? null : (
+                    <Column
+                      key={year}
+                      style={{
+                        marginRight: '20px',
+                        width: `${assignWholeWeek ? 160 : 110}px`,
+                      }}
+                      crossAxisAlignment="end"
+                    >
+                      <Text
+                        style={{
+                          fontWeight: 'bold',
+                          color: yearToColor(year, true),
+                        }}
+                      >
+                        {yearToString(year as Year)}
+                        {assignWholeWeek ? ' (whole week)' : ''}
+                      </Text>
+                      <Column spacing="3px" crossAxisAlignment="end">
+                        {people.map(person => {
+                          const unavailable = inference
+                            ? inference.unavailablePeople[person.id]
+                            : undefined;
 
-                      const renderedPerson = (
-                        <RenderPerson
-                          person={person.id}
-                          large
-                          style={{
-                            cursor: 'pointer',
-                            opacity: !unavailable
-                              ? undefined
-                              : unavailable.soft
-                                ? 0.5
-                                : 0.3,
-                          }}
-                          selected={
-                            personPicker.config.currentPersonId === person.id
-                          }
-                          onClick={() =>
-                            personPicker.handleDialogResult(person.id)
-                          }
-                        />
-                      );
-                      // const rating =
-                      //   inference?.best?.ratings?.[person.id]?.rating;
-                      return (
-                        <Row key={person.name} spacing={'2px'}>
-                          {/* {rating && (
+                          const renderedPerson = (
+                            <RenderPerson
+                              person={person.id}
+                              large
+                              style={{
+                                cursor: 'pointer',
+                                opacity: !unavailable
+                                  ? undefined
+                                  : unavailable.soft
+                                    ? 0.5
+                                    : 0.3,
+                              }}
+                              selected={
+                                personPicker.config.currentPersonId ===
+                                person.id
+                              }
+                              onClick={() =>
+                                personPicker.handleDialogResult(
+                                  person.id,
+                                  assignWholeWeek,
+                                )
+                              }
+                            />
+                          );
+                          // const rating =
+                          //   inference?.best?.ratings?.[person.id]?.rating;
+                          return (
+                            <Row key={person.name} spacing={'2px'}>
+                              {/* {rating && (
                             <Text
                               style={{
                                 color: '#ccc',
@@ -2134,42 +2172,44 @@ function PersonPickerDialog() {
                               )}
                             </Text>
                           )} */}
-                          <DoNotDisturbIcon
-                            sx={{
-                              color: !unavailable
-                                ? 'white'
-                                : unavailable.soft
-                                  ? WARNING_COLOR
-                                  : ERROR_COLOR,
-                              fontSize: 15,
-                            }}
-                          />
-                          <Row
-                            style={{
-                              width: 50,
-                            }}
-                            mainAxisAlignment="end"
-                          >
-                            {unavailable && (
-                              <LightTooltip
-                                title={unavailable.reason}
-                                style={{
-                                  fontSize: '20px',
+                              <DoNotDisturbIcon
+                                sx={{
+                                  color: !unavailable
+                                    ? 'white'
+                                    : unavailable.soft
+                                      ? WARNING_COLOR
+                                      : ERROR_COLOR,
+                                  fontSize: 15,
                                 }}
-                                enterDelay={500}
+                              />
+                              <Row
+                                style={{
+                                  width: 50,
+                                }}
+                                mainAxisAlignment="end"
                               >
-                                {renderedPerson}
-                              </LightTooltip>
-                            )}
-                            {!unavailable && renderedPerson}
-                          </Row>
-                        </Row>
-                      );
-                    })}
-                  </Column>
-                </Column>
-              ),
-            )}
+                                {unavailable && (
+                                  <LightTooltip
+                                    title={unavailable.reason}
+                                    style={{
+                                      fontSize: '20px',
+                                    }}
+                                    enterDelay={500}
+                                  >
+                                    {renderedPerson}
+                                  </LightTooltip>
+                                )}
+                                {!unavailable && renderedPerson}
+                              </Row>
+                            </Row>
+                          );
+                        })}
+                      </Column>
+                    </Column>
+                  ),
+                )}
+            </Row>
+          ))}
         </Row>
         <Row
           style={{ marginTop: '10px' }}
@@ -2189,7 +2229,7 @@ function PersonPickerDialog() {
             style={{
               width: buttonWidth,
             }}
-            onClick={() => personPicker.handleDialogResult('')}
+            onClick={() => personPicker.handleDialogResult('', false)}
           >
             Clear assigned person
           </Button>
@@ -2202,7 +2242,10 @@ function PersonPickerDialog() {
               }}
               disabled={!inference?.best}
               onClick={() => {
-                personPicker.handleDialogResult(inference?.best?.person ?? '');
+                personPicker.handleDialogResult(
+                  inference?.best?.person ?? '',
+                  false,
+                );
               }}
             >
               {inference?.best && `Auto-assign (${inference?.best.person})`}
