@@ -2,6 +2,7 @@ import {
   CALL_POOL,
   CallPoolPerson,
   CallSchedule,
+  MaybeChief,
   ShiftKind,
   isHolidayShift,
 } from './types';
@@ -66,6 +67,7 @@ function Mk<T extends SimpleCellType | SimpleCellType[]>(
 }
 
 type ExportShiftKind =
+  | 'backup'
   | 'weekday_south'
   | 'weekend_south'
   | 'weekend_uw'
@@ -78,6 +80,7 @@ type ExportShiftKind =
   | 'south_power';
 
 const EXPORT_SHIFT_ORDER: ExportShiftKind[] = [
+  'backup',
   'weekend_nwhsch',
   'weekend_uw',
   'weekend_south',
@@ -115,8 +118,29 @@ export async function exportSchedule(
   }
 
   day = data.firstDay;
+  let lastBackup:
+    | {
+        person: MaybeChief;
+        isHoliday: boolean;
+      }
+    | undefined = undefined;
   while (day <= data.lastDay) {
     const idx = processed.day2weekAndDay[day];
+    const backupShifts = Object.entries(
+      data.weeks[idx.weekIndex].days[idx.dayIndex].backupShifts,
+    );
+    if (backupShifts.length > 0) {
+      if (backupShifts.length > 1) {
+        throw new Error(`Multiple backups on ${day}`);
+      }
+      lastBackup = {
+        person: backupShifts[0][1],
+        isHoliday: backupShifts[0][0].includes('holiday'),
+      };
+    }
+    if (lastBackup) {
+      shifts[day].backup = lastBackup;
+    }
     for (const [s, person] of Object.entries(
       data.weeks[idx.weekIndex].days[idx.dayIndex].shifts,
     )) {
@@ -192,6 +216,7 @@ export async function exportSchedule(
     'Conference/event/etc',
     { text: '', border: SPECIAL_BORDER, borderDashed: true },
   ]);
+  rows.push(['Chief resident', { text: '', background: yearToColor('C') }]);
   rows.push(['MAD', { text: '', background: yearToColor('M') }]);
   rows.push(['Senior resident', { text: '', background: yearToColor('S') }]);
   rows.push(['Research resident', { text: '', background: yearToColor('R') }]);
@@ -201,8 +226,9 @@ export async function exportSchedule(
   rows.push([]);
   rows.push([]);
 
-  function shiftName(shift: ShiftKind) {
+  function shiftName(shift: ShiftKind | 'backup') {
     return mapEnum(shift, {
+      backup: 'Chief Backup Call',
       weekday_south: 'Weekday South (5pm-7am)',
       weekend_south: 'Weekend South (5pm-5pm)',
       weekend_uw: 'Weekend UW (5pm-5pm)',
@@ -261,6 +287,7 @@ export async function exportSchedule(
         if (!shiftData[shift]) {
           shiftData[shift] = [];
         }
+        if (person.person == '') continue;
         assertNonNull(shiftData[shift])[dayIndex] = {
           text: person.person,
           background: yearToColor(

@@ -1402,7 +1402,7 @@ export function yearToColor(
       S: '#ffb3ba', // red
       M: '#bae1ff', // blue
     },
-    '#ccc',
+    '#cccccc',
   );
   if (dark)
     return mapEnumWithDefault(
@@ -1414,7 +1414,7 @@ export function yearToColor(
         S: '#b22222', // dark red
         M: '#1e90ff', // dark blue
       },
-      '#333', // dark grey as default
+      '#333333', // dark grey as default
     );
   return color;
 }

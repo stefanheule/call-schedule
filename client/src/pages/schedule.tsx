@@ -2100,7 +2100,10 @@ function PersonPickerDialog() {
             ? [false, true]
             : [false]
           ).map(assignWholeWeek => (
-            <Row crossAxisAlignment="start" key={assignWholeWeek ? 'yes' : 'no'}>
+            <Row
+              crossAxisAlignment="start"
+              key={assignWholeWeek ? 'yes' : 'no'}
+            >
               {Object.entries(yearToPeople)
                 .sort(
                   (a, b) =>
