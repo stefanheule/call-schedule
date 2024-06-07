@@ -633,7 +633,7 @@ function deserializeShift(s: string): ShiftKind | ChiefShiftKind {
   throw new Error(`Invalid shift: ${s}`);
 }
 function serializeDate(d: IsoDate) {
-  return datefns.format(isoDateToDate(d), 'eee, d/M/yyyy');
+  return datefns.format(isoDateToDate(d), 'eee M/d/yyyy');
 }
 
 function RenderImportCallSwitchDialog({
@@ -667,16 +667,21 @@ function RenderImportCallSwitchDialog({
     }
     const [_, _1, previous_, next_, shift_, date_] = match;
     const dateMatch = date_.match(/^(\w+), (\d+)\/(\d+)\/(\d+)$/);
-    if (!dateMatch) {
-      errors.push(`Invalid date: ${date_}`);
-      continue;
+    let dateObj;
+    if (dateMatch) {
+      const [_2, _3, day, month, year] = dateMatch;
+      dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    } else {
+      const dateMatch = date_.match(/^(\w+) (\d+)\/(\d+)\/(\d+)$/);
+      if (dateMatch) {
+        const [_2, _3, month, day, year] = dateMatch;
+        dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      } else {
+        errors.push(`Invalid date: ${date_}`);
+        continue;
+      }
     }
-    const [_2, _3, day, month, year] = dateMatch;
-    const dateObj = new Date(
-      parseInt(year),
-      parseInt(month) - 1,
-      parseInt(day),
-    );
+
     if (dateObj.toString() == 'Invalid Date') {
       errors.push(`Invalid date: ${date_}`);
       continue;
