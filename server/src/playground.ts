@@ -44,6 +44,7 @@ import {
   nextDay,
   processCallSchedule,
   scheduleToStoredSchedule,
+  serializeActions,
 } from './shared/compute';
 import {
   assertCallSchedule,
@@ -159,19 +160,24 @@ async function main() {
   }
 
   if (run == 'diff-previous') {
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       const n = storage.versions[storage.versions.length - 1 - i];
       const nMinus1 = storage.versions[storage.versions.length - 2 - i];
 
-      const diff = compareData(n.callSchedule, nMinus1.callSchedule);
+      const diff = compareData(nMinus1.callSchedule, n.callSchedule);
       if (diff.kind == 'error') {
         console.log(`Error: ${diff.message}`);
       } else {
-        console.log(`Changes in ${n.name ?? '<unnamed version>'} from ${n.ts}:`);
-        
+        console.log(
+          `Changes in ${n.name != '' ? n.name : '<unnamed version>'} from ${
+            n.ts
+          }:`,
+        );
+        console.log(serializeActions(n.callSchedule, diff.changes));
         console.log('\n\n');
       }
     }
+    return;
   }
 
   if (run == 'add-chief-shifts') {

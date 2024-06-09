@@ -350,6 +350,7 @@ export type CallScheduleProcessed = {
   issueCounts: IssueCount;
 
   shiftCounts: ShiftCount;
+  backupShiftCounts: BackupShiftCount;
 
   callCounts: Record<CallPoolPerson, CallCount>;
   backupCallCounts: Record<
@@ -462,9 +463,14 @@ export type ShiftCount = {
   total: number;
   assigned: number;
 };
+export type BackupShiftCount = {
+  total: number;
+  assigned: number;
+};
 
 export type StoredCallScheduleMetaData = {
   name: string;
+  backupShiftCounts?: BackupShiftCount;
   shiftCounts: ShiftCount;
   issueCounts: IssueCount;
   ts: IsoDatetime;

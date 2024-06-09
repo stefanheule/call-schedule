@@ -270,6 +270,7 @@ export function scheduleToStoredSchedule(
     callSchedule: data,
     issueCounts: processed.issueCounts,
     shiftCounts: processed.shiftCounts,
+    backupShiftCounts: processed.backupShiftCounts,
   };
 }
 
@@ -683,6 +684,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       DK: deepCopy(emptyBackupCallCount),
     },
     shiftCounts: {
+      total: 0,
+      assigned: 0,
+    },
+    backupShiftCounts: {
       total: 0,
       assigned: 0,
     },
@@ -1588,6 +1593,11 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         result.shiftCounts.total += 1;
         if (shift !== '' && shift !== undefined)
           result.shiftCounts.assigned += 1;
+      }
+      for (const shift of Object.values(day.backupShifts)) {
+        result.backupShiftCounts.total += 1;
+        if (shift !== '' && shift !== undefined)
+          result.backupShiftCounts.assigned += 1;
       }
     }
   }

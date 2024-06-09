@@ -796,7 +796,7 @@ function RenderSuggestCallSwitchDialog({
             <Button
               variant="contained"
               onClick={async () => {
-                const text = serializeActions(compared.changes);
+                const text = serializeActions(data, compared.changes);
                 await navigator.clipboard.writeText(text);
                 setCopyPasteSnackbar('Copied to clipboard!');
               }}

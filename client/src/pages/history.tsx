@@ -152,8 +152,10 @@ function RenderSchedules({
                   }}
                 >
                   Shifts assigned: {schedule.shiftCounts.assigned}/
-                  {schedule.shiftCounts.total}; Violations:{' '}
-                  {schedule.issueCounts.soft} soft and{' '}
+                  {schedule.shiftCounts.total};{' '}
+                  {schedule.backupShiftCounts &&
+                    `Backup shifts: ${schedule.backupShiftCounts.assigned}/${schedule.backupShiftCounts.total}; `}
+                  Violations: {schedule.issueCounts.soft} soft and{' '}
                   {schedule.issueCounts.hard} hard
                 </Text>
               </Column>

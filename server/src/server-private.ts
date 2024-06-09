@@ -12,11 +12,9 @@ import path from 'path';
 import { setupExpressServer } from './common/express';
 import { isLocal } from './common/error-reporting';
 import {
-  ChiefShiftKind,
   ListCallSchedulesResponse,
   LoadCallScheduleResponse,
   SaveCallScheduleResponse,
-  ShiftKind,
   StoredCallSchedules,
 } from './shared/types';
 import {
@@ -26,7 +24,11 @@ import {
 } from './shared/check-type.generated';
 import { Request, Response } from 'express';
 import { exceptionToString } from 'check-type';
-import { applyActions, compareData, scheduleToStoredSchedule } from './shared/compute';
+import {
+  applyActions,
+  compareData,
+  scheduleToStoredSchedule,
+} from './shared/compute';
 import { loadStorage, storeStorage } from './storage';
 
 export const AXIOS_PROPS = {
@@ -135,6 +137,7 @@ async function main() {
                 name: v.name,
                 shiftCounts: v.shiftCounts,
                 issueCounts: v.issueCounts,
+                backupShiftCounts: v.backupShiftCounts,
                 ts: v.ts,
               })),
             });
