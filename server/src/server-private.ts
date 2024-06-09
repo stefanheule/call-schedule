@@ -153,7 +153,9 @@ async function main() {
           res: Response<ListCallSchedulesResponse | string>,
         ) => {
           try {
-            const storage = loadStorage();
+            const storage = loadStorage({
+              noCheck: true,
+            });
             res.send({
               schedules: storage.versions.map(v => ({
                 name: v.name,
