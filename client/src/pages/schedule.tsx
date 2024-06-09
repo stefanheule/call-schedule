@@ -1,7 +1,6 @@
 import {
   IsoDate,
   assertNonNull,
-  dateToIsoDate,
   dateToIsoDatetime,
   isoDateToDate,
   mapEnum,
@@ -34,8 +33,6 @@ import {
   Chief,
   CallScheduleProcessed,
   YEAR_ORDER,
-  Action,
-  CHIEF_SHIFTS,
 } from '../shared/types';
 import {
   useData,
@@ -69,13 +66,21 @@ import {
   HolidayShift,
   WEEKDAY_CALL_TARGET,
   WEEKEND_CALL_TARGET,
+  applyActions,
   collectHolidayCall,
+  compareData,
   countHolidayShifts,
   elementIdForDay,
   elementIdForShift,
   inferShift,
   nextDay,
+  deserializeActions,
+  serializeDate,
+  serializePerson,
+  serializeShift,
+  undoActions,
   yearToColor,
+  serializeActions,
 } from '../shared/compute';
 import { useHotkeys } from 'react-hotkeys-hook';
 import Snackbar from '@mui/material/Snackbar';
@@ -128,20 +133,17 @@ export function RenderCallSchedule() {
         setData((data: CallSchedule) => {
           if (lastAction) {
             localData.undoHistory.push(lastAction);
-            const day =
-              data.weeks[lastAction.shift.weekIndex].days[
-                lastAction.shift.dayIndex
-              ];
-            if (lastAction.kind == 'regular') {
-              day.shifts[lastAction.shift.shiftName] = lastAction.previous;
-            } else {
-              day.backupShifts[lastAction.shift.shiftName] =
-                lastAction.previous;
-            }
+            undoActions(data, [lastAction]);
             if (localData.unsavedChanges === 0) {
               localData.firstUnsavedChange = dateToIsoDatetime(new Date());
             }
-            setCopyPasteSnackbar(`Undo shift assignment for ${day.date}.`);
+            setCopyPasteSnackbar(
+              `Undo shift assignment for ${
+                data.weeks[lastAction.shift.weekIndex].days[
+                  lastAction.shift.dayIndex
+                ].date
+              }.`,
+            );
           } else {
             setCopyPasteSnackbar(`Cannot undo, no action in history.`);
             return data;
@@ -163,20 +165,18 @@ export function RenderCallSchedule() {
         setData((data: CallSchedule) => {
           if (lastAction) {
             localData.history.push(lastAction);
-            const day =
-              data.weeks[lastAction.shift.weekIndex].days[
-                lastAction.shift.dayIndex
-              ];
-            if (lastAction.kind == 'regular') {
-              day.shifts[lastAction.shift.shiftName] = lastAction.next;
-            } else {
-              day.backupShifts[lastAction.shift.shiftName] = lastAction.next;
-            }
+            applyActions(data, [lastAction]);
             if (localData.unsavedChanges === 0) {
               localData.firstUnsavedChange = dateToIsoDatetime(new Date());
             }
             localData.unsavedChanges += 1;
-            setCopyPasteSnackbar(`Redo shift assignment for ${day.date}.`);
+            setCopyPasteSnackbar(
+              `Redo shift assignment for ${
+                data.weeks[lastAction.shift.weekIndex].days[
+                  lastAction.shift.dayIndex
+                ].date
+              }.`,
+            );
           } else {
             setCopyPasteSnackbar(`Cannot redo, no action in history.`);
             return data;
@@ -525,119 +525,6 @@ export function RenderCallSchedule() {
   );
 }
 
-function compareData(
-  before: CallSchedule,
-  after: CallSchedule,
-):
-  | {
-      kind: 'error';
-      message: string;
-    }
-  | {
-      kind: 'ok';
-      changes: Action[];
-    } {
-  const changes: Action[] = [];
-  for (let weekIndex = 0; weekIndex < before.weeks.length; weekIndex++) {
-    const beforeWeek = before.weeks[weekIndex];
-    const afterWeek = after.weeks[weekIndex];
-    for (let dayIndex = 0; dayIndex < beforeWeek.days.length; dayIndex++) {
-      const beforeDay = beforeWeek.days[dayIndex];
-      const afterDay = afterWeek.days[dayIndex];
-
-      // Regular shifts
-      for (const s of Object.keys(beforeDay.shifts)) {
-        const shiftName = s as ShiftKind;
-        const beforePerson = beforeDay.shifts[shiftName];
-        const afterPerson = afterDay.shifts[shiftName];
-        if (beforePerson === undefined || afterPerson === undefined) {
-          return {
-            kind: 'error',
-            message: `Shift ${shiftName} is missing in one of the schedules for ${beforeDay.date}`,
-          };
-        }
-        if (beforePerson !== afterPerson) {
-          changes.push({
-            kind: 'regular',
-            shift: {
-              weekIndex,
-              dayIndex,
-              shiftName: shiftName,
-            },
-            previous: beforePerson,
-            next: afterPerson,
-          });
-        }
-      }
-
-      // Backup shifts
-      for (const s of Object.keys(beforeDay.backupShifts)) {
-        const shiftName = s as ChiefShiftKind;
-        const beforePerson = beforeDay.backupShifts[shiftName];
-        const afterPerson = afterDay.backupShifts[shiftName];
-        if (beforePerson === undefined || afterPerson === undefined) {
-          return {
-            kind: 'error',
-            message: `Backup shift ${shiftName} is missing in one of the schedules for ${beforeDay.date}`,
-          };
-        }
-        if (beforePerson !== afterPerson) {
-          changes.push({
-            kind: 'backup',
-            shift: {
-              weekIndex,
-              dayIndex,
-              shiftName: shiftName,
-            },
-            previous: beforePerson,
-            next: afterPerson,
-          });
-        }
-      }
-    }
-  }
-  return {
-    kind: 'ok',
-    changes,
-  };
-}
-
-function serializePerson(s: string) {
-  return s == '' ? 'nobody' : s;
-}
-function deserializePerson(s: string): string {
-  return s == 'nobody' ? '' : s;
-}
-const SHIFT_SERIALIZATION_MAP = {
-  weekday_south: 'Weekday South',
-  weekend_south: 'Weekend South',
-  weekend_uw: 'Weekend at UW',
-  weekend_nwhsch: 'Weekend at NWH/SCH',
-  day_uw: 'Day Shift at UW',
-  day_nwhsch: 'Day Shift at NWH/SCH',
-  day_va: 'Day Shift VA',
-  day_2x_uw: 'Two Day Shifts at UW',
-  day_2x_nwhsch: 'Two Day Shifts at NWH/SCH',
-  south_24: 'South 24h',
-  south_34: 'South 34h',
-  south_power: 'South Power Weekend',
-  backup_weekday: 'Backup Call Weekday',
-  backup_weekend: 'Backup Call Weekend',
-  backup_holiday: 'Backup Call Holiday',
-} as const;
-function serializeShift(s: ChiefShiftKind | ShiftKind) {
-  return mapEnum(s, SHIFT_SERIALIZATION_MAP);
-}
-function deserializeShift(s: string): ShiftKind | ChiefShiftKind {
-  for (const [k, v] of Object.entries(SHIFT_SERIALIZATION_MAP)) {
-    if (v == s) return k as ShiftKind;
-  }
-  throw new Error(`Invalid shift: ${s}`);
-}
-function serializeDate(d: IsoDate) {
-  return datefns.format(isoDateToDate(d), 'eee M/d/yyyy');
-}
-
 function RenderImportCallSwitchDialog({
   setImportDialogOpen,
   setImportDoneDialogOpen,
@@ -655,91 +542,7 @@ function RenderImportCallSwitchDialog({
 
   let content = undefined;
 
-  const errors = [];
-  const actions: Action[] = [];
-  for (let line of importText.split('\n')) {
-    line = line.trim();
-    if (line == '') continue;
-    const match = line.match(
-      /^(\d+)\. Replace (.+) with (.+) for (.+) on (.+)$/,
-    );
-    if (!match) {
-      errors.push(`Invalid call switch: ${line}`);
-      continue;
-    }
-    const [_, _1, previous_, next_, shift_, date_] = match;
-    const dateMatch = date_.match(/^(\w+), (\d+)\/(\d+)\/(\d+)$/);
-    let dateObj;
-    if (dateMatch) {
-      const [_2, _3, day, month, year] = dateMatch;
-      dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    } else {
-      const dateMatch = date_.match(/^(\w+) (\d+)\/(\d+)\/(\d+)$/);
-      if (dateMatch) {
-        const [_2, _3, month, day, year] = dateMatch;
-        dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      } else {
-        errors.push(`Invalid date: ${date_}`);
-        continue;
-      }
-    }
-
-    if (dateObj.toString() == 'Invalid Date') {
-      errors.push(`Invalid date: ${date_}`);
-      continue;
-    }
-    const date = dateToIsoDate(dateObj);
-    const index = processed.day2weekAndDay[date];
-    if (index === undefined) {
-      errors.push(`Invalid date: ${date}`);
-      continue;
-    }
-    try {
-      const s = deserializeShift(shift_);
-      if (CHIEF_SHIFTS.includes(s as ChiefShiftKind)) {
-        const shift = s as ChiefShiftKind;
-        try {
-          const next = assertMaybeChief(deserializePerson(next_));
-          const previous = assertMaybeChief(deserializePerson(previous_));
-          actions.push({
-            kind: 'backup',
-            previous,
-            next,
-            shift: {
-              ...index,
-              shiftName: shift,
-            },
-          });
-        } catch {
-          errors.push(`Invalid chief: ${next_} or ${previous_}`);
-          continue;
-        }
-      } else {
-        const shift = s as ShiftKind;
-        try {
-          const next = assertMaybeCallPoolPerson(deserializePerson(next_));
-          const previous = assertMaybeCallPoolPerson(
-            deserializePerson(previous_),
-          );
-          actions.push({
-            kind: 'regular',
-            previous,
-            next,
-            shift: {
-              ...index,
-              shiftName: shift,
-            },
-          });
-        } catch {
-          errors.push(`Invalid person: ${next_} or ${previous_}`);
-          continue;
-        }
-      }
-    } catch {
-      errors.push(`Invalid shift: ${shift_}`);
-      continue;
-    }
-  }
+  const { actions, errors } = deserializeActions(importText, processed);
 
   if (localData.unsavedChanges != 0) {
     content = (
@@ -993,22 +796,7 @@ function RenderSuggestCallSwitchDialog({
             <Button
               variant="contained"
               onClick={async () => {
-                const text = compared.changes
-                  .map(
-                    (change, i) =>
-                      `${i + 1}. Replace ${serializePerson(
-                        change.previous,
-                      )} with ${serializePerson(
-                        change.next,
-                      )} for ${serializeShift(
-                        change.shift.shiftName,
-                      )} on ${serializeDate(
-                        data.weeks[change.shift.weekIndex].days[
-                          change.shift.dayIndex
-                        ].date,
-                      )}`,
-                  )
-                  .join('\n');
+                const text = serializeActions(compared.changes);
                 await navigator.clipboard.writeText(text);
                 setCopyPasteSnackbar('Copied to clipboard!');
               }}

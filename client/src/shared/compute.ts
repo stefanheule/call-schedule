@@ -10,7 +10,9 @@ import {
 import {
   ALL_CHIEFS,
   ALL_PEOPLE,
+  Action,
   CALL_POOL,
+  CHIEF_SHIFTS,
   CallPoolPerson,
   CallSchedule,
   CallScheduleProcessed,
@@ -29,8 +31,13 @@ import {
   isHolidayShift,
   isNoCallRotation,
 } from './types';
-import { assertIsoDate } from './check-type.generated';
+import {
+  assertIsoDate,
+  assertMaybeCallPoolPerson,
+  assertMaybeChief,
+} from './check-type.generated';
 import { dateToIsoDate, isoDateToDate } from './optimized';
+import * as datefns from 'date-fns';
 
 export function clearSchedule(data: CallSchedule): CallSchedule {
   for (const week of data.weeks) {
@@ -308,6 +315,260 @@ function isWeekday(day: string): boolean {
 
 function isLxNotTakingCallDueToMaternity(day: string): boolean {
   return day >= '2024-09-01' && day <= '2025-01-07';
+}
+
+export function applyActions(
+  data: CallSchedule,
+  actions: Action[],
+): CallSchedule {
+  for (const action of actions) {
+    const day = data.weeks[action.shift.weekIndex].days[action.shift.dayIndex];
+    if (action.kind == 'regular') {
+      day.shifts[action.shift.shiftName] = action.next;
+    } else {
+      day.backupShifts[action.shift.shiftName] = action.next;
+    }
+  }
+  return data;
+}
+
+export function undoActions(data: CallSchedule, actions: Action[]) {
+  for (const action of actions) {
+    const day = data.weeks[action.shift.weekIndex].days[action.shift.dayIndex];
+    if (action.kind == 'regular') {
+      day.shifts[action.shift.shiftName] = action.previous;
+    } else {
+      day.backupShifts[action.shift.shiftName] = action.previous;
+    }
+  }
+  return data;
+}
+
+export function serializePerson(s: string) {
+  return s == '' ? 'nobody' : s;
+}
+export function deserializePerson(s: string): string {
+  return s == 'nobody' ? '' : s;
+}
+const SHIFT_SERIALIZATION_MAP = {
+  weekday_south: 'Weekday South',
+  weekend_south: 'Weekend South',
+  weekend_uw: 'Weekend at UW',
+  weekend_nwhsch: 'Weekend at NWH/SCH',
+  day_uw: 'Day Shift at UW',
+  day_nwhsch: 'Day Shift at NWH/SCH',
+  day_va: 'Day Shift VA',
+  day_2x_uw: 'Two Day Shifts at UW',
+  day_2x_nwhsch: 'Two Day Shifts at NWH/SCH',
+  south_24: 'South 24h',
+  south_34: 'South 34h',
+  south_power: 'South Power Weekend',
+  backup_weekday: 'Backup Call Weekday',
+  backup_weekend: 'Backup Call Weekend',
+  backup_holiday: 'Backup Call Holiday',
+} as const;
+export function serializeShift(s: ChiefShiftKind | ShiftKind) {
+  return mapEnum(s, SHIFT_SERIALIZATION_MAP);
+}
+export function deserializeShift(s: string): ShiftKind | ChiefShiftKind {
+  for (const [k, v] of Object.entries(SHIFT_SERIALIZATION_MAP)) {
+    if (v == s) return k as ShiftKind;
+  }
+  throw new Error(`Invalid shift: ${s}`);
+}
+export function serializeDate(d: IsoDate) {
+  return datefns.format(isoDateToDate(d), 'eee M/d/yyyy');
+}
+export function serializeActions(
+  data: CallSchedule,
+  actions: Action[],
+): string {
+  return actions
+    .map(
+      (change, i) =>
+        `${i + 1}. Replace ${serializePerson(
+          change.previous,
+        )} with ${serializePerson(change.next)} for ${serializeShift(
+          change.shift.shiftName,
+        )} on ${serializeDate(
+          data.weeks[change.shift.weekIndex].days[change.shift.dayIndex].date,
+        )}`,
+    )
+    .join('\n');
+}
+export function deserializeActions(
+  importText: string,
+  processed: CallScheduleProcessed,
+): {
+  errors: string[];
+  actions: Action[];
+} {
+  const errors = [];
+  const actions: Action[] = [];
+  for (let line of importText.split('\n')) {
+    line = line.trim();
+    if (line == '') continue;
+    const match = line.match(
+      /^(\d+)\. Replace (.+) with (.+) for (.+) on (.+)$/,
+    );
+    if (!match) {
+      errors.push(`Invalid call switch: ${line}`);
+      continue;
+    }
+    const [_, _1, previous_, next_, shift_, date_] = match;
+    const dateMatch = date_.match(/^(\w+), (\d+)\/(\d+)\/(\d+)$/);
+    let dateObj;
+    if (dateMatch) {
+      const [_2, _3, day, month, year] = dateMatch;
+      dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    } else {
+      const dateMatch = date_.match(/^(\w+) (\d+)\/(\d+)\/(\d+)$/);
+      if (dateMatch) {
+        const [_2, _3, month, day, year] = dateMatch;
+        dateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      } else {
+        errors.push(`Invalid date: ${date_}`);
+        continue;
+      }
+    }
+
+    if (dateObj.toString() == 'Invalid Date') {
+      errors.push(`Invalid date: ${date_}`);
+      continue;
+    }
+    const date = dateToIsoDate(dateObj);
+    const index = processed.day2weekAndDay[date];
+    if (index === undefined) {
+      errors.push(`Invalid date: ${date}`);
+      continue;
+    }
+    try {
+      const s = deserializeShift(shift_);
+      if (CHIEF_SHIFTS.includes(s as ChiefShiftKind)) {
+        const shift = s as ChiefShiftKind;
+        try {
+          const next = assertMaybeChief(deserializePerson(next_));
+          const previous = assertMaybeChief(deserializePerson(previous_));
+          actions.push({
+            kind: 'backup',
+            previous,
+            next,
+            shift: {
+              ...index,
+              shiftName: shift,
+            },
+          });
+        } catch {
+          errors.push(`Invalid chief: ${next_} or ${previous_}`);
+          continue;
+        }
+      } else {
+        const shift = s as ShiftKind;
+        try {
+          const next = assertMaybeCallPoolPerson(deserializePerson(next_));
+          const previous = assertMaybeCallPoolPerson(
+            deserializePerson(previous_),
+          );
+          actions.push({
+            kind: 'regular',
+            previous,
+            next,
+            shift: {
+              ...index,
+              shiftName: shift,
+            },
+          });
+        } catch {
+          errors.push(`Invalid person: ${next_} or ${previous_}`);
+          continue;
+        }
+      }
+    } catch {
+      errors.push(`Invalid shift: ${shift_}`);
+      continue;
+    }
+  }
+  return {
+    errors,
+    actions,
+  };
+}
+
+export function compareData(
+  before: CallSchedule,
+  after: CallSchedule,
+):
+  | {
+      kind: 'error';
+      message: string;
+    }
+  | {
+      kind: 'ok';
+      changes: Action[];
+    } {
+  const changes: Action[] = [];
+  for (let weekIndex = 0; weekIndex < before.weeks.length; weekIndex++) {
+    const beforeWeek = before.weeks[weekIndex];
+    const afterWeek = after.weeks[weekIndex];
+    for (let dayIndex = 0; dayIndex < beforeWeek.days.length; dayIndex++) {
+      const beforeDay = beforeWeek.days[dayIndex];
+      const afterDay = afterWeek.days[dayIndex];
+
+      // Regular shifts
+      for (const s of Object.keys(beforeDay.shifts)) {
+        const shiftName = s as ShiftKind;
+        const beforePerson = beforeDay.shifts[shiftName];
+        const afterPerson = afterDay.shifts[shiftName];
+        if (beforePerson === undefined || afterPerson === undefined) {
+          return {
+            kind: 'error',
+            message: `Shift ${shiftName} is missing in one of the schedules for ${beforeDay.date}`,
+          };
+        }
+        if (beforePerson !== afterPerson) {
+          changes.push({
+            kind: 'regular',
+            shift: {
+              weekIndex,
+              dayIndex,
+              shiftName: shiftName,
+            },
+            previous: beforePerson,
+            next: afterPerson,
+          });
+        }
+      }
+
+      // Backup shifts
+      for (const s of Object.keys(beforeDay.backupShifts)) {
+        const shiftName = s as ChiefShiftKind;
+        const beforePerson = beforeDay.backupShifts[shiftName];
+        const afterPerson = afterDay.backupShifts[shiftName];
+        if (beforePerson === undefined || afterPerson === undefined) {
+          return {
+            kind: 'error',
+            message: `Backup shift ${shiftName} is missing in one of the schedules for ${beforeDay.date}`,
+          };
+        }
+        if (beforePerson !== afterPerson) {
+          changes.push({
+            kind: 'backup',
+            shift: {
+              weekIndex,
+              dayIndex,
+              shiftName: shiftName,
+            },
+            previous: beforePerson,
+            next: afterPerson,
+          });
+        }
+      }
+    }
+  }
+  return {
+    kind: 'ok',
+    changes,
+  };
 }
 
 export function dateToDayOfWeek(

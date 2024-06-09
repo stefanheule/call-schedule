@@ -26,7 +26,7 @@ import {
 } from './shared/check-type.generated';
 import { Request, Response } from 'express';
 import { exceptionToString } from 'check-type';
-import { scheduleToStoredSchedule } from './shared/compute';
+import { applyActions, compareData, scheduleToStoredSchedule } from './shared/compute';
 import { loadStorage, storeStorage } from './storage';
 
 export const AXIOS_PROPS = {
@@ -96,38 +96,12 @@ async function main() {
               const initial = request.initialCallSchedule;
               const edited = request.callSchedule;
               nextSchedule = last;
-              nextSchedule.weeks.forEach((week, weekIndex) => {
-                week.days.forEach((day, dayIndex) => {
-                  // Copy over edited shifts
-                  Object.keys(day.shifts).forEach(s => {
-                    const shift = s as ShiftKind;
-                    const editedPerson =
-                      edited.weeks[weekIndex].days[dayIndex].shifts[shift];
-                    if (
-                      initial.weeks[weekIndex].days[dayIndex].shifts[shift] !==
-                      editedPerson
-                    ) {
-                      day.shifts[shift] = editedPerson;
-                    }
-                  });
-
-                  // Copy over edited backup shifts
-                  Object.keys(day.backupShifts).forEach(s => {
-                    const shift = s as ChiefShiftKind;
-                    const editedPerson =
-                      edited.weeks[weekIndex].days[dayIndex].backupShifts[
-                        shift
-                      ];
-                    if (
-                      initial.weeks[weekIndex].days[dayIndex].backupShifts[
-                        shift
-                      ] !== editedPerson
-                    ) {
-                      day.backupShifts[shift] = editedPerson;
-                    }
-                  });
-                });
-              });
+              const diff = compareData(initial, edited);
+              if (diff.kind === 'error') {
+                res.status(500).send(`Failed to compare`);
+                return;
+              }
+              applyActions(nextSchedule, diff.changes);
             }
             const nextVersion = scheduleToStoredSchedule(
               nextSchedule,

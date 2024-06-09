@@ -38,6 +38,7 @@ import {
   WEEKDAY_CALL_TARGET,
   WEEKEND_CALL_TARGET,
   clearSchedule,
+  compareData,
   dateToDayOfWeek,
   inferShift,
   nextDay,
@@ -69,6 +70,7 @@ export type RunType =
   | 'rename-36'
   | 'import-backup'
   | 'add-chief-shifts'
+  | 'diff-previous'
   | 'use-power';
 
 function runType(): RunType {
@@ -154,6 +156,22 @@ async function main() {
     storeStorage(storage);
 
     return;
+  }
+
+  if (run == 'diff-previous') {
+    for (let i = 0; i < 3; i++) {
+      const n = storage.versions[storage.versions.length - 1 - i];
+      const nMinus1 = storage.versions[storage.versions.length - 2 - i];
+
+      const diff = compareData(n.callSchedule, nMinus1.callSchedule);
+      if (diff.kind == 'error') {
+        console.log(`Error: ${diff.message}`);
+      } else {
+        console.log(`Changes in ${n.name ?? '<unnamed version>'} from ${n.ts}:`);
+        
+        console.log('\n\n');
+      }
+    }
   }
 
   if (run == 'add-chief-shifts') {
