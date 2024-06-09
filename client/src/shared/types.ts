@@ -486,6 +486,7 @@ export type LoadCallScheduleResponse = CallSchedule;
 
 export type SaveCallScheduleRequest = {
   callSchedule: CallSchedule;
+  initialCallSchedule?: CallSchedule;
   name: string;
 };
 

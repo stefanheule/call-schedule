@@ -108,6 +108,7 @@ export function RenderCallSchedule() {
   const [saveName, setSaveName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const weekListRef = useRef<VListHandle>(null);
+  const initialData = useInitialData();
 
   useMediaQuery(`(min-width:${SIDEBAR_WIDTH + WEEK_WIDTH}px)`);
 
@@ -459,6 +460,7 @@ export function RenderCallSchedule() {
                               const result = await rpcSaveCallSchedules({
                                 name: saveName,
                                 callSchedule: data,
+                                initialCallSchedule: initialData,
                               });
                               setLocalData({
                                 ...localData,

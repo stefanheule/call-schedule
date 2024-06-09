@@ -12,9 +12,11 @@ import path from 'path';
 import { setupExpressServer } from './common/express';
 import { isLocal } from './common/error-reporting';
 import {
+  ChiefShiftKind,
   ListCallSchedulesResponse,
   LoadCallScheduleResponse,
   SaveCallScheduleResponse,
+  ShiftKind,
   StoredCallSchedules,
 } from './shared/types';
 import {
@@ -87,8 +89,48 @@ async function main() {
             const storage = loadStorage({
               noCheck: true,
             });
+            const last =
+              storage.versions[storage.versions.length - 1]?.callSchedule;
+            let nextSchedule = request.callSchedule;
+            if (request.initialCallSchedule && last) {
+              const initial = request.initialCallSchedule;
+              const edited = request.callSchedule;
+              nextSchedule = last;
+              nextSchedule.weeks.forEach((week, weekIndex) => {
+                week.days.forEach((day, dayIndex) => {
+                  // Copy over edited shifts
+                  Object.keys(day.shifts).forEach(s => {
+                    const shift = s as ShiftKind;
+                    const editedPerson =
+                      edited.weeks[weekIndex].days[dayIndex].shifts[shift];
+                    if (
+                      initial.weeks[weekIndex].days[dayIndex].shifts[shift] !==
+                      editedPerson
+                    ) {
+                      day.shifts[shift] = editedPerson;
+                    }
+                  });
+
+                  // Copy over edited backup shifts
+                  Object.keys(day.backupShifts).forEach(s => {
+                    const shift = s as ChiefShiftKind;
+                    const editedPerson =
+                      edited.weeks[weekIndex].days[dayIndex].backupShifts[
+                        shift
+                      ];
+                    if (
+                      initial.weeks[weekIndex].days[dayIndex].backupShifts[
+                        shift
+                      ] !== editedPerson
+                    ) {
+                      day.backupShifts[shift] = editedPerson;
+                    }
+                  });
+                });
+              });
+            }
             const nextVersion = scheduleToStoredSchedule(
-              request.callSchedule,
+              nextSchedule,
               request.name,
             );
             const newStorage: StoredCallSchedules = {
