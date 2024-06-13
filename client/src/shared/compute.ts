@@ -77,7 +77,8 @@ export type InferenceResult = {
 };
 
 function addIssue(processed: CallScheduleProcessed, issue: Issue) {
-  const key = `${issue.kind}_${issue.startDay}_${issue.message}`;
+  const elements = issue.elements.join('_');
+  const key = `${issue.kind}_[${elements}]_${issue.message}`;
   processed.issues[key] = issue;
 }
 

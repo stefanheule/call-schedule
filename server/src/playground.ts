@@ -160,7 +160,7 @@ async function main() {
   }
 
   if (run == 'diff-previous') {
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 8; i++) {
       const n = storage.versions[storage.versions.length - 1 - i];
       const nMinus1 = storage.versions[storage.versions.length - 2 - i];
 
