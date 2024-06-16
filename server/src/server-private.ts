@@ -2,7 +2,6 @@ import * as dotenv from 'dotenv';
 dotenv.config({ path: __dirname + '/../.env' });
 
 import { exceptionToString } from 'check-type';
-import cookieParser, { signedCookie } from 'cookie-parser';
 import express, { Request, Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import path from 'path';
@@ -30,6 +29,7 @@ import {
   StoredCallSchedules,
 } from './shared/types';
 import { loadStorage, storeStorage } from './storage';
+import cookie from 'cookie';
 
 export const AXIOS_PROPS = {
   isLocal: true,
@@ -51,6 +51,12 @@ async function main() {
           res: Response<LoadCallScheduleResponse | string>,
         ) => {
           try {
+            const cookies = cookie.parse(req.headers.cookie || '');
+            console.log({
+              cookies,
+              headers: req.headers,
+              user: extractAuthedUser(req),
+            });
             const request = assertLoadCallScheduleRequest(req.body);
             const storage = loadStorage({ noCheck: true });
             let result;
@@ -152,8 +158,6 @@ async function main() {
         },
       );
 
-      app.use(cookieParser());
-
       if (!isLocal()) {
         app.use(express.static(path.join(__dirname, '../../client/build')));
         app.get('*', (req, res) => {
@@ -178,12 +182,8 @@ async function main() {
 }
 
 function extractAuthedUser(req: express.Request) {
-  console.log({
-    cookies: req.cookies,
-    signedCookies: req.signedCookies,
-  })
-  if (!req.cookies) return 'unknown';
-  const data = req.cookies['_forward_auth'] as string | undefined;
+  const cookies = cookie.parse(req.headers.cookie || '');
+  const data = cookies['_forward_auth'];
   if (data) {
     const parts = data.split('|');
     return parts[parts.length - 1];
