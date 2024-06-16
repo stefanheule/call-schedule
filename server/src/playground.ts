@@ -152,7 +152,7 @@ async function main() {
 
     assertCallSchedule(data);
     storage.versions.push(
-      scheduleToStoredSchedule(data, `Imported backup calls.`),
+      scheduleToStoredSchedule(data, `Imported backup calls.`, '<admin>'),
     );
     storeStorage(storage);
 
@@ -426,12 +426,12 @@ async function main() {
         'add-priority-weekend': 'Added priority weekends',
         'use-power': 'Use power weekends for Monday holidays',
       });
-      storage.versions.push(scheduleToStoredSchedule(data, text));
+      storage.versions.push(scheduleToStoredSchedule(data, text, '<admin>'));
       console.log(`Saving as: '${text}'`);
       break;
     case 'change-type':
       storeStorage({
-        versions: [scheduleToStoredSchedule(data, `Re-imported`)],
+        versions: [scheduleToStoredSchedule(data, `Re-imported`, '<admin>')],
       });
       console.log(`Saving as 're-imported'.`);
       break;

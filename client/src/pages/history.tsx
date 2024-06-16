@@ -157,6 +157,9 @@ function RenderSchedules({
                     `Backup shifts: ${schedule.backupShiftCounts.assigned}/${schedule.backupShiftCounts.total}; `}
                   Violations: {schedule.issueCounts.soft} soft and{' '}
                   {schedule.issueCounts.hard} hard
+                  {schedule.lastEditedBy
+                    ? `; last edited by ${schedule.lastEditedBy}`
+                    : ''}
                 </Text>
               </Column>
             </Row>

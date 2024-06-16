@@ -235,6 +235,7 @@ export type VacationSchedule = {
 };
 
 export type CallSchedule = {
+  lastEditedBy?: string;
   firstDay: string;
   lastDay: string;
   weeks: Week[];
@@ -470,6 +471,7 @@ export type BackupShiftCount = {
 
 export type StoredCallScheduleMetaData = {
   name: string;
+  lastEditedBy?: string;
   backupShiftCounts?: BackupShiftCount;
   shiftCounts: ShiftCount;
   issueCounts: IssueCount;

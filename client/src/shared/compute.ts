@@ -266,10 +266,13 @@ export function rate(
 export function scheduleToStoredSchedule(
   data: CallSchedule,
   name: string,
+  lastEditedBy: string,
 ): StoredCallSchedule {
   const processed = processCallSchedule(data);
+  data.lastEditedBy = lastEditedBy;
   return {
     name,
+    lastEditedBy: data.lastEditedBy,
     ts: dateToIsoDatetime(new Date()),
     callSchedule: data,
     issueCounts: processed.issueCounts,

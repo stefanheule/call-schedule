@@ -1,34 +1,34 @@
 import * as dotenv from 'dotenv';
 dotenv.config({ path: __dirname + '/../.env' });
 
-import express from 'express';
+import { exceptionToString } from 'check-type';
+import cookieParser, { signedCookie } from 'cookie-parser';
+import express, { Request, Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import path from 'path';
+import { isLocal } from './common/error-reporting';
+import { setupExpressServer } from './common/express';
+import {
+  assertCallSchedule,
+  assertLoadCallScheduleRequest,
+  assertSaveCallScheduleRequest,
+} from './shared/check-type.generated';
+import {
+  applyActions,
+  compareData,
+  scheduleToStoredSchedule,
+} from './shared/compute';
 import {
   CLIENT_PORT,
   SERVER_PRIVATE_PORT,
   SERVER_PUBLIC_PORT,
 } from './shared/ports';
-import path from 'path';
-import { setupExpressServer } from './common/express';
-import { isLocal } from './common/error-reporting';
 import {
   ListCallSchedulesResponse,
   LoadCallScheduleResponse,
   SaveCallScheduleResponse,
   StoredCallSchedules,
 } from './shared/types';
-import {
-  assertCallSchedule,
-  assertLoadCallScheduleRequest,
-  assertSaveCallScheduleRequest,
-} from './shared/check-type.generated';
-import { Request, Response } from 'express';
-import { exceptionToString } from 'check-type';
-import {
-  applyActions,
-  compareData,
-  scheduleToStoredSchedule,
-} from './shared/compute';
 import { loadStorage, storeStorage } from './storage';
 
 export const AXIOS_PROPS = {
@@ -105,9 +105,11 @@ async function main() {
               }
               applyActions(nextSchedule, diff.changes);
             }
+            const authedUser = extractAuthedUser(req);
             const nextVersion = scheduleToStoredSchedule(
               nextSchedule,
               request.name,
+              isLocal() ? '<local>' : authedUser,
             );
             const newStorage: StoredCallSchedules = {
               versions: [...storage.versions, nextVersion],
@@ -135,6 +137,7 @@ async function main() {
             res.send({
               schedules: storage.versions.map(v => ({
                 name: v.name,
+                lastEditedBy: v.callSchedule.lastEditedBy,
                 shiftCounts: v.shiftCounts,
                 issueCounts: v.issueCounts,
                 backupShiftCounts: v.backupShiftCounts,
@@ -148,6 +151,8 @@ async function main() {
           }
         },
       );
+
+      app.use(cookieParser());
 
       if (!isLocal()) {
         app.use(express.static(path.join(__dirname, '../../client/build')));
@@ -170,6 +175,20 @@ async function main() {
       }
     },
   });
+}
+
+function extractAuthedUser(req: express.Request) {
+  console.log({
+    cookies: req.cookies,
+    signedCookies: req.signedCookies,
+  })
+  if (!req.cookies) return 'unknown';
+  const data = req.cookies['_forward_auth'] as string | undefined;
+  if (data) {
+    const parts = data.split('|');
+    return parts[parts.length - 1];
+  }
+  return 'unknown';
 }
 
 void main();
