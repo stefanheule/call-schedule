@@ -51,12 +51,6 @@ async function main() {
           res: Response<LoadCallScheduleResponse | string>,
         ) => {
           try {
-            const cookies = cookie.parse(req.headers.cookie || '');
-            console.log({
-              cookies,
-              headers: req.headers,
-              user: extractAuthedUser(req),
-            });
             const request = assertLoadCallScheduleRequest(req.body);
             const storage = loadStorage({ noCheck: true });
             let result;
