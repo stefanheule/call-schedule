@@ -97,6 +97,7 @@ import {
   assertMaybeCallPoolPerson,
   assertMaybeChief,
 } from '../shared/check-type.generated';
+import { dateToIsoDate } from '../shared/optimized';
 
 export function RenderCallSchedule() {
   const [showRotations, _setShowRotations] = useState(true);
@@ -1158,6 +1159,7 @@ const DAY_VACATION_HEIGHT = '37px';
 const DAY_BACKUP_HEIGHT = '23px';
 const DAY_HOSPITALS_HEIGHT = '90px';
 const DAY_BORDER = `1px solid black`;
+const DAY_BORDER_TODAY = `2px solid black`;
 const DAY_BOX_STYLE: React.CSSProperties = {
   padding: `2px ${DAY_PADDING}px`,
 };
@@ -1228,15 +1230,23 @@ function RenderDay({
   setWarningSnackbar: (v: string) => void;
 }) {
   const [data] = useData();
+  const [today, setToday] = useState(dateToIsoDate(new Date()));
   const day = data.weeks[id.weekIndex].days[id.dayIndex];
   const date = isoDateToDate(day.date);
   const processed = useProcessedData();
   const isHoliday = data.holidays[day.date] !== undefined;
   const isSpecial = data.specialDays[day.date] !== undefined;
+  const isToday = day.date == today;
   const showRotationsToday =
     (id.dayIndex == 0 && id.weekIndex !== 0) ||
     (id.dayIndex == 1 && id.weekIndex == 0);
-  const backgroundColor = isHoliday ? '#fee' : isSpecial ? '#eef' : undefined;
+  const backgroundColor = isHoliday
+    ? '#fee'
+    : isSpecial
+      ? '#eef'
+      : isToday
+        ? '#efe'
+        : undefined;
 
   const vacation = processed.day2person2info[day.date]
     ? Object.entries(processed.day2person2info[day.date]).filter(
@@ -1252,7 +1262,7 @@ function RenderDay({
     <Column
       id={elementIdForDay(day.date)}
       style={{
-        border: DAY_BORDER,
+        border: isToday ? DAY_BORDER_TODAY : DAY_BORDER,
         boxSizing: 'border-box',
         borderRadius: `5px`,
         width: `${DAY_WIDTH}px`,
