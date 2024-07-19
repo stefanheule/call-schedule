@@ -119,6 +119,21 @@ export function RenderCallSchedule() {
   useMediaQuery(`(min-width:${SIDEBAR_WIDTH + WEEK_WIDTH}px)`);
 
   useEffect(() => {
+    let weekIdx = 0;
+    const today = dateToIsoDate(new Date());
+    for (const week of data.weeks) {
+      for (const day of week.days) {
+        if (day.date === today) {
+          weekListRef.current?.scrollToIndex(weekIdx);
+          return;
+        }
+      }
+      weekIdx += 1;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     window.onbeforeunload = confirmExit;
     function confirmExit() {
       if (localData.unsavedChanges == 0) return null;
@@ -1247,6 +1262,16 @@ function RenderDay({
       : isToday
         ? '#efe'
         : undefined;
+
+  useEffect(() => {
+    const timer = setInterval(
+      () => {
+        setToday(dateToIsoDate(new Date()));
+      },
+      1000 * 60 * 10,
+    );
+    return () => clearInterval(timer);
+  }, []);
 
   const vacation = processed.day2person2info[day.date]
     ? Object.entries(processed.day2person2info[day.date]).filter(
