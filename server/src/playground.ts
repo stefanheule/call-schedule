@@ -568,6 +568,22 @@ const people: {
     year: '2',
     priorityWeekendSaturday: '2024-08-31',
   },
+  CF: {
+    name: 'CF',
+    year: '1',
+  },
+  TH: {
+    name: 'TH',
+    year: '1',
+  },
+  HL: {
+    name: 'HL',
+    year: '1',
+  },
+  SO: {
+    name: 'SO',
+    year: '1',
+  },
 };
 
 async function importRotationSchedule(): Promise<
@@ -609,6 +625,10 @@ async function importRotationSchedule(): Promise<
     NR: [],
     LX: [],
     CC: [],
+    CF: [],
+    HL: [],
+    TH: [],
+    SO: [],
   };
   const result: RotationSchedule = {
     MAD: [],
@@ -662,6 +682,10 @@ async function importRotationSchedule(): Promise<
         chief: false,
       },
     ],
+    CF: [],
+    HL: [],
+    TH: [],
+    SO: [],
   };
 
   // Import vacations
@@ -1054,6 +1078,10 @@ async function importPreviousSchedule() {
       KO: [],
       CPu: [],
       NR: [],
+      CF: [],
+      HL: [],
+      TH: [],
+      SO: [],
     },
     rotations: {
       MAD: [],
@@ -1074,6 +1102,10 @@ async function importPreviousSchedule() {
       KO: [],
       CPu: [],
       NR: [],
+      CF: [],
+      HL: [],
+      TH: [],
+      SO: [],
     },
   };
 

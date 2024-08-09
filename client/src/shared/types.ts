@@ -167,6 +167,10 @@ export const ALL_PEOPLE = [
   'KO',
   'CPu',
   'NR',
+  'CF',
+  'TH',
+  'HL',
+  'SO',
 ] as const;
 export type Person = (typeof ALL_PEOPLE)[number];
 export type UnassignedPerson = '';
