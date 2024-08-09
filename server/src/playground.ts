@@ -9,6 +9,7 @@ import {
   CallPool,
   CallPoolPerson,
   CallSchedule,
+  ChiefShiftKind,
   Day,
   HospitalKind,
   MaybeCallPoolPerson,
@@ -269,6 +270,16 @@ async function main() {
             const shifts = data.weeks[weekIndex].days[dayIndex].shifts;
             if (shift in shifts) {
               shifts[shift] = person;
+            }
+          }
+        });
+        Object.entries(day.backupShifts).forEach(([s, person]) => {
+          const shift = s as ChiefShiftKind;
+          if (person) {
+            const backupShifts =
+              data.weeks[weekIndex].days[dayIndex].backupShifts;
+            if (shift in backupShifts) {
+              backupShifts[shift] = person;
             }
           }
         });

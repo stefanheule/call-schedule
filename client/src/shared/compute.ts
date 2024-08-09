@@ -976,7 +976,9 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   }
 
   // Compute if the first NF is an R2
-  const r2s = ALL_PEOPLE.filter(p => data.people[p].year == '2');
+  const r2s = ALL_PEOPLE.filter(
+    p => data.people[p] && data.people[p].year == '2',
+  );
   for (const r2 of r2s) {
     let foundFirstNf = false;
     let exit = false;
