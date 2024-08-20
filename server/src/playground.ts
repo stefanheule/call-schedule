@@ -56,6 +56,7 @@ import { assertRunType } from './check-type.generated';
 import { loadStorage, storeStorage } from './storage';
 import fs from 'fs';
 import { exportSchedule } from './shared/export';
+import Diff from 'diff';
 
 // @check-type
 export type RunType =
@@ -73,7 +74,8 @@ export type RunType =
   | 'import-backup'
   | 'add-chief-shifts'
   | 'diff-previous'
-  | 'use-power';
+  | 'use-power'
+  | 'update-static';
 
 function runType(): RunType {
   if (process.argv.length < 3) return 'noop';
@@ -428,6 +430,7 @@ async function main() {
     case 'infer-weekdays':
     case 'add-priority-weekend':
     case 'clear-weekdays':
+    case 'update-static':
       const text = mapEnum(run, {
         'clear-weekends': 'Cleared weekends to start over',
         'clear-weekdays': 'Cleared weekday calls to start over',
@@ -436,7 +439,24 @@ async function main() {
         'infer-weekdays': 'Auto-assigned weekdays',
         'add-priority-weekend': 'Added priority weekends',
         'use-power': 'Use power weekends for Monday holidays',
+        'update-static':
+          'Updated static information like people, holidays, etc.',
       });
+
+      // Print diff
+      const previous = storage.versions[storage.versions.length - 1];
+      const diff = Diff.createPatch(
+        'storage.json',
+        JSON.stringify(previous, null, 2),
+        JSON.stringify(data, null, 2),
+        undefined,
+        undefined,
+        {
+          context: 4,
+        },
+      );
+      console.log(diff);
+
       storage.versions.push(scheduleToStoredSchedule(data, text, '<admin>'));
       console.log(`Saving as: '${text}'`);
       break;
