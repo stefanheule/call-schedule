@@ -56,7 +56,7 @@ import { assertRunType } from './check-type.generated';
 import { loadStorage, storeStorage } from './storage';
 import fs from 'fs';
 import { exportSchedule } from './shared/export';
-import Diff from 'diff';
+import * as Diff from 'diff';
 
 // @check-type
 export type RunType =
@@ -256,6 +256,17 @@ async function main() {
     return;
   }
 
+  if (run == 'update-static') {
+    const reimportedData = await importPreviousSchedule();
+    data.firstDay = reimportedData.firstDay;
+    data.holidays = reimportedData.holidays;
+    data.people = reimportedData.people;
+    data.specialDays = reimportedData.specialDays;
+    data.rotations = reimportedData.rotations;
+    data.shiftConfigs = reimportedData.shiftConfigs;
+    data.vacations = reimportedData.vacations;
+  }
+
   // Move existing assignments over
   if (run == 're-import-holiday' || run == 'add-priority-weekend') {
     const reimportedData = await importPreviousSchedule();
@@ -444,7 +455,7 @@ async function main() {
       });
 
       // Print diff
-      const previous = storage.versions[storage.versions.length - 1];
+      const previous = storage.versions[storage.versions.length - 1].callSchedule;
       const diff = Diff.createPatch(
         'storage.json',
         JSON.stringify(previous, null, 2),

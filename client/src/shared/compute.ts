@@ -758,6 +758,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       const priority2 = nextDay(priority, 1);
       assertNonNull(
         result.day2person2info[priority]?.[person],
+        `Missing person info for ${person} and date ${priority}.`,
       ).onPriorityWeekend = true;
       assertNonNull(
         result.day2person2info[priority2]?.[person],
