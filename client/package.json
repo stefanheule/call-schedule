@@ -17,7 +17,7 @@
     "@mui/material": "^5.15.1",
     "@types/file-saver": "^2.0.7",
     "@types/react-window": "^1.8.8",
-    "axios": "^1.6.2",
+    "axios": "^1.7.4",
     "check-type": "file:../../check-type",
     "date-fns": "^3.0.1",
     "deep-equal": "^2.2.3",
