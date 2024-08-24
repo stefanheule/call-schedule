@@ -75,7 +75,7 @@ export type RunType =
   | 'add-chief-shifts'
   | 'diff-previous'
   | 'use-power'
-  | 'update-static';
+  | 'add-interns';
 
 function runType(): RunType {
   if (process.argv.length < 3) return 'noop';
@@ -256,15 +256,23 @@ async function main() {
     return;
   }
 
-  if (run == 'update-static') {
-    const reimportedData = await importPreviousSchedule();
-    data.firstDay = reimportedData.firstDay;
-    data.holidays = reimportedData.holidays;
-    data.people = reimportedData.people;
-    data.specialDays = reimportedData.specialDays;
-    data.rotations = reimportedData.rotations;
-    data.shiftConfigs = reimportedData.shiftConfigs;
-    data.vacations = reimportedData.vacations;
+  if (run == 'add-interns') {
+    data.people = people;
+
+    for (const person of ALL_PEOPLE) {
+      if (!(person in data.vacations)) {
+        data.vacations[person] = [];
+      }
+      if (!(person in data.rotations)) {
+        data.rotations[person] = [
+          {
+            start: data.firstDay,
+            rotation: 'OFF',
+            chief: false,
+          },
+        ];
+      }
+    }
   }
 
   // Move existing assignments over
@@ -441,7 +449,7 @@ async function main() {
     case 'infer-weekdays':
     case 'add-priority-weekend':
     case 'clear-weekdays':
-    case 'update-static':
+    case 'add-interns':
       const text = mapEnum(run, {
         'clear-weekends': 'Cleared weekends to start over',
         'clear-weekdays': 'Cleared weekday calls to start over',
@@ -450,12 +458,14 @@ async function main() {
         'infer-weekdays': 'Auto-assigned weekdays',
         'add-priority-weekend': 'Added priority weekends',
         'use-power': 'Use power weekends for Monday holidays',
-        'update-static':
-          'Updated static information like people, holidays, etc.',
+        'add-interns': 'Add interns to schedule',
       });
 
+      data = assertCallSchedule(data);
+
       // Print diff
-      const previous = storage.versions[storage.versions.length - 1].callSchedule;
+      const previous =
+        storage.versions[storage.versions.length - 1].callSchedule;
       const diff = Diff.createPatch(
         'storage.json',
         JSON.stringify(previous, null, 2),
