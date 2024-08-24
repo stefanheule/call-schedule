@@ -154,7 +154,11 @@ export async function exportSchedule(
           ? 'day_nwhsch'
           : shift == 'day_2x_uw'
             ? 'day_uw'
-            : shift;
+            : shift == 'weekend_half_south'
+              ? 'weekend_south'
+              : shift == 'weekend_half_uw'
+                ? 'weekend_uw'
+                : shift;
       shifts[day][exportShift] = call;
       switch (shift) {
         case 'weekday_south':
@@ -163,6 +167,8 @@ export async function exportSchedule(
         case 'day_uw':
         case 'day_va':
         case 'day_nwhsch':
+        case 'weekend_half_south':
+        case 'weekend_half_uw':
           break;
         case 'weekend_south':
         case 'weekend_uw':
@@ -241,6 +247,8 @@ export async function exportSchedule(
       south_power: 'Weekend South Power (5pm-7am)',
       day_2x_uw: 'Day UW (7am-5pm) both Thu and Fri',
       day_2x_nwhsch: 'Day NWH/SCH (7am-5pm) both Thu and Fri',
+      weekend_half_south: 'Weekend South (5pm-5pm) half',
+      weekend_half_uw: 'Weekend UW (5pm-5pm) half',
     });
   }
 
