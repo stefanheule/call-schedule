@@ -663,13 +663,13 @@ const shiftConfigs: {
   // },
   weekend_half_south: {
     kind: 'weekend_half_south',
-    name: `Half Weekend South`,
+    name: `Split Weekend South`,
     hospitals: SOUTH_HOSPITALS,
     days: 1,
   },
   weekend_half_uw: {
     kind: 'weekend_half_uw',
-    name: `Half Weekend UW`,
+    name: `Split Weekend UW`,
     hospitals: ['UW'],
     days: 1,
   },
