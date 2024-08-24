@@ -374,6 +374,8 @@ const SHIFT_SERIALIZATION_MAP = {
   backup_weekday: 'Backup Call Weekday',
   backup_weekend: 'Backup Call Weekend',
   backup_holiday: 'Backup Call Holiday',
+  weekend_half_uw: 'Half Weekend at UW',
+  weekend_half_south: 'Half Weekend South',
 } as const;
 export function serializeShift(s: ChiefShiftKind | ShiftKind) {
   return mapEnum(s, SHIFT_SERIALIZATION_MAP);
@@ -843,6 +845,8 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           south_24: 1,
           south_34: 2,
           south_power: 3,
+          weekend_half_south: 1,
+          weekend_half_uw: 1,
         });
         for (let i = 0; i < lenDays; i++) {
           const nextD = nextDay(day.date, i);
@@ -1776,6 +1780,11 @@ export function countHolidayShifts(holidayShifts: HolidayShift[]): {
       //   calls += 1;
       //   hours += 60;
       //   break;
+      case 'weekend_half_south':
+      case 'weekend_half_uw':
+        calls += 1;
+        hours += 24;
+        break;
     }
   }
   return { calls, hours };

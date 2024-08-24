@@ -18,6 +18,7 @@ import {
   ROTATIONS,
   RotationKind,
   RotationSchedule,
+  ShiftConfig,
   ShiftKind,
   StoredCallSchedules,
   VacationSchedule,
@@ -75,7 +76,7 @@ export type RunType =
   | 'add-chief-shifts'
   | 'diff-previous'
   | 'use-power'
-  | 'add-interns';
+  | 'update-people-shifts'
 
 function runType(): RunType {
   if (process.argv.length < 3) return 'noop';
@@ -256,7 +257,7 @@ async function main() {
     return;
   }
 
-  if (run == 'add-interns') {
+  if (run == 'update-people-shifts') {
     data.people = people;
 
     for (const person of ALL_PEOPLE) {
@@ -273,6 +274,8 @@ async function main() {
         ];
       }
     }
+
+    data.shiftConfigs = shiftConfigs;
   }
 
   // Move existing assignments over
@@ -449,7 +452,7 @@ async function main() {
     case 'infer-weekdays':
     case 'add-priority-weekend':
     case 'clear-weekdays':
-    case 'add-interns':
+    case 'update-people-shifts':
       const text = mapEnum(run, {
         'clear-weekends': 'Cleared weekends to start over',
         'clear-weekdays': 'Cleared weekday calls to start over',
@@ -458,7 +461,7 @@ async function main() {
         'infer-weekdays': 'Auto-assigned weekdays',
         'add-priority-weekend': 'Added priority weekends',
         'use-power': 'Use power weekends for Monday holidays',
-        'add-interns': 'Add interns to schedule',
+        'update-people-shifts': 'Update the people list and shift configs',
       });
 
       data = assertCallSchedule(data);
@@ -531,6 +534,122 @@ function rename36(storage: StoredCallSchedules) {
   //   }
   // }
 }
+
+const SOUTH_HOSPITALS: HospitalKind[] = ['HMC', 'VA'];
+const NWHSCH_HOSPITALS: HospitalKind[] = ['NWH', 'SCH'];
+
+const shiftConfigs: {
+  [Property in ShiftKind]: ShiftConfig;
+} = {
+  weekday_south: {
+    kind: `weekday_south`,
+    name: `South`,
+    hospitals: SOUTH_HOSPITALS,
+    days: 2,
+  },
+  weekend_uw: {
+    kind: 'weekend_uw',
+    name: 'UW',
+    hospitals: ['UW'],
+    days: 3,
+  },
+  weekend_nwhsch: {
+    kind: 'weekend_nwhsch',
+    name: 'NWH/SCH',
+    hospitals: NWHSCH_HOSPITALS,
+    days: 3,
+  },
+  weekend_south: {
+    kind: 'weekend_south',
+    name: `South`,
+    hospitals: SOUTH_HOSPITALS,
+    days: 3,
+  },
+  day_nwhsch: {
+    kind: 'day_nwhsch',
+    name: `NWH/SCH Day`,
+    hospitals: NWHSCH_HOSPITALS,
+    days: 1,
+  },
+  day_uw: {
+    kind: 'day_uw',
+    name: `UW Day`,
+    hospitals: ['UW'],
+    days: 1,
+  },
+  day_va: {
+    kind: 'day_va',
+    name: `VA Day`,
+    hospitals: ['VA'],
+    days: 1,
+  },
+  day_2x_nwhsch: {
+    kind: 'day_2x_nwhsch',
+    name: `NWH/SCH 2 Day`,
+    hospitals: NWHSCH_HOSPITALS,
+    days: 2,
+  },
+  day_2x_uw: {
+    kind: 'day_2x_uw',
+    name: `UW 2 Day`,
+    hospitals: ['UW'],
+    days: 2,
+  },
+  south_24: {
+    kind: 'south_24',
+    name: `South 24`,
+    hospitals: SOUTH_HOSPITALS,
+    days: 2,
+  },
+  south_power: {
+    kind: 'south_power',
+    name: `South Pwr`,
+    hospitals: SOUTH_HOSPITALS,
+    days: 4,
+  },
+  // power_nwhsch: {
+  //   kind: 'power_nwhsch',
+  //   name: `Power NWH/SCH`,
+  //   hospitals: NWHSCH_HOSPITALS,
+  //   days: 3,
+  // },
+  // power_uw: {
+  //   kind: 'power_uw',
+  //   name: `Power UW`,
+  //   hospitals: ['UW'],
+  //   days: 3,
+  // },
+  // power_south: {
+  //   kind: 'power_south',
+  //   name: `Power South`,
+  //   hospitals: SOUTH_HOSPITALS,
+  //   days: 3,
+  // },
+  south_34: {
+    kind: 'south_34',
+    name: `South 34`,
+    hospitals: SOUTH_HOSPITALS,
+    days: 2,
+  },
+  // thanksgiving_south: {
+  //   kind: 'thanksgiving_south',
+  //   name: `Thanksgiving South`,
+  //   hospitals: SOUTH_HOSPITALS,
+  //   days: 3,
+  // },
+  weekend_half_south: {
+    kind: 'weekend_half_south',
+    name: `Half Weekend South`,
+    hospitals: SOUTH_HOSPITALS,
+    days: 1,
+  },
+  weekend_half_uw: {
+    kind: 'weekend_half_uw',
+    name: `Half Weekend UW`,
+    hospitals: ['UW'],
+    days: 1,
+  },
+};
 
 const people: {
   [Property in Person]: PersonConfig;
@@ -988,110 +1107,11 @@ async function importPreviousSchedule() {
     }
   }
 
-  const SOUTH_HOSPITALS: HospitalKind[] = ['HMC', 'VA'];
-  const NWHSCH_HOSPITALS: HospitalKind[] = ['NWH', 'SCH'];
   const data: CallSchedule = {
     firstDay: '2024-06-30',
     lastDay: '2025-06-30',
     weeks: [],
-    shiftConfigs: {
-      weekday_south: {
-        kind: `weekday_south`,
-        name: `South`,
-        hospitals: SOUTH_HOSPITALS,
-        days: 2,
-      },
-      weekend_uw: {
-        kind: 'weekend_uw',
-        name: 'UW',
-        hospitals: ['UW'],
-        days: 3,
-      },
-      weekend_nwhsch: {
-        kind: 'weekend_nwhsch',
-        name: 'NWH/SCH',
-        hospitals: NWHSCH_HOSPITALS,
-        days: 3,
-      },
-      weekend_south: {
-        kind: 'weekend_south',
-        name: `South`,
-        hospitals: SOUTH_HOSPITALS,
-        days: 3,
-      },
-      day_nwhsch: {
-        kind: 'day_nwhsch',
-        name: `NWH/SCH Day`,
-        hospitals: NWHSCH_HOSPITALS,
-        days: 1,
-      },
-      day_uw: {
-        kind: 'day_uw',
-        name: `UW Day`,
-        hospitals: ['UW'],
-        days: 1,
-      },
-      day_va: {
-        kind: 'day_va',
-        name: `VA Day`,
-        hospitals: ['VA'],
-        days: 1,
-      },
-      day_2x_nwhsch: {
-        kind: 'day_2x_nwhsch',
-        name: `NWH/SCH 2 Day`,
-        hospitals: NWHSCH_HOSPITALS,
-        days: 2,
-      },
-      day_2x_uw: {
-        kind: 'day_2x_uw',
-        name: `UW 2 Day`,
-        hospitals: ['UW'],
-        days: 2,
-      },
-      south_24: {
-        kind: 'south_24',
-        name: `South 24`,
-        hospitals: SOUTH_HOSPITALS,
-        days: 2,
-      },
-      south_power: {
-        kind: 'south_power',
-        name: `South Pwr`,
-        hospitals: SOUTH_HOSPITALS,
-        days: 4,
-      },
-      // power_nwhsch: {
-      //   kind: 'power_nwhsch',
-      //   name: `Power NWH/SCH`,
-      //   hospitals: NWHSCH_HOSPITALS,
-      //   days: 3,
-      // },
-      // power_uw: {
-      //   kind: 'power_uw',
-      //   name: `Power UW`,
-      //   hospitals: ['UW'],
-      //   days: 3,
-      // },
-      // power_south: {
-      //   kind: 'power_south',
-      //   name: `Power South`,
-      //   hospitals: SOUTH_HOSPITALS,
-      //   days: 3,
-      // },
-      south_34: {
-        kind: 'south_34',
-        name: `South 34`,
-        hospitals: SOUTH_HOSPITALS,
-        days: 2,
-      },
-      // thanksgiving_south: {
-      //   kind: 'thanksgiving_south',
-      //   name: `Thanksgiving South`,
-      //   hospitals: SOUTH_HOSPITALS,
-      //   days: 3,
-      // },
-    },
+    shiftConfigs,
     people,
     holidays: {},
     specialDays: {

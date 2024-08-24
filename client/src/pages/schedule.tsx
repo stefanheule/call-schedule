@@ -99,6 +99,8 @@ import {
 } from '../shared/check-type.generated';
 import { dateToIsoDate } from '../shared/optimized';
 
+import Editor from '@monaco-editor/react';
+
 export function RenderCallSchedule() {
   const [showRotations, _setShowRotations] = useState(true);
   const [copyPasteSnackbar, setCopyPasteSnackbar] = useState('');
@@ -1913,6 +1915,7 @@ function PersonPickerDialog() {
     isBackup ? ['C'] : ['2', '3', 'S', 'R', 'M'],
   );
   const buttonWidth = 200;
+
   return (
     <Dialog
       open={personPicker.isOpen}

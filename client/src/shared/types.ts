@@ -46,6 +46,8 @@ export const SPECIAL_SHIFTS = [
   'south_24',
   'south_34',
   'south_power',
+  'weekend_half_south',
+  'weekend_half_uw',
 
   // 'power_uw',
   // 'power_nwhsch',
@@ -59,6 +61,8 @@ export const SPECIAL_SHIFT_LOOKUP: Record<SpecialShiftKind, boolean> = {
   south_24: true,
   south_34: true,
   south_power: true,
+  weekend_half_south: true,
+  weekend_half_uw: true,
   // power_uw: true,
   // power_nwhsch: true,
   // power_south: true,
