@@ -374,8 +374,8 @@ const SHIFT_SERIALIZATION_MAP = {
   backup_weekday: 'Backup Call Weekday',
   backup_weekend: 'Backup Call Weekend',
   backup_holiday: 'Backup Call Holiday',
-  weekend_half_uw: 'Half Weekend at UW',
-  weekend_half_south: 'Half Weekend South',
+  weekend_half_uw: 'Split Weekend at UW',
+  weekend_half_south: 'Split Weekend South',
 } as const;
 export function serializeShift(s: ChiefShiftKind | ShiftKind) {
   return mapEnum(s, SHIFT_SERIALIZATION_MAP);

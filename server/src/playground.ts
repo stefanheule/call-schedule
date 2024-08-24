@@ -77,6 +77,7 @@ export type RunType =
   | 'diff-previous'
   | 'use-power'
   | 'update-people-shifts'
+  | 'onetime-split-weekends';
 
 function runType(): RunType {
   if (process.argv.length < 3) return 'noop';
@@ -278,6 +279,27 @@ async function main() {
     data.shiftConfigs = shiftConfigs;
   }
 
+  if (run == 'onetime-split-weekends') {
+    for (const week of data.weeks) {
+      for (const day of week.days) {
+        if (day.date === '2024-12-06') {
+          delete day.shifts.weekend_south;
+          day.shifts.weekend_half_south = 'TM';
+        }
+        if (day.date === '2024-12-07') {
+          day.shifts.weekend_half_south = 'RB';
+        }
+        if (day.date === '2025-03-07') {
+          delete day.shifts.weekend_uw;
+          day.shifts.weekend_half_uw = 'CC';
+        }
+        if (day.date === '2025-03-08') {
+          day.shifts.weekend_half_uw = 'KO';
+        }
+      }
+    }
+  }
+
   // Move existing assignments over
   if (run == 're-import-holiday' || run == 'add-priority-weekend') {
     const reimportedData = await importPreviousSchedule();
@@ -453,6 +475,7 @@ async function main() {
     case 'add-priority-weekend':
     case 'clear-weekdays':
     case 'update-people-shifts':
+    case 'onetime-split-weekends':
       const text = mapEnum(run, {
         'clear-weekends': 'Cleared weekends to start over',
         'clear-weekdays': 'Cleared weekday calls to start over',
@@ -462,6 +485,7 @@ async function main() {
         'add-priority-weekend': 'Added priority weekends',
         'use-power': 'Use power weekends for Monday holidays',
         'update-people-shifts': 'Update the people list and shift configs',
+        'onetime-split-weekends': 'Split weekends of 12/6 and 3/7',
       });
 
       data = assertCallSchedule(data);
