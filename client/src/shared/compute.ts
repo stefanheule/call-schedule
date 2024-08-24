@@ -1686,6 +1686,7 @@ export function yearToColor(
       '3': '#ffdfba', // orange
       S: '#ffb3ba', // red
       M: '#bae1ff', // blue
+      '1': '#ffbae1', // pink
     },
     '#cccccc',
   );
@@ -1698,6 +1699,7 @@ export function yearToColor(
         '3': '#cd5c00', // dark orange
         S: '#b22222', // dark red
         M: '#1e90ff', // dark blue
+        '1': '#8b008b', // dark pink
       },
       '#333333', // dark grey as default
     );

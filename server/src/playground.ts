@@ -77,7 +77,8 @@ export type RunType =
   | 'diff-previous'
   | 'use-power'
   | 'update-people-shifts'
-  | 'onetime-split-weekends';
+  | 'onetime-split-weekends'
+  | 'onetime-intern-schedule';
 
 function runType(): RunType {
   if (process.argv.length < 3) return 'noop';
@@ -458,6 +459,123 @@ async function main() {
     }
   }
 
+  if (run == 'onetime-intern-schedule') {
+    data.vacations.LX = [
+      '2024-08-12',
+      '2025-05-26',
+      '2024-12-23',
+      '2025-05-19',
+    ];
+    data.vacations.HL = [
+      {
+        start: '2025-05-24',
+        length: 5,
+      },
+      {
+        start: '2025-06-21',
+        length: 4,
+      },
+    ];
+    data.rotations.CF = [
+      {
+        start: '2024-06-30',
+        rotation: 'OFF',
+        chief: false,
+      },
+      {
+        start: '2024-11-14',
+        rotation: 'VA',
+        chief: false,
+      },
+      {
+        start: '2025-01-09',
+        rotation: 'OFF',
+        chief: false,
+      },
+      {
+        start: '2025-03-06',
+        rotation: 'UW',
+        chief: false,
+      },
+      {
+        start: '2025-05-01',
+        rotation: 'OFF',
+        chief: false,
+      },
+    ];
+    data.rotations.TH = [
+      {
+        start: '2024-06-30',
+        rotation: 'OFF',
+        chief: false,
+      },
+      {
+        start: '2024-11-14',
+        rotation: 'UW',
+        chief: false,
+      },
+      {
+        start: '2025-01-09',
+        rotation: 'OFF',
+        chief: false,
+      },
+      {
+        start: '2025-03-06',
+        rotation: 'VA',
+        chief: false,
+      },
+      {
+        start: '2025-05-01',
+        rotation: 'OFF',
+        chief: false,
+      },
+    ];
+    data.rotations.HL = [
+      {
+        start: '2024-06-30',
+        rotation: 'OFF',
+        chief: false,
+      },
+      {
+        start: '2025-01-09',
+        rotation: 'VA',
+        chief: false,
+      },
+      {
+        start: '2025-03-06',
+        rotation: 'OFF',
+        chief: false,
+      },
+      {
+        start: '2025-05-01',
+        rotation: 'UW',
+        chief: false,
+      },
+    ];
+    data.rotations.SO = [
+      {
+        start: '2024-06-30',
+        rotation: 'OFF',
+        chief: false,
+      },
+      {
+        start: '2025-01-09',
+        rotation: 'UW',
+        chief: false,
+      },
+      {
+        start: '2025-03-06',
+        rotation: 'OFF',
+        chief: false,
+      },
+      {
+        start: '2025-05-01',
+        rotation: 'VA',
+        chief: false,
+      },
+    ];
+  }
+
   switch (run) {
     case 'rename-36':
       rename36(storage);
@@ -476,6 +594,7 @@ async function main() {
     case 'clear-weekdays':
     case 'update-people-shifts':
     case 'onetime-split-weekends':
+    case 'onetime-intern-schedule':
       const text = mapEnum(run, {
         'clear-weekends': 'Cleared weekends to start over',
         'clear-weekdays': 'Cleared weekday calls to start over',
@@ -486,6 +605,7 @@ async function main() {
         'use-power': 'Use power weekends for Monday holidays',
         'update-people-shifts': 'Update the people list and shift configs',
         'onetime-split-weekends': 'Split weekends of 12/6 and 3/7',
+        'onetime-intern-schedule': 'Add intern schedule',
       });
 
       data = assertCallSchedule(data);

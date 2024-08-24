@@ -1096,7 +1096,15 @@ const ERROR_COLOR = 'hsl(0, 70%, 50%)';
 function Highlight() {
   const [data] = useData();
   const [_, setLocalData] = useLocalData();
-  const year2people = getYearToPeople(data, ['2', '3', 'S', 'R', 'M', 'C']);
+  const year2people = getYearToPeople(data, [
+    '1',
+    '2',
+    '3',
+    'S',
+    'R',
+    'M',
+    'C',
+  ]);
   return (
     <Column spacing="5px">
       <Heading>Highlight</Heading>
