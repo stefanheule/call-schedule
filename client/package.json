@@ -27,6 +27,7 @@
     "file-saver": "^2.0.5",
     "ical-generator": "^7.1.0",
     "ics": "^3.7.6",
+    "monaco-editor": "^0.51.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-helmet": "^6.1.0",

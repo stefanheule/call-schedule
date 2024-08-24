@@ -8,10 +8,7 @@ import {
   mapEnumWithDefault,
 } from 'check-type';
 import {
-  ALL_CHIEFS,
-  ALL_PEOPLE,
   Action,
-  CALL_POOL,
   CHIEF_SHIFTS,
   CallPoolPerson,
   CallSchedule,
@@ -28,6 +25,9 @@ import {
   UnavailablePeople,
   WEEKDAY_SHIFT_LOOKUP,
   WEEKEND_SHIFT_LOOKUP,
+  allChiefs,
+  allPeople,
+  callPoolPeople,
   isHolidayShift,
   isNoCallRotation,
 } from './types';
@@ -58,8 +58,10 @@ export function availablePeopleForShift(
 ): readonly CallPoolPerson[] {
   const unavailablePeople =
     processed.day2shift2unavailablePeople?.[date]?.[shift];
-  if (!unavailablePeople) return CALL_POOL;
-  return CALL_POOL.filter(p => unavailablePeople[p] == undefined);
+  if (!unavailablePeople) return callPoolPeople(processed.data);
+  return callPoolPeople(processed.data).filter(
+    p => unavailablePeople[p] == undefined,
+  );
 }
 
 export type InferenceResult = {
@@ -168,23 +170,23 @@ export function inferShift(
   }
   day.shifts[shift] = oldPerson;
   const min = Array.from(Object.values(person2rating))
-    .map(x => x.rating)
+    .map(x => assertNonNull(x).rating)
     .sort((a, b) => lexicalCompare(a, b))[0];
   const best = Object.entries(person2rating).filter(([, v]) =>
-    ratingCompare(v.rating, min),
+    ratingCompare(assertNonNull(v).rating, min),
   );
   const randomWinner = best[Math.floor(Math.random() * best.length)];
   if (config?.enableLog) {
     console.log(
       `For ${date} picking a rating=${ratingToString(
-        randomWinner[1].rating,
+        assertNonNull(randomWinner[1]).rating,
       )}: ${randomWinner[0]}`,
     );
   }
   return {
     best: {
-      person: randomWinner[0] as CallPoolPerson,
-      processed: randomWinner[1].processed,
+      person: randomWinner[0],
+      processed: assertNonNull(randomWinner[1]).processed,
       ratings: person2rating,
     },
     unavailablePeople,
@@ -224,11 +226,11 @@ export function ratingToString(r: Rating): string {
 }
 const RATE_CROSS_COVERAGE_AS_SOFT_RULE = true;
 export function rate(
-  _data: CallSchedule,
+  data: CallSchedule,
   processed: CallScheduleProcessed,
 ): Rating {
   let target = 0;
-  for (const person of CALL_POOL) {
+  for (const person of callPoolPeople(data)) {
     {
       let field: 'weekend' | 'weekendOutsideMaternity' = 'weekend';
       if (person == 'LX') {
@@ -639,7 +641,7 @@ export const WEEKEND_CALL_TARGET: Record<CallPoolPerson, number> = {
 export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   const start = Date.now();
 
-  const PEOPLE = Object.keys(data.people) as Person[];
+  const PEOPLE = Object.keys(data.people);
 
   const emptyBackupCallCount = {
     regular: {
@@ -657,6 +659,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   };
 
   const result: CallScheduleProcessed = {
+    data,
     issues: {},
     day2person2info: {},
     day2hospital2people: {},
@@ -719,9 +722,8 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   };
 
   // Figure out where everyone is working
-  for (const [p, rotations] of Object.entries(data.rotations)) {
+  for (const [person, rotations] of Object.entries(data.rotations)) {
     if (rotations.length == 0) continue;
-    const person = p as Person;
     let day = data.firstDay;
     let idx = 0;
     while (true) {
@@ -754,7 +756,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   }
 
-  for (const person of CALL_POOL) {
+  for (const person of callPoolPeople(data)) {
     const priority = data.people[person].priorityWeekendSaturday;
     if (priority) {
       const priority2 = nextDay(priority, 1);
@@ -794,7 +796,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       }
       for (let day = vacationStart; day <= vacationEnd; day = nextDay(day)) {
         const dayInfo = assertNonNull(result.day2person2info[day]);
-        const personInfo = assertNonNull(dayInfo[person as Person]);
+        const personInfo = assertNonNull(dayInfo[person]);
         personInfo.onVacation = true;
         personInfo.isWorking = false;
       }
@@ -865,13 +867,14 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
 
   // Compute day2hospital2people
   for (const [day, person2info] of Object.entries(result.day2person2info)) {
-    for (const [person, info] of Object.entries(person2info)) {
+    for (const [person, i] of Object.entries(person2info)) {
+      const info = assertNonNull(i);
       if (info.rotation == 'OFF') continue;
       result.day2hospital2people[day] = result.day2hospital2people[day] || {};
       result.day2hospital2people[day][info.rotation] =
         result.day2hospital2people[day][info.rotation] || [];
       assertNonNull(result.day2hospital2people[day][info.rotation]).push({
-        person: person as Person,
+        person,
         ...info.rotationDetails,
       });
     }
@@ -981,7 +984,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   }
 
   // Compute if the first NF is an R2
-  const r2s = ALL_PEOPLE.filter(
+  const r2s = allPeople(data).filter(
     p => data.people[p] && data.people[p].year == '2',
   );
   for (const r2 of r2s) {
@@ -1007,7 +1010,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     for (const day of week.days) {
       if (day.date > lastDayOfFirst8Weeks) break;
       for (const person of Object.values(day.shifts)) {
-        if ((r2s as string[]).includes(person)) {
+        if (r2s.includes(person)) {
           result.day2isR2EarlyCall[day.date] = true;
         }
       }
@@ -1077,7 +1080,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
 
   // hard 0a for backup
   forEveryDay(data, (day, _) => {
-    for (const person of ALL_CHIEFS) {
+    for (const person of allChiefs(data)) {
       const today = result.day2person2info[day][person];
       const index = result.day2weekAndDay[day];
       const dayInfo = data.weeks[index.weekIndex].days[index.dayIndex];
@@ -1298,7 +1301,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
 
   // hard 6. priority weekend
   forEveryDay(data, (day, _) => {
-    for (const person of CALL_POOL) {
+    for (const person of callPoolPeople(data)) {
       const info = result.day2person2info?.[day]?.[person];
       if (info && info.onPriorityWeekend) {
         if (info.shifts.length > 0) {
@@ -1320,7 +1323,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   forEveryDay(data, (day, _) => {
     const dow = dateToDayOfWeek(day);
     if (dow != 'fri') return;
-    for (const person of CALL_POOL) {
+    for (const person of callPoolPeople(data)) {
       const friday = result.day2person2info?.[day]?.[person];
       const monday = result.day2person2info?.[nextDay(day, 3)]?.[person];
       if (friday && monday) {
@@ -1538,8 +1541,8 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   // Count calls
   for (const [day, person2info] of Object.entries(result.day2person2info)) {
     const dayOfWeek = dateToDayOfWeek(day);
-    for (const [p, info] of Object.entries(person2info)) {
-      const person = p as CallPoolPerson;
+    for (const [person, i] of Object.entries(person2info)) {
+      const info = assertNonNull(i);
       if (!(person in result.callCounts)) continue;
       const callCount = result.callCounts[person];
       if (info.shift) {
@@ -1631,7 +1634,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   }
 
   // 6. soft: don't go over call targets
-  for (const person of CALL_POOL) {
+  for (const person of callPoolPeople(data)) {
     const callCount = result.callCounts[person];
     if (callCount.weekday > WEEKDAY_CALL_TARGET[person]) {
       addIssue(result, {

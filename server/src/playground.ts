@@ -4,8 +4,6 @@ dotenv.config({ path: __dirname + '/../.env' });
 import { globalSetup } from './common/error-reporting';
 import * as xlsx from 'node-xlsx';
 import {
-  ALL_PEOPLE,
-  CALL_POOL,
   CallPool,
   CallPoolPerson,
   CallSchedule,
@@ -25,6 +23,7 @@ import {
   WEEKDAY_SHIFT_LOOKUP,
   WEEKEND_SHIFT_LOOKUP,
   Week,
+  callPoolPeople,
   isHolidayShift,
 } from './shared/types';
 
@@ -262,7 +261,7 @@ async function main() {
   if (run == 'update-people-shifts') {
     data.people = people;
 
-    for (const person of ALL_PEOPLE) {
+    for (const person of Object.keys(people)) {
       if (!(person in data.vacations)) {
         data.vacations[person] = [];
       }
@@ -1023,7 +1022,7 @@ async function importRotationSchedule(): Promise<
     if (sheet.data[rowIndex][0] == 'Research') continue; // configured manually
     if (sheet.data[rowIndex][0] == 'U1-Intern') break;
     const per = sheet.data[rowIndex][1] as string;
-    const person = ALL_PEOPLE.find(
+    const person = Object.keys(people).find(
       p =>
         per &&
         (people[p].name.toLowerCase().endsWith(per.toLowerCase()) ||
@@ -1193,7 +1192,7 @@ async function importPreviousSchedule() {
           throw new Error(`Unknown person ${call[i]} at row ${rowIndex}`);
       }
     }
-    return call as MaybeCallPoolPerson[];
+    return call;
   }
 
   let weeks: Array<{
@@ -1479,7 +1478,7 @@ async function importPreviousSchedule() {
     );
   }
 
-  for (const person of CALL_POOL) {
+  for (const person of callPoolPeople(data)) {
     const priority = data.people[person].priorityWeekendSaturday;
     if (priority) {
       if (dateToDayOfWeek(priority) != 'sat') {
@@ -1501,7 +1500,7 @@ async function importPreviousSchedule() {
     for (const day of week.days) {
       const dow = dateToDayOfWeek(day.date);
       if (dow == 'sun' || dow == 'sat') continue;
-      for (const person of CALL_POOL) {
+      for (const person of callPoolPeople(data)) {
         if (!northWeekdays[person]) northWeekdays[person] = 0;
         if (!southWeekdays[person]) southWeekdays[person] = 0;
         const info = processed.day2person2info?.[day.date]?.[person];
@@ -1532,7 +1531,7 @@ async function importPreviousSchedule() {
     console.log(
       `Here's how much people spend at a south rotation vs how much south call they take.`,
     );
-    for (const person of CALL_POOL) {
+    for (const person of callPoolPeople(data)) {
       console.log(
         `${person.length > 2 ? '' : ' '}${person}: ${
           southWeekdays[person]

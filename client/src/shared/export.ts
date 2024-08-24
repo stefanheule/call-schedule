@@ -1,9 +1,8 @@
 import {
-  CALL_POOL,
-  CallPoolPerson,
   CallSchedule,
   MaybeChief,
   ShiftKind,
+  callPoolPeople,
   isHolidayShift,
 } from './types';
 
@@ -278,13 +277,13 @@ export async function exportSchedule(
               }
             : '',
       );
-      const peopleOnVacation = CALL_POOL.filter(p => {
+      const peopleOnVacation = callPoolPeople(data).filter(p => {
         const info = processed.day2person2info[day.date]?.[p];
         return info && info.onVacation;
       });
       vacations.push(peopleOnVacation.join(', '));
 
-      const peoplePriorityWeekend = CALL_POOL.filter(p => {
+      const peoplePriorityWeekend = callPoolPeople(data).filter(p => {
         const info = processed.day2person2info[day.date]?.[p];
         return info && info.onPriorityWeekend;
       });
@@ -299,7 +298,7 @@ export async function exportSchedule(
         assertNonNull(shiftData[shift])[dayIndex] = {
           text: person.person,
           background: yearToColor(
-            assertNonNull(data.people[person.person as CallPoolPerson]).year,
+            assertNonNull(data.people[person.person]).year,
           ),
           border: person.isHoliday ? HOLIDAY_BORDER : undefined,
           borderDashed: true,
@@ -374,7 +373,7 @@ export async function exportSchedule(
       `Night Float`,
     ]),
   );
-  for (const person of CALL_POOL) {
+  for (const person of callPoolPeople(data)) {
     const callCount = processed.callCounts[person];
     rows2.push(
       Mk(
@@ -386,9 +385,7 @@ export async function exportSchedule(
           `${callCount.nf}`,
         ],
         {
-          background: yearToColor(
-            assertNonNull(data.people[person as CallPoolPerson]).year,
-          ),
+          background: yearToColor(assertNonNull(data.people[person]).year),
           borderTop: TABLE_BORDER,
         },
       ),
@@ -400,7 +397,7 @@ export async function exportSchedule(
   rows2.push(
     MkBold([`Person`, `Holiday calls`, `Holiday call hours`, `List of calls`]),
   );
-  for (const person of CALL_POOL) {
+  for (const person of callPoolPeople(data)) {
     const shifts = collectHolidayCall(person, data, processed);
     const { calls, hours } = countHolidayShifts(shifts);
     shifts.forEach((shift, index) => {
@@ -418,9 +415,7 @@ export async function exportSchedule(
             },
           ],
           {
-            background: yearToColor(
-              assertNonNull(data.people[person as CallPoolPerson]).year,
-            ),
+            background: yearToColor(assertNonNull(data.people[person]).year),
             borderTop: index == 0 ? TABLE_BORDER : undefined,
           },
         ),

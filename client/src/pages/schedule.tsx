@@ -25,14 +25,14 @@ import {
   Hospital2People,
   SHIFT_ORDER,
   MaybeCallPoolPerson,
-  CALL_POOL,
   ChiefShiftKind,
   MaybeChief,
   ChiefShiftId,
-  ALL_CHIEFS,
   Chief,
   CallScheduleProcessed,
   YEAR_ORDER,
+  allChiefs,
+  callPoolPeople,
 } from '../shared/types';
 import {
   useData,
@@ -849,7 +849,7 @@ function computeBackupCallTallies(
   processed: CallScheduleProcessed,
   holiday: boolean,
 ): [Chief, string][] {
-  return ALL_CHIEFS.map(chief => {
+  return allChiefs(processed.data).map(chief => {
     const result = [];
     for (const type of !holiday
       ? (['weekday', 'weekend'] as const)
@@ -937,7 +937,7 @@ function RenderCallCounts() {
       )}
       {holiday == 'holiday' && (
         <Column spacing="5px">
-          {CALL_POOL.map(person => (
+          {callPoolPeople(data).map(person => (
             <Row key={person} spacing={'3px'}>
               <RenderPerson
                 person={person}
@@ -956,7 +956,7 @@ function RenderCallCounts() {
       )}
       {holiday == 'regular' && (
         <Column>
-          {CALL_POOL.map(person => {
+          {callPoolPeople(data).map(person => {
             const counts = processed.callCounts[person];
             return (
               <Row key={person} spacing={'5px'}>
@@ -1283,12 +1283,12 @@ function RenderDay({
 
   const vacation = processed.day2person2info[day.date]
     ? Object.entries(processed.day2person2info[day.date]).filter(
-        ([_, info]) => info.onVacation,
+        ([_, info]) => assertNonNull(info).onVacation,
       )
     : [];
   const priorityWeekend = processed.day2person2info[day.date]
     ? Object.entries(processed.day2person2info[day.date]).filter(
-        ([_, info]) => info.onPriorityWeekend,
+        ([_, info]) => assertNonNull(info).onPriorityWeekend,
       )
     : [];
   return (
@@ -1364,14 +1364,14 @@ function RenderDay({
       <Column style={{ ...DAY_BOX_STYLE, minHeight: DAY_VACATION_HEIGHT }}>
         <Row style={{ opacity: secondaryInfoOpacity, flexWrap: 'wrap' }}>
           {vacation.map(([person]) => (
-            <RenderPerson key={person} person={person as Person} />
+            <RenderPerson key={person} person={person} />
           ))}
           {priorityWeekend.length + vacation.length > 0 && (
             <ElementSpacer space="2px" />
           )}
           {priorityWeekend.length > 0 && <Text>(</Text>}
           {priorityWeekend.map(([person]) => (
-            <RenderPerson key={person} person={person as Person} />
+            <RenderPerson key={person} person={person} />
           ))}
           {priorityWeekend.length > 0 && <Text>)</Text>}
         </Row>
@@ -1886,7 +1886,7 @@ function getYearToPeople(
     if (!yearToPeople[person.year]) yearToPeople[person.year] = [];
     assertNonNull(yearToPeople[person.year]).push({
       ...person,
-      id: id as Person,
+      id: id,
     });
   }
   return yearToPeople;

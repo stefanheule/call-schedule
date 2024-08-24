@@ -135,53 +135,15 @@ export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
 
 export type CallPool = 'north' | 'uw' | 'south';
 
-export const CALL_POOL = [
-  'MAD',
-  'AA',
-  'DC',
-  'AJ',
-  'LX',
-  'CC',
-  'MB',
-  'RB',
-  'MJ',
-  'TM',
-  'GN',
-  'KO',
-  'CPu',
-  'NR',
-] as const;
-export type CallPoolPerson = (typeof CALL_POOL)[number];
-export const ALL_PEOPLE = [
-  'MAD',
-  'DK',
-  'LZ',
-  'TW',
-  'CP',
-  'AA',
-  'DC',
-  'AJ',
-  'LX',
-  'CC',
-  'MB',
-  'RB',
-  'MJ',
-  'TM',
-  'GN',
-  'KO',
-  'CPu',
-  'NR',
-  'CF',
-  'TH',
-  'HL',
-  'SO',
-] as const;
-export type Person = (typeof ALL_PEOPLE)[number];
+export type CallPoolPerson = string;
+export type Person = string;
 export type UnassignedPerson = '';
+// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 export type MaybePerson = Person | UnassignedPerson;
+// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 export type MaybeCallPoolPerson = CallPoolPerson | UnassignedPerson;
-export const ALL_CHIEFS = ['DK', 'LZ', 'TW', 'CP'] as const;
-export type Chief = (typeof ALL_CHIEFS)[number];
+export type Chief = string;
+// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 export type MaybeChief = Chief | UnassignedPerson;
 
 export type ShiftId = DayId & {
@@ -234,13 +196,9 @@ export type Vacation =
       length: number;
     };
 
-export type RotationSchedule = {
-  [Property in Person]: RotationConfig[];
-};
+export type RotationSchedule = Record<Person, RotationConfig[]>;
 
-export type VacationSchedule = {
-  [Property in Person]: Vacation[];
-};
+export type VacationSchedule = Record<Person, Vacation[]>;
 
 export type CallSchedule = {
   lastEditedBy?: string;
@@ -252,9 +210,7 @@ export type CallSchedule = {
     [Property in ShiftKind]?: ShiftConfig;
   };
 
-  people: {
-    [Property in Person]: PersonConfig;
-  };
+  people: Record<Person, PersonConfig>;
 
   holidays: {
     [date: string]: string;
@@ -337,7 +293,24 @@ export type IssueCount = {
   softCrossCoverage?: number;
 };
 
+export function allPeople(data: CallSchedule): Person[] {
+  return Object.keys(data.people);
+}
+
+export function allChiefs(data: CallSchedule): Chief[] {
+  return allPeople(data).filter(person => data.people[person].year === 'C');
+}
+
+export function callPoolPeople(data: CallSchedule): CallPoolPerson[] {
+  return allPeople(data).filter(person => {
+    const year = data.people[person].year;
+    return year !== 'C' && year !== '1';
+  });
+}
+
 export type CallScheduleProcessed = {
+  data: CallSchedule;
+
   day2person2info: {
     [day: string]: {
       [Property in Person]?: DayPersonInfo;
