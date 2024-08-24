@@ -1774,6 +1774,7 @@ export function countHolidayShifts(holidayShifts: HolidayShift[]): {
       case 'day_va':
         calls += 1;
         hours += 10;
+        break;
       // case 'power_uw':
       // case 'power_nwhsch':
       // case 'power_south':
