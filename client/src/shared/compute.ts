@@ -22,8 +22,6 @@ import {
   ShiftKind,
   StoredCallSchedule,
   UnavailablePeople,
-  WEEKDAY_SHIFT_LOOKUP,
-  WEEKEND_SHIFT_LOOKUP,
   allChiefs,
   allPeople,
   callPoolPeople,
@@ -1535,13 +1533,14 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       const callCount = result.callCounts[person];
       if (info.shift) {
         if (isHolidayShift(result, day, info.shift)) continue;
-        if (info.shift in WEEKDAY_SHIFT_LOOKUP) {
+        const shiftConfig = data.shiftConfigs[info.shift];
+        if (shiftConfig.type === 'weekday') {
           if (dayOfWeek == 'sun') {
             callCount.sunday += 1;
           } else {
             callCount.weekday += 1;
           }
-        } else if (info.shift in WEEKEND_SHIFT_LOOKUP) {
+        } else if (shiftConfig.type === 'weekend') {
           callCount.weekend += 1;
         }
       }
@@ -1563,7 +1562,8 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         const shift = s;
         const isMaternity = isLxNotTakingCallDueToMaternity(day.date);
         if (isHolidayShift(result, day.date, shift)) continue;
-        if (shift in WEEKDAY_SHIFT_LOOKUP) {
+        const shiftConfig = data.shiftConfigs[shift];
+        if (shiftConfig.type === 'weekday') {
           if (!person) {
             result.unassignedCalls.weekday += 1;
             if (!isMaternity) {
@@ -1574,7 +1574,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           if (!isMaternity) {
             result.totalCalls.weekdayOutsideMaternity += 1;
           }
-        } else if (shift in WEEKEND_SHIFT_LOOKUP) {
+        } else if (shiftConfig.type === 'weekend') {
           if (!person) {
             result.unassignedCalls.weekend += 1;
             if (!isMaternity) {

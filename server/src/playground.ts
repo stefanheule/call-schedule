@@ -21,8 +21,6 @@ import {
   ShiftKind,
   StoredCallSchedules,
   VacationSchedule,
-  WEEKDAY_SHIFT_LOOKUP,
-  WEEKEND_SHIFT_LOOKUP,
   Week,
   callPoolPeople,
   isHolidayShift,
@@ -339,7 +337,8 @@ async function main() {
       for (const day of week.days) {
         for (const shift of Object.keys(day.shifts)) {
           if (isHolidayShift(processed, day.date, shift)) continue;
-          if (shift in WEEKEND_SHIFT_LOOKUP) {
+          const shiftConfig = data.shiftConfigs[shift];
+          if (shiftConfig && shiftConfig.type === 'weekend') {
             day.shifts[shift] = '';
           }
         }
@@ -353,7 +352,8 @@ async function main() {
       for (const day of week.days) {
         for (const shift of Object.keys(day.shifts)) {
           if (isHolidayShift(processed, day.date, shift)) continue;
-          if (shift in WEEKDAY_SHIFT_LOOKUP) {
+          const shiftConfig = data.shiftConfigs[shift];
+          if (shiftConfig && shiftConfig.type === 'weekday') {
             day.shifts[shift] = '';
           }
         }
@@ -703,6 +703,7 @@ const shiftConfigs: {
 } = {
   weekday_south: {
     kind: `weekday_south`,
+    type: 'weekday',
     name: `South`,
     nameLong: `Weekday South (5pm-7am)`,
     hospitals: SOUTH_HOSPITALS,
@@ -713,6 +714,7 @@ const shiftConfigs: {
   },
   weekend_uw: {
     kind: 'weekend_uw',
+    type: 'weekend',
     name: 'UW',
     nameLong: `Weekend UW (5pm-5pm)`,
     hospitals: ['UW'],
@@ -722,6 +724,7 @@ const shiftConfigs: {
   },
   weekend_nwhsch: {
     kind: 'weekend_nwhsch',
+    type: 'weekend',
     name: 'NWH/SCH',
     nameLong: `Weekend NWH/SCH (5pm-5pm)`,
     hospitals: NWHSCH_HOSPITALS,
@@ -731,6 +734,7 @@ const shiftConfigs: {
   },
   weekend_south: {
     kind: 'weekend_south',
+    type: 'weekend',
     name: `South`,
     nameLong: `Weekend South (5pm-5pm)`,
     hospitals: SOUTH_HOSPITALS,
@@ -740,6 +744,7 @@ const shiftConfigs: {
   },
   day_nwhsch: {
     kind: 'day_nwhsch',
+    type: 'special',
     name: `NWH/SCH Day`,
     nameLong: `Day NWH/SCH (7am-5pm)`,
     hospitals: NWHSCH_HOSPITALS,
@@ -749,6 +754,7 @@ const shiftConfigs: {
   },
   day_uw: {
     kind: 'day_uw',
+    type: 'special',
     name: `UW Day`,
     nameLong: `Day UW (7am-5pm)`,
     hospitals: ['UW'],
@@ -758,6 +764,7 @@ const shiftConfigs: {
   },
   day_va: {
     kind: 'day_va',
+    type: 'special',
     name: `VA Day`,
     nameLong: `Day VA (7am-5pm)`,
     hospitals: ['VA'],
@@ -767,6 +774,7 @@ const shiftConfigs: {
   },
   day_2x_nwhsch: {
     kind: 'day_2x_nwhsch',
+    type: 'special',
     exportKind: 'day_nwhsch',
     name: `NWH/SCH 2 Day`,
     nameLong: `Day NWH/SCH (7am-5pm) both Thu and Fri`,
@@ -777,6 +785,7 @@ const shiftConfigs: {
   },
   day_2x_uw: {
     kind: 'day_2x_uw',
+    type: 'special',
     exportKind: 'day_uw',
     name: `UW 2 Day`,
     nameLong: `Day UW (7am-5pm) both Thu and Fri`,
@@ -787,6 +796,7 @@ const shiftConfigs: {
   },
   south_24: {
     kind: 'south_24',
+    type: 'special',
     name: `South 24`,
     nameLong: `South 24 (7am-7am)`,
     hospitals: SOUTH_HOSPITALS,
@@ -797,6 +807,7 @@ const shiftConfigs: {
   },
   south_power: {
     kind: 'south_power',
+    type: 'special',
     name: `South Pwr`,
     nameLong: `Weekend South Power (5pm-7am)`,
     hospitals: SOUTH_HOSPITALS,
@@ -806,6 +817,7 @@ const shiftConfigs: {
   },
   south_34: {
     kind: 'south_34',
+    type: 'special',
     name: `South 34`,
     nameLong: `South 34 (7am-5pm)`,
     hospitals: SOUTH_HOSPITALS,
@@ -816,6 +828,7 @@ const shiftConfigs: {
   },
   weekend_half_south: {
     kind: 'weekend_half_south',
+    type: 'weekend',
     exportKind: 'weekend_south',
     name: `Split Weekend South`,
     nameLong: `Split Weekend South (5pm-5pm)`,
@@ -826,6 +839,7 @@ const shiftConfigs: {
   },
   weekend_half_uw: {
     kind: 'weekend_half_uw',
+    type: 'weekend',
     exportKind: 'weekend_uw',
     name: `Split Weekend UW`,
     nameLong: `Split Weekend UW (5pm-5pm)`,
@@ -836,6 +850,7 @@ const shiftConfigs: {
   },
   weekend_nwhsch_half: {
     kind: 'weekend_nwhsch_half',
+    type: 'weekend',
     exportKind: 'weekend_nwhsch',
     name: `Split Weekend NWH/SCH`,
     nameLong: `Split Weekend NWH/SCH (5pm-5pm)`,

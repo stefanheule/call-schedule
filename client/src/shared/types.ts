@@ -6,6 +6,7 @@ export type ShiftConfig = {
   kind: ShiftKind;
   /** Should we map this to a different kind for export in excel? */
   exportKind?: ShiftKind;
+  type: 'weekday' | 'weekend' | 'special';
   name: string;
   nameLong: string;
   hospitals: HospitalKind[];
@@ -27,61 +28,7 @@ export type Year = '1' | '2' | '3' | 'S' | 'C' | 'R' | 'M';
 export type YearOnSchedule = '2' | '3' | 'S' | 'R' | 'M';
 export const YEAR_ORDER = ['1', '2', '3', 'S', 'R', 'M', 'C'] as const;
 
-export const CHIEF_SHIFTS = [
-  'backup_weekday',
-  'backup_weekend',
-  'backup_holiday',
-] as const;
 export type ChiefShiftKind = string;
-
-export const WEEKDAY_SHIFTS = ['weekday_south'] as const;
-export const WEEKDAY_SHIFT_LOOKUP: Record<WeekdayShiftKind, boolean> = {
-  weekday_south: true,
-};
-export type WeekdayShiftKind = (typeof WEEKDAY_SHIFTS)[number];
-export const WEEKEND_SHIFTS = [
-  'weekend_south',
-  'weekend_uw',
-  'weekend_nwhsch',
-] as const;
-export const WEEKEND_SHIFT_LOOKUP: Record<WeekendShiftKind, boolean> = {
-  weekend_south: true,
-  weekend_uw: true,
-  weekend_nwhsch: true,
-};
-export type WeekendShiftKind = (typeof WEEKEND_SHIFTS)[number];
-export const SPECIAL_SHIFTS = [
-  'day_uw',
-  'day_nwhsch',
-  'day_va',
-  'day_2x_uw',
-  'day_2x_nwhsch',
-  'south_24',
-  'south_34',
-  'south_power',
-  'weekend_half_south',
-  'weekend_half_uw',
-
-  // 'power_uw',
-  // 'power_nwhsch',
-] as const;
-export const SPECIAL_SHIFT_LOOKUP: Record<SpecialShiftKind, boolean> = {
-  day_uw: true,
-  day_nwhsch: true,
-  day_va: true,
-  day_2x_uw: true,
-  day_2x_nwhsch: true,
-  south_24: true,
-  south_34: true,
-  south_power: true,
-  weekend_half_south: true,
-  weekend_half_uw: true,
-  // power_uw: true,
-  // power_nwhsch: true,
-  // power_south: true,
-};
-
-export type SpecialShiftKind = (typeof SPECIAL_SHIFTS)[number];
 export type ShiftKind = string;
 
 export const HOSPITAL_ORDER = ['NWH', 'SCH', 'UW', 'HMC', 'VA'] as const;
