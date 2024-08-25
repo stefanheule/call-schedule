@@ -66,31 +66,8 @@ function Mk<T extends SimpleCellType | SimpleCellType[]>(
 }
 
 type ExportShiftKind =
-  | 'backup'
-  | 'weekday_south'
-  | 'weekend_south'
-  | 'weekend_uw'
-  | 'weekend_nwhsch'
-  | 'day_uw'
-  | 'day_va'
-  | 'day_nwhsch'
-  | 'south_24'
-  | 'south_34'
-  | 'south_power';
-
-const EXPORT_SHIFT_ORDER: ExportShiftKind[] = [
-  'backup',
-  'weekend_nwhsch',
-  'weekend_uw',
-  'weekend_south',
-  'weekday_south',
-  'day_nwhsch',
-  'day_uw',
-  'day_va',
-  'south_24',
-  'south_34',
-  'south_power',
-];
+  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
+  'backup' | ShiftKind;
 
 // const _HOLIDAY_COLOR = '#ffeeee';
 const HOLIDAY_BORDER = '#ff0000';
@@ -251,8 +228,7 @@ export async function exportSchedule(
       });
       priorityWeekend.push(peoplePriorityWeekend.join(', '));
 
-      for (const [s, person] of Object.entries(shifts[day.date] ?? {})) {
-        const shift = s as ExportShiftKind;
+      for (const [shift, person] of Object.entries(shifts[day.date] ?? {})) {
         if (!shiftData[shift]) {
           shiftData[shift] = [];
         }
@@ -285,7 +261,11 @@ export async function exportSchedule(
       );
     }
 
-    for (const shift of EXPORT_SHIFT_ORDER) {
+    const exportedShiftsOrder = dedup([
+      'backup',
+      ...Object.values(data.shiftConfigs).map(x => x.exportKind ?? x.kind),
+    ]);
+    for (const shift of exportedShiftsOrder) {
       const name = shiftName(shift);
       const sd = shiftData[shift];
       if (sd) {
@@ -419,6 +399,7 @@ function simpleCellToCell(cell: SimpleCellType): CellType {
 }
 
 import * as ExcelJS from 'exceljs';
+import { dedup } from './common/language';
 function cssColorToExcel(color: string): {
   argb: string;
 } {
