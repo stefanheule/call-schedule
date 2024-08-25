@@ -7,7 +7,7 @@ import {
 } from './types';
 
 import * as datefns from 'date-fns';
-import { IsoDate, assertNonNull, isoDateToDate, mapEnum } from 'check-type';
+import { IsoDate, assertNonNull, isoDateToDate } from 'check-type';
 import {
   collectHolidayCall,
   countHolidayShifts,
@@ -103,12 +103,14 @@ export async function exportSchedule(
   const rows: SimpleCellType[][] = [];
 
   const shifts: {
-    [day: string]: {
-      [Property in ExportShiftKind]?: {
+    [day: string]: Record<
+      // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
+      ShiftKind | 'backup',
+      {
         person: string;
         isHoliday: boolean;
-      };
-    };
+      }
+    >;
   } = {};
   let day = data.firstDay;
   while (day <= data.lastDay) {
@@ -140,50 +142,22 @@ export async function exportSchedule(
     if (lastBackup) {
       shifts[day].backup = lastBackup;
     }
-    for (const [s, person] of Object.entries(
+    for (const [shift, person] of Object.entries(
       data.weeks[idx.weekIndex].days[idx.dayIndex].shifts,
     )) {
-      const shift = s as ShiftKind;
       const call = {
         person,
         isHoliday: Boolean(isHolidayShift(processed, day, shift)),
       };
-      const exportShift =
-        shift == 'day_2x_nwhsch'
-          ? 'day_nwhsch'
-          : shift == 'day_2x_uw'
-            ? 'day_uw'
-            : shift == 'weekend_half_south'
-              ? 'weekend_south'
-              : shift == 'weekend_half_uw'
-                ? 'weekend_uw'
-                : shift;
+      const shiftConfig = data.shiftConfigs[shift];
+      const exportShift = shiftConfig.exportKind ?? shiftConfig.kind;
       shifts[day][exportShift] = call;
-      switch (shift) {
-        case 'weekday_south':
-        case 'south_24':
-        case 'south_34':
-        case 'day_uw':
-        case 'day_va':
-        case 'day_nwhsch':
-        case 'weekend_half_south':
-        case 'weekend_half_uw':
-          break;
-        case 'weekend_south':
-        case 'weekend_uw':
-        case 'weekend_nwhsch':
-          shifts[nextDay(day, 1)][exportShift] = call;
-          shifts[nextDay(day, 2)][exportShift] = call;
-          break;
-        case 'south_power':
-          shifts[nextDay(day, 1)][exportShift] = call;
-          shifts[nextDay(day, 2)][exportShift] = call;
-          shifts[nextDay(day, 3)][exportShift] = call;
-          break;
-        case 'day_2x_uw':
-        case 'day_2x_nwhsch':
-          shifts[nextDay(day, 1)][exportShift] = call;
-          break;
+      for (
+        let i = 0;
+        i < (shiftConfig.daysForExport ?? shiftConfig.days);
+        i++
+      ) {
+        shifts[nextDay(day, i)][exportShift] = call;
       }
     }
     day = nextDay(day);
@@ -231,24 +205,12 @@ export async function exportSchedule(
   rows.push([]);
   rows.push([]);
 
+  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
   function shiftName(shift: ShiftKind | 'backup') {
-    return mapEnum(shift, {
-      backup: 'Chief Backup Call',
-      weekday_south: 'Weekday South (5pm-7am)',
-      weekend_south: 'Weekend South (5pm-5pm)',
-      weekend_uw: 'Weekend UW (5pm-5pm)',
-      weekend_nwhsch: 'Weekend NWH/SCH (5pm-5pm)',
-      day_uw: 'Day UW (7am-5pm)',
-      day_nwhsch: 'Day NWH/SCH (7am-5pm)',
-      day_va: 'Day VA (7am-5pm)',
-      south_24: 'South 24 (7am-7am)',
-      south_34: 'South 34 (7am-5pm)',
-      south_power: 'Weekend South Power (5pm-7am)',
-      day_2x_uw: 'Day UW (7am-5pm) both Thu and Fri',
-      day_2x_nwhsch: 'Day NWH/SCH (7am-5pm) both Thu and Fri',
-      weekend_half_south: 'Weekend South (5pm-5pm) half',
-      weekend_half_uw: 'Weekend UW (5pm-5pm) half',
-    });
+    if (shift == 'backup') {
+      return 'Chief Backup Call';
+    }
+    return data.shiftConfigs[shift].nameLong;
   }
 
   for (const week of data.weeks) {
@@ -399,7 +361,7 @@ export async function exportSchedule(
   );
   for (const person of callPoolPeople(data)) {
     const shifts = collectHolidayCall(person, data, processed);
-    const { calls, hours } = countHolidayShifts(shifts);
+    const { calls, hours } = countHolidayShifts(data, shifts);
     shifts.forEach((shift, index) => {
       rows2.push(
         Mk(

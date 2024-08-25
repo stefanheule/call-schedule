@@ -23,7 +23,6 @@ import {
   Issue,
   RotationDetails,
   Hospital2People,
-  SHIFT_ORDER,
   MaybeCallPoolPerson,
   ChiefShiftKind,
   MaybeChief,
@@ -33,6 +32,7 @@ import {
   YEAR_ORDER,
   allChiefs,
   callPoolPeople,
+  HOSPITAL_ORDER,
 } from '../shared/types';
 import {
   useData,
@@ -774,7 +774,7 @@ function RenderSuggestCallSwitchDialog({
                       {serializePerson(change.next)}
                     </Text>
                     <Text inline>
-                      for {serializeShift(change.shift.shiftName)} on{' '}
+                      for {serializeShift(data, change.shift.shiftName)} on{' '}
                       {serializeDate(
                         data.weeks[change.shift.weekIndex].days[
                           change.shift.dayIndex
@@ -832,8 +832,11 @@ function RenderSuggestCallSwitchDialog({
   );
 }
 
-function holidayShiftsToString(holidayShifts: HolidayShift[]): string {
-  const { calls, hours } = countHolidayShifts(holidayShifts);
+function holidayShiftsToString(
+  data: CallSchedule,
+  holidayShifts: HolidayShift[],
+): string {
+  const { calls, hours } = countHolidayShifts(data, holidayShifts);
   if (holidayShifts.length == 0) return `none`;
   return `${hours}h or ${calls} calls: ${holidayShifts
     .map(
@@ -947,6 +950,7 @@ function RenderCallCounts() {
               />
               <Text>
                 {holidayShiftsToString(
+                  data,
                   collectHolidayCall(person, data, processed),
                 )}
               </Text>
@@ -1386,8 +1390,7 @@ function RenderDay({
       >
         {Object.entries(day.backupShifts).map(([shiftName]) => (
           <RenderBackupShift
-            id={{ ...id, shiftName: shiftName as ChiefShiftKind }}
-            setWarningSnackbar={setWarningSnackbar}
+            id={{ ...id, shiftName }}
             key={`${day.date}-${shiftName}`}
           />
         ))}
@@ -1397,12 +1400,12 @@ function RenderDay({
         {Object.entries(day.shifts)
           .sort(
             (a, b) =>
-              SHIFT_ORDER.indexOf(a[0] as ShiftKind) -
-              SHIFT_ORDER.indexOf(b[0] as ShiftKind),
+              HOSPITAL_ORDER.indexOf(data.shiftConfigs[a[0]].hospitals[0]) -
+              HOSPITAL_ORDER.indexOf(data.shiftConfigs[b[0]].hospitals[0]),
           )
           .map(([shiftName]) => (
             <RenderShift
-              id={{ ...id, shiftName: shiftName as ShiftKind }}
+              id={{ ...id, shiftName }}
               setWarningSnackbar={setWarningSnackbar}
               key={`${day.date}-${shiftName}`}
             />
@@ -1464,13 +1467,7 @@ function RenderHospital({
   );
 }
 
-function RenderBackupShift({
-  id,
-  setWarningSnackbar,
-}: {
-  id: ChiefShiftId;
-  setWarningSnackbar: (v: string) => void;
-}) {
+function RenderBackupShift({ id }: { id: ChiefShiftId }) {
   const [data, setData] = useData();
   const [, setLocalData] = useLocalData();
   const processed = useProcessedData();
@@ -1505,11 +1502,6 @@ function RenderBackupShift({
         personPicker.requestDialog(
           (p, assignWholeWeek) => {
             const person = assertMaybeChief(p);
-            if (data.isPublic) {
-              setWarningSnackbar(
-                `You won't be able to save your changes, this is a read-only version of the call schedule application`,
-              );
-            }
             const days = assignWholeWeek
               ? [0, 1, 2, 3, 4, 5, 6]
               : [id.dayIndex];
@@ -1646,6 +1638,7 @@ function RenderShiftGeneric({
   dayId: DayId;
   personId: MaybePerson;
   name: string;
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-type-constituents
   shiftId: ShiftKind | ChiefShiftKind;
   dashedBorder?: boolean;
   onClick?: () => void;
@@ -2007,7 +2000,7 @@ function PersonPickerDialog() {
                           // const rating =
                           //   inference?.best?.ratings?.[person.id]?.rating;
                           return (
-                            <Row key={person.name} spacing={'2px'}>
+                            <Row key={person.id} spacing={'2px'}>
                               {/* {rating && (
                             <Text
                               style={{

@@ -7,6 +7,7 @@ import {
   CallPool,
   CallPoolPerson,
   CallSchedule,
+  ChiefShiftConfig,
   ChiefShiftKind,
   Day,
   HospitalKind,
@@ -277,6 +278,7 @@ async function main() {
     }
 
     data.shiftConfigs = shiftConfigs;
+    data.chiefShiftConfigs = chiefShiftConfigs;
   }
 
   if (run == 'onetime-split-weekends') {
@@ -310,8 +312,7 @@ async function main() {
     previousData.weeks.forEach((week, weekIndex) => {
       week.days.forEach((day, dayIndex) => {
         if (day.date < data.firstDay || day.date > data.lastDay) return;
-        Object.entries(day.shifts).forEach(([s, person]) => {
-          const shift = s as ShiftKind;
+        Object.entries(day.shifts).forEach(([shift, person]) => {
           if (person) {
             const shifts = data.weeks[weekIndex].days[dayIndex].shifts;
             if (shift in shifts) {
@@ -319,8 +320,7 @@ async function main() {
             }
           }
         });
-        Object.entries(day.backupShifts).forEach(([s, person]) => {
-          const shift = s as ChiefShiftKind;
+        Object.entries(day.backupShifts).forEach(([shift, person]) => {
           if (person) {
             const backupShifts =
               data.weeks[weekIndex].days[dayIndex].backupShifts;
@@ -337,7 +337,7 @@ async function main() {
     const processed = processCallSchedule(data);
     for (const week of data.weeks) {
       for (const day of week.days) {
-        for (const shift of Object.keys(day.shifts) as ShiftKind[]) {
+        for (const shift of Object.keys(day.shifts)) {
           if (isHolidayShift(processed, day.date, shift)) continue;
           if (shift in WEEKEND_SHIFT_LOOKUP) {
             day.shifts[shift] = '';
@@ -351,7 +351,7 @@ async function main() {
     const processed = processCallSchedule(data);
     for (const week of data.weeks) {
       for (const day of week.days) {
-        for (const shift of Object.keys(day.shifts) as ShiftKind[]) {
+        for (const shift of Object.keys(day.shifts)) {
           if (isHolidayShift(processed, day.date, shift)) continue;
           if (shift in WEEKDAY_SHIFT_LOOKUP) {
             day.shifts[shift] = '';
@@ -369,8 +369,7 @@ async function main() {
         throw new Error(`Should be friday: ${dateToDayOfWeek(friday.date)}`);
 
       if (friday.date < data.firstDay || friday.date > data.lastDay) continue;
-      for (const [s, assigned] of Object.entries(friday.shifts)) {
-        const shift = s as ShiftKind;
+      for (const [shift, assigned] of Object.entries(friday.shifts)) {
         if (assigned) continue;
 
         const inference = inferShift(data, processed, friday.date, shift, {
@@ -681,116 +680,169 @@ function rename36(storage: StoredCallSchedules) {
 const SOUTH_HOSPITALS: HospitalKind[] = ['HMC', 'VA'];
 const NWHSCH_HOSPITALS: HospitalKind[] = ['NWH', 'SCH'];
 
+const chiefShiftConfigs: Record<ChiefShiftKind, ChiefShiftConfig> = {
+  backup_holiday: {
+    kind: 'backup_holiday',
+    name: 'Holiday',
+    nameLong: 'Chief Holiday Backup',
+  },
+  backup_weekday: {
+    kind: 'backup_weekday',
+    name: 'Weekday',
+    nameLong: 'Chief Weekday Backup',
+  },
+  backup_weekend: {
+    kind: 'backup_weekend',
+    name: 'Weekend',
+    nameLong: 'Chief Weekend Backup',
+  },
+};
+
 const shiftConfigs: {
   [Property in ShiftKind]: ShiftConfig;
 } = {
   weekday_south: {
     kind: `weekday_south`,
     name: `South`,
+    nameLong: `Weekday South (5pm-7am)`,
     hospitals: SOUTH_HOSPITALS,
     days: 2,
+    daysForConsecutiveCall: 1,
+    daysForExport: 1,
+    hours: 10,
   },
   weekend_uw: {
     kind: 'weekend_uw',
     name: 'UW',
+    nameLong: `Weekend UW (5pm-5pm)`,
     hospitals: ['UW'],
     days: 3,
+    daysForConsecutiveCall: 3,
+    hours: 48,
   },
   weekend_nwhsch: {
     kind: 'weekend_nwhsch',
     name: 'NWH/SCH',
+    nameLong: `Weekend NWH/SCH (5pm-5pm)`,
     hospitals: NWHSCH_HOSPITALS,
     days: 3,
+    daysForConsecutiveCall: 3,
+    hours: 48,
   },
   weekend_south: {
     kind: 'weekend_south',
     name: `South`,
+    nameLong: `Weekend South (5pm-5pm)`,
     hospitals: SOUTH_HOSPITALS,
     days: 3,
+    daysForConsecutiveCall: 3,
+    hours: 48,
   },
   day_nwhsch: {
     kind: 'day_nwhsch',
     name: `NWH/SCH Day`,
+    nameLong: `Day NWH/SCH (7am-5pm)`,
     hospitals: NWHSCH_HOSPITALS,
     days: 1,
+    daysForConsecutiveCall: 0,
+    hours: 10,
   },
   day_uw: {
     kind: 'day_uw',
     name: `UW Day`,
+    nameLong: `Day UW (7am-5pm)`,
     hospitals: ['UW'],
     days: 1,
+    daysForConsecutiveCall: 0,
+    hours: 10,
   },
   day_va: {
     kind: 'day_va',
     name: `VA Day`,
+    nameLong: `Day VA (7am-5pm)`,
     hospitals: ['VA'],
     days: 1,
+    daysForConsecutiveCall: 0,
+    hours: 10,
   },
   day_2x_nwhsch: {
     kind: 'day_2x_nwhsch',
+    exportKind: 'day_nwhsch',
     name: `NWH/SCH 2 Day`,
+    nameLong: `Day NWH/SCH (7am-5pm) both Thu and Fri`,
     hospitals: NWHSCH_HOSPITALS,
     days: 2,
+    daysForConsecutiveCall: 0,
+    hours: 20,
   },
   day_2x_uw: {
     kind: 'day_2x_uw',
+    exportKind: 'day_uw',
     name: `UW 2 Day`,
+    nameLong: `Day UW (7am-5pm) both Thu and Fri`,
     hospitals: ['UW'],
     days: 2,
+    daysForConsecutiveCall: 0,
+    hours: 20,
   },
   south_24: {
     kind: 'south_24',
     name: `South 24`,
+    nameLong: `South 24 (7am-7am)`,
     hospitals: SOUTH_HOSPITALS,
     days: 2,
+    daysForConsecutiveCall: 2,
+    daysForExport: 1,
+    hours: 24,
   },
   south_power: {
     kind: 'south_power',
     name: `South Pwr`,
+    nameLong: `Weekend South Power (5pm-7am)`,
     hospitals: SOUTH_HOSPITALS,
     days: 4,
+    daysForConsecutiveCall: 3,
+    hours: 60,
   },
-  // power_nwhsch: {
-  //   kind: 'power_nwhsch',
-  //   name: `Power NWH/SCH`,
-  //   hospitals: NWHSCH_HOSPITALS,
-  //   days: 3,
-  // },
-  // power_uw: {
-  //   kind: 'power_uw',
-  //   name: `Power UW`,
-  //   hospitals: ['UW'],
-  //   days: 3,
-  // },
-  // power_south: {
-  //   kind: 'power_south',
-  //   name: `Power South`,
-  //   hospitals: SOUTH_HOSPITALS,
-  //   days: 3,
-  // },
   south_34: {
     kind: 'south_34',
     name: `South 34`,
+    nameLong: `South 34 (7am-5pm)`,
     hospitals: SOUTH_HOSPITALS,
     days: 2,
+    daysForConsecutiveCall: 2,
+    daysForExport: 1,
+    hours: 34,
   },
-  // thanksgiving_south: {
-  //   kind: 'thanksgiving_south',
-  //   name: `Thanksgiving South`,
-  //   hospitals: SOUTH_HOSPITALS,
-  //   days: 3,
-  // },
   weekend_half_south: {
     kind: 'weekend_half_south',
+    exportKind: 'weekend_south',
     name: `Split Weekend South`,
+    nameLong: `Split Weekend South (5pm-5pm)`,
     hospitals: SOUTH_HOSPITALS,
     days: 1,
+    daysForConsecutiveCall: 1,
+    hours: 24,
   },
   weekend_half_uw: {
     kind: 'weekend_half_uw',
+    exportKind: 'weekend_uw',
     name: `Split Weekend UW`,
+    nameLong: `Split Weekend UW (5pm-5pm)`,
     hospitals: ['UW'],
     days: 1,
+    daysForConsecutiveCall: 1,
+    hours: 24,
+  },
+  weekend_nwhsch_half: {
+    kind: 'weekend_nwhsch_half',
+    exportKind: 'weekend_nwhsch',
+    name: `Split Weekend NWH/SCH`,
+    nameLong: `Split Weekend NWH/SCH (5pm-5pm)`,
+    hospitals: NWHSCH_HOSPITALS,
+    days: 1,
+    daysForConsecutiveCall: 1,
+    hours: 24,
   },
 };
 
@@ -798,104 +850,82 @@ const people: {
   [Property in Person]: PersonConfig;
 } = {
   MAD: {
-    name: 'MAD',
     year: 'M',
   },
   DK: {
-    name: 'DK',
     year: 'C',
     priorityWeekendSaturday: '2024-07-20',
   },
   LZ: {
-    name: 'LZ',
     year: 'C',
   },
   TW: {
-    name: 'TW',
     year: 'C',
   },
   CP: {
-    name: 'CP',
     year: 'C',
   },
   AA: {
-    name: 'AA',
     year: 'S',
     priorityWeekendSaturday: '2024-08-24',
   },
   DC: {
-    name: 'DC',
     year: 'S',
     priorityWeekendSaturday: '2024-08-31',
   },
   AJ: {
-    name: 'AJ',
     year: 'S',
     priorityWeekendSaturday: '2024-08-03',
   },
   LX: {
-    name: 'LX',
     year: 'R',
     dueDate: '2024-10-22',
     priorityWeekendSaturday: '2025-05-17',
   },
   CC: {
-    name: 'CC',
     year: 'R',
   },
   MB: {
-    name: 'MB',
     year: '3',
     priorityWeekendSaturday: '2024-12-14',
   },
   RB: {
-    name: 'RB',
     year: '3',
     priorityWeekendSaturday: '2024-08-03',
   },
   MJ: {
-    name: 'MJ',
     year: '3',
     priorityWeekendSaturday: '2024-08-31',
   },
   TM: {
-    name: 'TM',
     year: '3',
   },
   GN: {
-    name: 'GN',
     year: '2',
     priorityWeekendSaturday: '2025-04-19',
   },
   KO: {
-    name: 'KO',
     year: '2',
     priorityWeekendSaturday: '2024-08-31',
   },
   CPu: {
-    name: 'CPu',
     year: '2',
     priorityWeekendSaturday: '2024-08-17',
   },
   NR: {
-    name: 'NR',
     year: '2',
     priorityWeekendSaturday: '2024-08-31',
   },
   CF: {
-    name: 'CF',
     year: '1',
   },
   TH: {
-    name: 'TH',
     year: '1',
   },
   HL: {
-    name: 'HL',
     year: '1',
   },
   SO: {
-    name: 'SO',
     year: '1',
   },
 };
@@ -1025,7 +1055,7 @@ async function importRotationSchedule(): Promise<
     const person = Object.keys(people).find(
       p =>
         per &&
-        (people[p].name.toLowerCase().endsWith(per.toLowerCase()) ||
+        (p.toLowerCase().endsWith(per.toLowerCase()) ||
           (per == 'Madigan' && p == 'MAD')),
     );
     if (person) {
@@ -1255,6 +1285,7 @@ async function importPreviousSchedule() {
     lastDay: '2025-06-30',
     weeks: [],
     shiftConfigs,
+    chiefShiftConfigs,
     people,
     holidays: {},
     specialDays: {

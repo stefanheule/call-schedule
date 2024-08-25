@@ -4,10 +4,23 @@ import { IsoDate, IsoDatetime, mapEnum } from 'check-type';
 
 export type ShiftConfig = {
   kind: ShiftKind;
+  /** Should we map this to a different kind for export in excel? */
+  exportKind?: ShiftKind;
   name: string;
+  nameLong: string;
   hospitals: HospitalKind[];
   /** How many days (1 for just today, 2 for today and tomorrow, etc) */
   days: number;
+  /** How many days, for considering consecutive calls. Day shifts get 0 here, for instance. */
+  daysForConsecutiveCall: number;
+  /** How many days, for export in excel (defaults to days) */
+  daysForExport?: number;
+  hours: number;
+};
+export type ChiefShiftConfig = {
+  kind: ChiefShiftKind;
+  name: string;
+  nameLong: string;
 };
 
 export type Year = '1' | '2' | '3' | 'S' | 'C' | 'R' | 'M';
@@ -19,7 +32,7 @@ export const CHIEF_SHIFTS = [
   'backup_weekend',
   'backup_holiday',
 ] as const;
-export type ChiefShiftKind = (typeof CHIEF_SHIFTS)[number];
+export type ChiefShiftKind = string;
 
 export const WEEKDAY_SHIFTS = ['weekday_south'] as const;
 export const WEEKDAY_SHIFT_LOOKUP: Record<WeekdayShiftKind, boolean> = {
@@ -69,29 +82,9 @@ export const SPECIAL_SHIFT_LOOKUP: Record<SpecialShiftKind, boolean> = {
 };
 
 export type SpecialShiftKind = (typeof SPECIAL_SHIFTS)[number];
-export type ShiftKind = WeekdayShiftKind | WeekendShiftKind | SpecialShiftKind;
-export const SHIFT_ORDER: ShiftKind[] = [
-  // NWH/SCH
-  'weekend_nwhsch',
-  'day_nwhsch',
-  'day_2x_nwhsch',
-  // 'power_nwhsch',
-  // UW
-  'weekend_uw',
-  'day_uw',
-  'day_2x_uw',
-  // 'power_uw',
-  'south_24',
-  'south_34',
-  'south_power',
-  // South
-  // 'power_south',
-  'weekday_south',
-  'weekend_south',
-  // 'thanksgiving_south',
-  'day_va',
-];
+export type ShiftKind = string;
 
+export const HOSPITAL_ORDER = ['NWH', 'SCH', 'UW', 'HMC', 'VA'] as const;
 export const HOSPITALS = ['UW', 'VA', 'HMC', 'SCH', 'NWH'] as const;
 export type HospitalKind = (typeof HOSPITALS)[number];
 export const EXTRA_ROTATIONS = [
@@ -125,7 +118,6 @@ export function yearToString(year: Year): string {
 }
 
 export type PersonConfig = {
-  name: string;
   year: Year;
   dueDate?: string;
   priorityWeekendSaturday?: string;
@@ -171,14 +163,8 @@ export type WeekId = {
 
 export type Day = {
   date: IsoDate;
-
-  shifts: {
-    [Symbol in ShiftKind]?: MaybeCallPoolPerson;
-  };
-
-  backupShifts: {
-    [Symbol in ChiefShiftKind]?: MaybeChief;
-  };
+  shifts: Record<ShiftKind, MaybeCallPoolPerson>;
+  backupShifts: Record<ChiefShiftKind, MaybeChief>;
 };
 
 export type Week = {
@@ -206,9 +192,8 @@ export type CallSchedule = {
   lastDay: string;
   weeks: Week[];
 
-  shiftConfigs: {
-    [Property in ShiftKind]?: ShiftConfig;
-  };
+  shiftConfigs: Record<ShiftKind, ShiftConfig>;
+  chiefShiftConfigs: Record<ChiefShiftKind, ChiefShiftConfig>;
 
   people: Record<Person, PersonConfig>;
 

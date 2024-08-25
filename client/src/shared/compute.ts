@@ -9,7 +9,6 @@ import {
 } from 'check-type';
 import {
   Action,
-  CHIEF_SHIFTS,
   CallPoolPerson,
   CallSchedule,
   CallScheduleProcessed,
@@ -43,8 +42,8 @@ export function clearSchedule(data: CallSchedule): CallSchedule {
   for (const week of data.weeks) {
     for (const day of week.days) {
       if (day.date > data.lastDay || day.date < data.firstDay) continue;
-      for (const s of Object.keys(day.shifts)) {
-        day.shifts[s as ShiftKind] = '';
+      for (const shift of Object.keys(day.shifts)) {
+        day.shifts[shift] = '';
       }
     }
   }
@@ -198,8 +197,7 @@ export function inferSchedule(data: CallSchedule): CallSchedule {
   for (const week of data.weeks) {
     for (const day of week.days) {
       if (day.date < data.firstDay || day.date > data.lastDay) continue;
-      for (const s of Object.keys(day.shifts)) {
-        const shift = s as ShiftKind;
+      for (const shift of Object.keys(day.shifts)) {
         const inference = inferShift(data, processed, day.date, shift, {
           enableLog: true,
         });
@@ -288,6 +286,7 @@ export function elementIdForDay(date: string): string {
 }
 export function elementIdForShift(
   date: string,
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-type-constituents
   shift: ShiftKind | ChiefShiftKind,
 ): string {
   return `shift-${shift}-on-day-${date}`;
@@ -360,31 +359,26 @@ export function serializePerson(s: string) {
 export function deserializePerson(s: string): string {
   return s == 'nobody' ? '' : s;
 }
-const SHIFT_SERIALIZATION_MAP = {
-  weekday_south: 'Weekday South',
-  weekend_south: 'Weekend South',
-  weekend_uw: 'Weekend at UW',
-  weekend_nwhsch: 'Weekend at NWH/SCH',
-  day_uw: 'Day Shift at UW',
-  day_nwhsch: 'Day Shift at NWH/SCH',
-  day_va: 'Day Shift VA',
-  day_2x_uw: 'Two Day Shifts at UW',
-  day_2x_nwhsch: 'Two Day Shifts at NWH/SCH',
-  south_24: 'South 24h',
-  south_34: 'South 34h',
-  south_power: 'South Power Weekend',
-  backup_weekday: 'Backup Call Weekday',
-  backup_weekend: 'Backup Call Weekend',
-  backup_holiday: 'Backup Call Holiday',
-  weekend_half_uw: 'Split Weekend at UW',
-  weekend_half_south: 'Split Weekend South',
-} as const;
-export function serializeShift(s: ChiefShiftKind | ShiftKind) {
-  return mapEnum(s, SHIFT_SERIALIZATION_MAP);
+export function serializeShift(
+  data: CallSchedule,
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-type-constituents
+  s: ShiftKind | ChiefShiftKind,
+) {
+  if (s in data.shiftConfigs) {
+    return data.shiftConfigs[s].nameLong;
+  }
+  return assertNonNull(data.chiefShiftConfigs[s]).nameLong;
 }
-export function deserializeShift(s: string): ShiftKind | ChiefShiftKind {
-  for (const [k, v] of Object.entries(SHIFT_SERIALIZATION_MAP)) {
-    if (v == s) return k as ShiftKind;
+export function deserializeShift(
+  data: CallSchedule,
+  s: string,
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-type-constituents
+): ShiftKind | ChiefShiftKind {
+  for (const [k, v] of Object.entries(data.shiftConfigs)) {
+    if (v.nameLong == s) return k;
+  }
+  for (const [k, v] of Object.entries(data.chiefShiftConfigs)) {
+    if (v.nameLong == s) return k;
   }
   throw new Error(`Invalid shift: ${s}`);
 }
@@ -401,6 +395,7 @@ export function serializeActions(
         `${i + 1}. Replace ${serializePerson(
           change.previous,
         )} with ${serializePerson(change.next)} for ${serializeShift(
+          data,
           change.shift.shiftName,
         )} on ${serializeDate(
           data.weeks[change.shift.weekIndex].days[change.shift.dayIndex].date,
@@ -455,9 +450,8 @@ export function deserializeActions(
       continue;
     }
     try {
-      const s = deserializeShift(shift_);
-      if (CHIEF_SHIFTS.includes(s as ChiefShiftKind)) {
-        const shift = s as ChiefShiftKind;
+      const shift = deserializeShift(processed.data, shift_);
+      if (shift in processed.data.chiefShiftConfigs) {
         try {
           const next = assertMaybeChief(deserializePerson(next_));
           const previous = assertMaybeChief(deserializePerson(previous_));
@@ -475,7 +469,6 @@ export function deserializeActions(
           continue;
         }
       } else {
-        const shift = s as ShiftKind;
         try {
           const next = assertMaybeCallPoolPerson(deserializePerson(next_));
           const previous = assertMaybeCallPoolPerson(
@@ -527,8 +520,7 @@ export function compareData(
       const afterDay = afterWeek.days[dayIndex];
 
       // Regular shifts
-      for (const s of Object.keys(beforeDay.shifts)) {
-        const shiftName = s as ShiftKind;
+      for (const shiftName of Object.keys(beforeDay.shifts)) {
         const beforePerson = beforeDay.shifts[shiftName];
         const afterPerson = afterDay.shifts[shiftName];
         if (beforePerson === undefined || afterPerson === undefined) {
@@ -552,8 +544,7 @@ export function compareData(
       }
 
       // Backup shifts
-      for (const s of Object.keys(beforeDay.backupShifts)) {
-        const shiftName = s as ChiefShiftKind;
+      for (const shiftName of Object.keys(beforeDay.backupShifts)) {
         const beforePerson = beforeDay.backupShifts[shiftName];
         const afterPerson = afterDay.backupShifts[shiftName];
         if (beforePerson === undefined || afterPerson === undefined) {
@@ -810,8 +801,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         weekIndex,
         dayIndex,
       };
-      for (const [s, person] of Object.entries(day.shifts)) {
-        const shift = s as ShiftKind;
+      for (const [shift, person] of Object.entries(day.shifts)) {
         if (person === '' || person === undefined) continue;
 
         const shiftConfig = assertNonNull(data.shiftConfigs[shift]);
@@ -885,8 +875,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     for (const day of week.days) {
       if (day.date > data.lastDay || day.date < data.firstDay) continue;
       result.day2shift2unavailablePeople[day.date] = {};
-      for (const s of Object.keys(day.shifts)) {
-        const shift = s as ShiftKind;
+      for (const shift of Object.keys(day.shifts)) {
         const shiftConfig = assertNonNull(data.shiftConfigs[shift]);
         const unavailablePeople: {
           [Property in Person]?: {
@@ -929,9 +918,9 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
 
   // Compute holiday shifts
   function shiftsOfDay(day: string): { day: string; shift: ShiftKind }[] {
-    return (
-      Object.keys(result.day2shift2unavailablePeople[day] || {}) as ShiftKind[]
-    ).map(shift => ({ day, shift }));
+    return Object.keys(result.day2shift2unavailablePeople[day] || {}).map(
+      shift => ({ day, shift }),
+    );
   }
   for (const [date, holiday] of Object.entries(data.holidays)) {
     const dow = dateToDayOfWeek(date);
@@ -1028,8 +1017,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   for (const week of data.weeks) {
     for (const day of week.days) {
       if (day.date > data.lastDay || day.date < data.firstDay) continue;
-      for (const [s, person] of Object.entries(day.backupShifts)) {
-        const shift = s as ChiefShiftKind;
+      for (const [shift, person] of Object.entries(day.backupShifts)) {
         if (person == '') continue;
         const field = result.day2isR2EarlyCall[day.date] ? 'r2' : 'regular';
         switch (shift) {
@@ -1572,7 +1560,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     for (const day of week.days) {
       if (day.date > data.lastDay || day.date < data.firstDay) continue;
       for (const [s, person] of Object.entries(day.shifts)) {
-        const shift = s as ShiftKind;
+        const shift = s;
         const isMaternity = isLxNotTakingCallDueToMaternity(day.date);
         if (isHolidayShift(result, day.date, shift)) continue;
         if (shift in WEEKDAY_SHIFT_LOOKUP) {
@@ -1739,59 +1727,18 @@ export type HolidayShift = {
   holiday: string;
 };
 
-export function countHolidayShifts(holidayShifts: HolidayShift[]): {
+export function countHolidayShifts(
+  data: CallSchedule,
+  holidayShifts: HolidayShift[],
+): {
   calls: number;
   hours: number;
 } {
   let hours = 0;
   let calls = 0;
   for (const holidayShift of holidayShifts) {
-    switch (holidayShift.shift) {
-      case 'day_uw':
-      case 'day_nwhsch':
-      case 'weekday_south':
-        calls += 1;
-        hours += 10;
-        break;
-      case 'weekend_south':
-      case 'weekend_uw':
-      case 'weekend_nwhsch':
-        calls += 1;
-        hours += 48;
-        break;
-      case 'day_2x_uw':
-      case 'day_2x_nwhsch':
-        calls += 1;
-        hours += 20;
-        break;
-      case 'south_24':
-        calls += 1;
-        hours += 24;
-        break;
-      case 'south_34':
-        calls += 1;
-        hours += 34;
-        break;
-      case 'south_power':
-        calls += 1;
-        hours += 60;
-        break;
-      case 'day_va':
-        calls += 1;
-        hours += 10;
-        break;
-      // case 'power_uw':
-      // case 'power_nwhsch':
-      // case 'power_south':
-      //   calls += 1;
-      //   hours += 60;
-      //   break;
-      case 'weekend_half_south':
-      case 'weekend_half_uw':
-        calls += 1;
-        hours += 24;
-        break;
-    }
+    calls += 1;
+    hours += data.shiftConfigs[holidayShift.shift].hours;
   }
   return { calls, hours };
 }
@@ -1805,7 +1752,7 @@ export function collectHolidayCall(
   for (const day in processed.day2shift2isHoliday) {
     const index = processed.day2weekAndDay[day];
     for (const s in processed.day2shift2isHoliday[day]) {
-      const shift = s as ShiftKind;
+      const shift = s;
       const personOnCall =
         data.weeks[index.weekIndex].days[index.dayIndex].shifts[shift];
       if (personOnCall == person) {
