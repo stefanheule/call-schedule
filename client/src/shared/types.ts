@@ -133,6 +133,13 @@ export type RotationSchedule = Record<Person, RotationConfig[]>;
 
 export type VacationSchedule = Record<Person, Vacation[]>;
 
+export type SingleCallTarget = Record<Year, Record<Person, number>>;
+
+export type CallTarget = {
+  weekday: SingleCallTarget;
+  weekend: SingleCallTarget;
+};
+
 export type CallSchedule = {
   lastEditedBy?: string;
   firstDay: string;
@@ -141,6 +148,8 @@ export type CallSchedule = {
 
   shiftConfigs: Record<ShiftKind, ShiftConfig>;
   chiefShiftConfigs: Record<ChiefShiftKind, ChiefShiftConfig>;
+
+  callTargets: CallTarget;
 
   people: Record<Person, PersonConfig>;
 

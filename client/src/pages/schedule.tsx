@@ -64,8 +64,6 @@ import {
 import { WarningOutlined, ErrorOutlined } from '@mui/icons-material';
 import {
   HolidayShift,
-  WEEKDAY_CALL_TARGET,
-  WEEKEND_CALL_TARGET,
   applyActions,
   collectHolidayCall,
   compareData,
@@ -961,6 +959,7 @@ function RenderCallCounts() {
       {holiday == 'regular' && (
         <Column>
           {callPoolPeople(data).map(person => {
+            const personConfig = data.people[person];
             const counts = processed.callCounts[person];
             return (
               <Row key={person} spacing={'5px'}>
@@ -981,7 +980,7 @@ function RenderCallCounts() {
                       style={{
                         fontWeight:
                           counts.weekday + counts.sunday >
-                          WEEKDAY_CALL_TARGET[person]
+                          data.callTargets.weekday[personConfig.year][person]
                             ? 'bold'
                             : 'normal',
                       }}
@@ -994,12 +993,13 @@ function RenderCallCounts() {
                         style={{
                           fontWeight:
                             counts.weekday + counts.sunday <
-                            WEEKDAY_CALL_TARGET[person]
+                            data.callTargets.weekday[personConfig.year][person]
                               ? 'bold'
                               : 'normal',
                         }}
                       >
-                        (target: {WEEKDAY_CALL_TARGET[person]}){' '}
+                        (target:{' '}
+                        {data.callTargets.weekday[personConfig.year][person]}){' '}
                       </Text>
                     )}
                     <Text inline>
@@ -1010,7 +1010,8 @@ function RenderCallCounts() {
                       inline
                       style={{
                         fontWeight:
-                          counts.weekend > WEEKEND_CALL_TARGET[person]
+                          counts.weekend >
+                          data.callTargets.weekend[personConfig.year][person]
                             ? 'bold'
                             : 'normal',
                       }}
@@ -1022,12 +1023,14 @@ function RenderCallCounts() {
                         inline
                         style={{
                           fontWeight:
-                            counts.weekend < WEEKEND_CALL_TARGET[person]
+                            counts.weekend <
+                            data.callTargets.weekend[personConfig.year][person]
                               ? 'bold'
                               : 'normal',
                         }}
                       >
-                        (target: {WEEKEND_CALL_TARGET[person]}){' '}
+                        (target:{' '}
+                        {data.callTargets.weekend[personConfig.year][person]}){' '}
                       </Text>
                     )}
                     <Text inline>/ </Text>

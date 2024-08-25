@@ -7,6 +7,7 @@ import {
   CallPool,
   CallPoolPerson,
   CallSchedule,
+  CallTarget,
   ChiefShiftConfig,
   ChiefShiftKind,
   Day,
@@ -22,6 +23,7 @@ import {
   StoredCallSchedules,
   VacationSchedule,
   Week,
+  Year,
   callPoolPeople,
   isHolidayShift,
 } from './shared/types';
@@ -29,14 +31,13 @@ import {
 import * as datefns from 'date-fns';
 import {
   IsoDate,
+  assertNonNull,
   dateToIsoDate,
   deepCopy,
   isoDateToDate,
   mapEnum,
 } from 'check-type';
 import {
-  WEEKDAY_CALL_TARGET,
-  WEEKEND_CALL_TARGET,
   clearSchedule,
   compareData,
   dateToDayOfWeek,
@@ -277,6 +278,7 @@ async function main() {
 
     data.shiftConfigs = shiftConfigs;
     data.chiefShiftConfigs = chiefShiftConfigs;
+    data.callTargets = callTargets;
   }
 
   if (run == 'onetime-split-weekends') {
@@ -695,6 +697,65 @@ const chiefShiftConfigs: Record<ChiefShiftKind, ChiefShiftConfig> = {
     kind: 'backup_weekend',
     name: 'Weekend',
     nameLong: 'Chief Weekend Backup',
+  },
+};
+
+const callTargets: CallTarget = {
+  weekday: {
+    M: {
+      MAD: 2,
+    },
+    S: {
+      AA: 24,
+      DC: 24,
+      AJ: 24,
+    },
+    R: {
+      LX: 19,
+      CC: 19,
+    },
+    '3': {
+      MB: 23,
+      RB: 22,
+      MJ: 22,
+      TM: 22,
+    },
+    '2': {
+      GN: 11,
+      KO: 11,
+      CPu: 11,
+      NR: 11,
+    },
+    '1': {},
+    C: {},
+  },
+  weekend: {
+    M: {
+      MAD: 4,
+    },
+    S: {
+      AA: 9,
+      DC: 9,
+      AJ: 8,
+    },
+    R: {
+      LX: 7,
+      CC: 9,
+    },
+    '3': {
+      MB: 11,
+      RB: 11,
+      MJ: 11,
+      TM: 11,
+    },
+    '2': {
+      GN: 12,
+      KO: 12,
+      CPu: 12,
+      NR: 12,
+    },
+    '1': {},
+    C: {},
   },
 };
 
@@ -1301,6 +1362,7 @@ async function importPreviousSchedule() {
     weeks: [],
     shiftConfigs,
     chiefShiftConfigs,
+    callTargets,
     people,
     holidays: {},
     specialDays: {
@@ -1505,19 +1567,29 @@ async function importPreviousSchedule() {
   const processed = processCallSchedule(data);
 
   // check call target matches up.
-  const weekday = Object.values(WEEKDAY_CALL_TARGET).reduce(
-    (acc, val) => acc + val,
-    0,
-  );
+  let weekday = 0;
+  for (const year in data.callTargets.weekday) {
+    const weekdayTargets = assertNonNull(
+      data.callTargets.weekday[year as Year],
+    );
+    for (const person in weekdayTargets) {
+      weekday += weekdayTargets[person];
+    }
+  }
   if (processed.totalCalls.weekday != weekday) {
     throw new Error(
       `Expected ${processed.totalCalls.weekday} weekday calls, got ${weekday} from WEEKDAY_CALL_TARGET`,
     );
   }
-  const weekend = Object.values(WEEKEND_CALL_TARGET).reduce(
-    (acc, val) => acc + val,
-    0,
-  );
+  let weekend = 0;
+  for (const year in data.callTargets.weekend) {
+    const weekendTargets = assertNonNull(
+      data.callTargets.weekend[year as Year],
+    );
+    for (const person in weekendTargets) {
+      weekend += weekendTargets[person];
+    }
+  }
   if (processed.totalCalls.weekend != weekend) {
     throw new Error(
       `Expected ${processed.totalCalls.weekend} weekend calls, got ${weekend} from WEEKEND_CALL_TARGET`,
@@ -1578,10 +1650,11 @@ async function importPreviousSchedule() {
       `Here's how much people spend at a south rotation vs how much south call they take.`,
     );
     for (const person of callPoolPeople(data)) {
+      const personConfig = data.people[person];
       console.log(
         `${person.length > 2 ? '' : ' '}${person}: ${
           southWeekdays[person]
-        } <-> ${WEEKDAY_CALL_TARGET[person]}`,
+        } <-> ${data.callTargets.weekday[personConfig.year as 'R'][person]}`,
       );
     }
   }

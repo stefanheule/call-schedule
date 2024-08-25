@@ -4,7 +4,6 @@ import {
   dateToIsoDatetime,
   deepCopy,
   lexicalCompare,
-  mapEnum,
   mapEnumWithDefault,
 } from 'check-type';
 import {
@@ -227,6 +226,7 @@ export function rate(
 ): Rating {
   let target = 0;
   for (const person of callPoolPeople(data)) {
+    const personConfig = data.people[person];
     {
       let field: 'weekend' | 'weekendOutsideMaternity' = 'weekend';
       if (person == 'LX') {
@@ -235,7 +235,8 @@ export function rate(
       const currentWeekend = processed.callCounts[person].weekend;
       const correction =
         1 - processed.unassignedCalls[field] / processed.totalCalls[field];
-      const targetWeekend = WEEKEND_CALL_TARGET[person] * correction;
+      const targetWeekend =
+        data.callTargets.weekend[personConfig.year][person] * correction;
       target += Math.abs(currentWeekend - targetWeekend);
     }
     {
@@ -246,7 +247,8 @@ export function rate(
       const currentWeekday = processed.callCounts[person].weekday;
       const correction =
         1 - processed.unassignedCalls[field] / processed.totalCalls[field];
-      const targetWeekday = WEEKDAY_CALL_TARGET[person] * correction;
+      const targetWeekday =
+        data.callTargets.weekday[personConfig.year][person] * correction;
       target += Math.abs(currentWeekday - targetWeekday);
     }
   }
@@ -586,47 +588,6 @@ export function dateToDayOfWeek(
   return 'sat';
 }
 
-export const WEEKDAY_CALL_TARGET: Record<CallPoolPerson, number> = {
-  MAD: 2,
-  // Seniors
-  AA: 24,
-  DC: 24,
-  AJ: 24,
-  // Research
-  LX: 19,
-  CC: 19,
-  // Year 3
-  MB: 23,
-  RB: 22,
-  MJ: 22,
-  TM: 22,
-  // Year 2
-  GN: 11,
-  KO: 11,
-  CPu: 11,
-  NR: 11,
-};
-export const WEEKEND_CALL_TARGET: Record<CallPoolPerson, number> = {
-  MAD: 4, // +1 holiday
-  // Seniors
-  AA: 9,
-  DC: 9,
-  AJ: 8,
-  // Research
-  LX: 7, // 9, but 2 redistributed due to maternity leave
-  CC: 9,
-  // Year 3
-  MB: 11,
-  RB: 11,
-  MJ: 11,
-  TM: 11,
-  // Year 2
-  GN: 12,
-  KO: 12,
-  CPu: 12,
-  NR: 12,
-};
-
 export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   const start = Date.now();
 
@@ -822,23 +783,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           });
         }
 
-        const lenDays = mapEnum(shift, {
-          day_2x_nwhsch: 0,
-          day_2x_uw: 0,
-          day_uw: 0,
-          day_va: 0,
-          day_nwhsch: 0,
-          weekday_south: 1,
-          weekend_south: 3,
-          weekend_uw: 3,
-          weekend_nwhsch: 3,
-          south_24: 1,
-          south_34: 2,
-          south_power: 3,
-          weekend_half_south: 1,
-          weekend_half_uw: 1,
-        });
-        for (let i = 0; i < lenDays; i++) {
+        for (let i = 0; i < shiftConfig.daysForConsecutiveCall; i++) {
           const nextD = nextDay(day.date, i);
           if (nextD > data.lastDay || nextD < data.firstDay) continue;
           const nextDayInfo = assertNonNull(
@@ -1623,21 +1568,34 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
 
   // 6. soft: don't go over call targets
   for (const person of callPoolPeople(data)) {
+    const personConfig = data.people[person];
     const callCount = result.callCounts[person];
-    if (callCount.weekday > WEEKDAY_CALL_TARGET[person]) {
+    if (
+      callCount.weekday > data.callTargets.weekday[personConfig.year][person]
+    ) {
       addIssue(result, {
         kind: 'over-call-target',
         startDay: data.firstDay as IsoDate,
-        message: `Over weekday call target: ${person} has ${callCount.weekday} calls, target is ${WEEKDAY_CALL_TARGET[person]}.`,
+        message: `Over weekday call target: ${person} has ${
+          callCount.weekday
+        } calls, target is ${
+          data.callTargets.weekday[personConfig.year][person]
+        }.`,
         isHard: false,
         elements: [],
       });
     }
-    if (callCount.weekend > WEEKEND_CALL_TARGET[person]) {
+    if (
+      callCount.weekend > data.callTargets.weekend[personConfig.year][person]
+    ) {
       addIssue(result, {
         kind: 'over-call-target',
         startDay: data.firstDay as IsoDate,
-        message: `Over weekend call target: ${person} has ${callCount.weekend} calls, target is ${WEEKEND_CALL_TARGET[person]}.`,
+        message: `Over weekend call target: ${person} has ${
+          callCount.weekend
+        } calls, target is ${
+          data.callTargets.weekend[personConfig.year][person]
+        }.`,
         isHard: false,
         elements: [],
       });
