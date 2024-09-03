@@ -142,6 +142,8 @@ export type CallTarget = {
 
 export type CallSchedule = {
   lastEditedBy?: string;
+  lastEditedAt?: IsoDatetime;
+
   firstDay: string;
   lastDay: string;
   weeks: Week[];
@@ -166,6 +168,7 @@ export type CallSchedule = {
   rotations: RotationSchedule;
 
   isPublic?: boolean;
+  currentUser?: string;
 };
 
 export type RotationConfig = RotationDetails & {
@@ -422,6 +425,10 @@ export type SaveCallScheduleRequest = {
 
 export type SaveCallScheduleResponse = {
   ts: IsoDatetime;
+};
+
+export type SaveFullCallScheduleResponse = {
+  kind: 'ok' | 'error';
 };
 
 export type ListCallSchedulesRequest = {

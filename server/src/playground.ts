@@ -33,6 +33,7 @@ import {
   IsoDate,
   assertNonNull,
   dateToIsoDate,
+  dateToIsoDatetime,
   deepCopy,
   isoDateToDate,
   mapEnum,
@@ -77,7 +78,8 @@ export type RunType =
   | 'use-power'
   | 'update-people-shifts'
   | 'onetime-split-weekends'
-  | 'onetime-intern-schedule';
+  | 'onetime-intern-schedule'
+  | 'onetime-add-last-edited-at';
 
 function runType(): RunType {
   if (process.argv.length < 3) return 'noop';
@@ -407,6 +409,10 @@ async function main() {
     }
   }
 
+  if (run == 'onetime-add-last-edited-at') {
+    data.lastEditedAt = dateToIsoDatetime(new Date());
+  }
+
   if (run == 'noop') {
     console.log('No operation specified.');
     return;
@@ -595,6 +601,7 @@ async function main() {
     case 'update-people-shifts':
     case 'onetime-split-weekends':
     case 'onetime-intern-schedule':
+    case 'onetime-add-last-edited-at':
       const text = mapEnum(run, {
         'clear-weekends': 'Cleared weekends to start over',
         'clear-weekdays': 'Cleared weekday calls to start over',
@@ -606,6 +613,7 @@ async function main() {
         'update-people-shifts': 'Update the people list and shift configs',
         'onetime-split-weekends': 'Split weekends of 12/6 and 3/7',
         'onetime-intern-schedule': 'Add intern schedule',
+        'onetime-add-last-edited-at': 'Added last edited timestamp',
       });
 
       data = assertCallSchedule(data);

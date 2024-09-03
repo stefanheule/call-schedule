@@ -90,6 +90,7 @@ import {
   PersonPickerProvider,
   usePersonPicker,
 } from './person-picker';
+import { ConfigEditorDialog, ConfigEditorProvider, useConfigEditor } from './config-editor';
 
 export function RenderCallSchedule() {
   const [showRotations, _setShowRotations] = useState(true);
@@ -202,42 +203,43 @@ export function RenderCallSchedule() {
 
   return (
     <PersonPickerProvider>
-      <Snackbar
-        open={copyPasteSnackbar != ''}
-        onClose={() => setCopyPasteSnackbar('')}
-        message={copyPasteSnackbar}
-        autoHideDuration={5000}
-        action={
-          <IconButton
-            aria-label="close"
-            color="inherit"
-            sx={{ p: 0.5 }}
-            onClick={() => setCopyPasteSnackbar('')}
-          >
-            <CloseIcon />
-          </IconButton>
-        }
-      />
-      <Column
-        style={{
-          height: '100%',
-        }}
-      >
-        <DefaultTextSize defaultSize={'12px'}>
-          <Row
-            crossAxisAlignment="start"
-            mainAxisAlignment="start"
-            style={{
-              height: '100%',
-            }}
-          >
-            <Column
+      <ConfigEditorProvider>
+        <Snackbar
+          open={copyPasteSnackbar != ''}
+          onClose={() => setCopyPasteSnackbar('')}
+          message={copyPasteSnackbar}
+          autoHideDuration={5000}
+          action={
+            <IconButton
+              aria-label="close"
+              color="inherit"
+              sx={{ p: 0.5 }}
+              onClick={() => setCopyPasteSnackbar('')}
+            >
+              <CloseIcon />
+            </IconButton>
+          }
+        />
+        <Column
+          style={{
+            height: '100%',
+          }}
+        >
+          <DefaultTextSize defaultSize={'12px'}>
+            <Row
+              crossAxisAlignment="start"
+              mainAxisAlignment="start"
               style={{
                 height: '100%',
-                minWidth: '880px',
               }}
             >
-              {/* {Array.from({ length: 53 }).map((_, i) => (
+              <Column
+                style={{
+                  height: '100%',
+                  minWidth: '880px',
+                }}
+              >
+                {/* {Array.from({ length: 53 }).map((_, i) => (
                 <Column key={i}>
                   <RenderWeek
                     id={{ weekIndex: i }}
@@ -246,19 +248,19 @@ export function RenderCallSchedule() {
                   <ElementSpacer />
                 </Column>
               ))} */}
-              <VList ref={weekListRef}>
-                {Array.from({ length: 53 }).map((_, i) => (
-                  <Column key={i}>
-                    <RenderWeek
-                      setWarningSnackbar={setCopyPasteSnackbar}
-                      id={{ weekIndex: i }}
-                      showRotations={showRotations}
-                    />
-                    <ElementSpacer />
-                  </Column>
-                ))}
-              </VList>
-              {/* <AutoSizer>
+                <VList ref={weekListRef}>
+                  {Array.from({ length: 53 }).map((_, i) => (
+                    <Column key={i}>
+                      <RenderWeek
+                        setWarningSnackbar={setCopyPasteSnackbar}
+                        id={{ weekIndex: i }}
+                        showRotations={showRotations}
+                      />
+                      <ElementSpacer />
+                    </Column>
+                  ))}
+                </VList>
+                {/* <AutoSizer>
                 {({ height, width }) => (
                   <FixedSizeList
                     height={height}
@@ -272,263 +274,266 @@ export function RenderCallSchedule() {
                   </FixedSizeList>
                 )}
               </AutoSizer> */}
-            </Column>
-            <Column
-              style={{
-                height: '100%',
-                marginLeft: `10px`,
-              }}
-            >
-              <Column>
-                <Row spacing="8px">
-                  {/* <Row>
+              </Column>
+              <Column
+                style={{
+                  height: '100%',
+                  marginLeft: `10px`,
+                }}
+              >
+                <Column>
+                  <Row spacing="8px">
+                    {/* <Row>
                     <Checkbox
                       checked={showRotations}
                       onChange={() => setShowRotations(!showRotations)}
                     />
                     Show rotations
                   </Row> */}
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={async () => {
-                      const buffer = await exportSchedule(data);
-                      const blob = new Blob([buffer], {
-                        // cspell:disable-next-line
-                        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                      });
-                      saveAs(blob, 'Call-Schedule-AY2025.xlsx');
-                    }}
-                  >
-                    Download
-                  </Button>
-                  {!data.isPublic && (
                     <Button
                       variant="outlined"
                       size="small"
-                      onClick={() => navigate('/history')}
+                      onClick={async () => {
+                        const buffer = await exportSchedule(data);
+                        const blob = new Blob([buffer], {
+                          // cspell:disable-next-line
+                          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                        });
+                        saveAs(blob, 'Call-Schedule-AY2025.xlsx');
+                      }}
                     >
-                      History
+                      Download
                     </Button>
-                  )}
-                  <Button
-                    variant={
-                      data.isPublic === true && localData.unsavedChanges > 0
-                        ? 'contained'
-                        : 'outlined'
-                    }
-                    size="small"
-                    disabled={
-                      localData.unsavedChanges == 0 && data.isPublic !== true
-                    }
-                    onClick={() => {
-                      if (data.isPublic) {
-                        setSuggestDialogOpen(true);
-                      } else {
-                        setSaveName('');
-                        setSaveDialogOpen(true);
+                    {!data.isPublic && (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => navigate('/history')}
+                      >
+                        History
+                      </Button>
+                    )}
+                    <Button
+                      variant={
+                        data.isPublic === true && localData.unsavedChanges > 0
+                          ? 'contained'
+                          : 'outlined'
                       }
-                    }}
-                    style={{
-                      width: '170px',
-                    }}
-                  >
-                    {data.isPublic !== true &&
-                      localData.unsavedChanges > 0 &&
-                      `Save ${localData.unsavedChanges} change${
-                        localData.unsavedChanges > 2 ? 's' : ''
-                      }`}
-                    {data.isPublic !== true &&
-                      localData.unsavedChanges == 0 &&
-                      `Saved`}
-                    {data.isPublic === true && `Suggest call trade`}
-                  </Button>
-                  {!data.isPublic && (
-                    <Button
-                      style={{
-                        width: '160px',
-                      }}
-                      variant="outlined"
                       size="small"
+                      disabled={
+                        localData.unsavedChanges == 0 && data.isPublic !== true
+                      }
                       onClick={() => {
-                        setImportDialogOpen(true);
-                        setImportDoneDialogOpen(false);
-                        // setImportText('');
+                        if (data.isPublic) {
+                          setSuggestDialogOpen(true);
+                        } else {
+                          setSaveName('');
+                          setSaveDialogOpen(true);
+                        }
+                      }}
+                      style={{
+                        width: '170px',
                       }}
                     >
-                      Import call swap
+                      {data.isPublic !== true &&
+                        localData.unsavedChanges > 0 &&
+                        `Save ${localData.unsavedChanges} change${
+                          localData.unsavedChanges > 2 ? 's' : ''
+                        }`}
+                      {data.isPublic !== true &&
+                        localData.unsavedChanges == 0 &&
+                        `Saved`}
+                      {data.isPublic === true && `Suggest call trade`}
                     </Button>
-                  )}
-                  <Dialog
-                    open={importDialogOpen}
-                    maxWidth="xl"
-                    onClose={() => setImportDialogOpen(false)}
-                  >
-                    <RenderImportCallSwitchDialog
-                      setImportDialogOpen={setImportDialogOpen}
-                      setImportDoneDialogOpen={setImportDoneDialogOpen}
-                      importText={importText}
-                      setImportText={setImportText}
-                    />
-                  </Dialog>
-                  <Dialog
-                    open={suggestDialogOpen}
-                    maxWidth="xl"
-                    onClose={() => setSuggestDialogOpen(false)}
-                  >
-                    <RenderSuggestCallSwitchDialog
-                      setCopyPasteSnackbar={setCopyPasteSnackbar}
-                      setSuggestDialogOpen={setSuggestDialogOpen}
-                    />
-                  </Dialog>
-                  <Dialog
-                    open={importDoneDialogOpen}
-                    maxWidth="xl"
-                    onClose={() => {
-                      setImportDoneDialogOpen(false);
-                      setImportDialogOpen(false);
-                    }}
-                  >
-                    <Column
-                      style={{ padding: '20px', minWidth: '450px' }}
-                      spacing="10px"
-                    >
-                      <Row>
-                        <Heading>Import done</Heading>
-                      </Row>
-                      <Text
+                    {!data.isPublic && (
+                      <Button
                         style={{
-                          fontSize: '16px',
+                          width: '160px',
+                        }}
+                        variant="outlined"
+                        size="small"
+                        onClick={() => {
+                          setImportDialogOpen(true);
+                          setImportDoneDialogOpen(false);
+                          // setImportText('');
                         }}
                       >
-                        The call swaps have been applied, but are NOT SAVED YET.
-                      </Text>
-                      <Row
-                        style={{ marginTop: '10px' }}
-                        mainAxisAlignment="end"
-                        spacing="10px"
-                      >
-                        <Button
-                          variant="outlined"
-                          onClick={() => {
-                            setImportDoneDialogOpen(false);
-                            setImportDialogOpen(false);
-                          }}
-                          disabled={isSaving}
-                        >
-                          Done
-                        </Button>
-                      </Row>
-                    </Column>
-                  </Dialog>
-                  <Dialog
-                    open={saveDialogOpen}
-                    maxWidth="xl"
-                    onClose={() => setSaveDialogOpen(false)}
-                  >
-                    <Column
-                      style={{ padding: '20px', minWidth: '450px' }}
-                      spacing="10px"
+                        Import call swap
+                      </Button>
+                    )}
+                    <Dialog
+                      open={importDialogOpen}
+                      maxWidth="xl"
+                      onClose={() => setImportDialogOpen(false)}
                     >
-                      <Row>
-                        <Heading>Save current changes</Heading>
-                      </Row>
-                      <Text
-                        style={{
-                          fontSize: '16px',
-                        }}
-                      >
-                        Optionally name the current version.
-                      </Text>
-                      <Row>
-                        <TextField
-                          size="small"
-                          value={saveName}
-                          onChange={ev => setSaveName(ev.target.value)}
-                        />
-                      </Row>
-                      <Row
-                        style={{ marginTop: '10px' }}
-                        mainAxisAlignment="end"
+                      <RenderImportCallSwitchDialog
+                        setImportDialogOpen={setImportDialogOpen}
+                        setImportDoneDialogOpen={setImportDoneDialogOpen}
+                        importText={importText}
+                        setImportText={setImportText}
+                      />
+                    </Dialog>
+                    <Dialog
+                      open={suggestDialogOpen}
+                      maxWidth="xl"
+                      onClose={() => setSuggestDialogOpen(false)}
+                    >
+                      <RenderSuggestCallSwitchDialog
+                        setCopyPasteSnackbar={setCopyPasteSnackbar}
+                        setSuggestDialogOpen={setSuggestDialogOpen}
+                      />
+                    </Dialog>
+                    <Dialog
+                      open={importDoneDialogOpen}
+                      maxWidth="xl"
+                      onClose={() => {
+                        setImportDoneDialogOpen(false);
+                        setImportDialogOpen(false);
+                      }}
+                    >
+                      <Column
+                        style={{ padding: '20px', minWidth: '450px' }}
                         spacing="10px"
                       >
-                        <Button
-                          variant="outlined"
-                          onClick={() => setSaveDialogOpen(false)}
-                          disabled={isSaving}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          variant="contained"
-                          disabled={isSaving}
-                          onClick={async () => {
-                            try {
-                              setIsSaving(true);
-                              const result = await rpcSaveCallSchedules({
-                                name: saveName,
-                                callSchedule: data,
-                                initialCallSchedule: initialData,
-                              });
-                              setLocalData({
-                                ...localData,
-                                unsavedChanges: 0,
-                              });
-                              console.log({ result });
-                              setCopyPasteSnackbar(`Saved successfully`);
-                              setSaveDialogOpen(false);
-                            } catch (e) {
-                              console.log(e);
-                              setCopyPasteSnackbar(
-                                `Failed to save, please try again`,
-                              );
-                            } finally {
-                              setIsSaving(false);
-                            }
+                        <Row>
+                          <Heading>Import done</Heading>
+                        </Row>
+                        <Text
+                          style={{
+                            fontSize: '16px',
                           }}
                         >
-                          {isSaving ? (
-                            <LoadingIndicator color="secondary" />
-                          ) : (
-                            `Save now`
-                          )}
-                        </Button>
-                      </Row>
-                    </Column>
-                  </Dialog>
-                </Row>
+                          The call swaps have been applied, but are NOT SAVED
+                          YET.
+                        </Text>
+                        <Row
+                          style={{ marginTop: '10px' }}
+                          mainAxisAlignment="end"
+                          spacing="10px"
+                        >
+                          <Button
+                            variant="outlined"
+                            onClick={() => {
+                              setImportDoneDialogOpen(false);
+                              setImportDialogOpen(false);
+                            }}
+                            disabled={isSaving}
+                          >
+                            Done
+                          </Button>
+                        </Row>
+                      </Column>
+                    </Dialog>
+                    <Dialog
+                      open={saveDialogOpen}
+                      maxWidth="xl"
+                      onClose={() => setSaveDialogOpen(false)}
+                    >
+                      <Column
+                        style={{ padding: '20px', minWidth: '450px' }}
+                        spacing="10px"
+                      >
+                        <Row>
+                          <Heading>Save current changes</Heading>
+                        </Row>
+                        <Text
+                          style={{
+                            fontSize: '16px',
+                          }}
+                        >
+                          Optionally name the current version.
+                        </Text>
+                        <Row>
+                          <TextField
+                            size="small"
+                            value={saveName}
+                            onChange={ev => setSaveName(ev.target.value)}
+                          />
+                        </Row>
+                        <Row
+                          style={{ marginTop: '10px' }}
+                          mainAxisAlignment="end"
+                          spacing="10px"
+                        >
+                          <Button
+                            variant="outlined"
+                            onClick={() => setSaveDialogOpen(false)}
+                            disabled={isSaving}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            variant="contained"
+                            disabled={isSaving}
+                            onClick={async () => {
+                              try {
+                                setIsSaving(true);
+                                const result = await rpcSaveCallSchedules({
+                                  name: saveName,
+                                  callSchedule: data,
+                                  initialCallSchedule: initialData,
+                                });
+                                setLocalData({
+                                  ...localData,
+                                  unsavedChanges: 0,
+                                });
+                                console.log({ result });
+                                setCopyPasteSnackbar(`Saved successfully`);
+                                setSaveDialogOpen(false);
+                              } catch (e) {
+                                console.log(e);
+                                setCopyPasteSnackbar(
+                                  `Failed to save, please try again`,
+                                );
+                              } finally {
+                                setIsSaving(false);
+                              }
+                            }}
+                          >
+                            {isSaving ? (
+                              <LoadingIndicator color="secondary" />
+                            ) : (
+                              `Save now`
+                            )}
+                          </Button>
+                        </Row>
+                      </Column>
+                    </Dialog>
+                  </Row>
+                </Column>
+                <ElementSpacer />
+                <Highlight />
+                <RenderCallCounts />
+                <Column
+                  style={{
+                    paddingRight: `10px`,
+                    overflowY: 'scroll',
+                    height: '100%',
+                  }}
+                >
+                  <Heading>
+                    Rule violations (hard: {processed.issueCounts.hard}, soft:{' '}
+                    {processed.issueCounts.soft})
+                  </Heading>
+                  {Object.entries(processed.issues)
+                    // .filter(([_, issue]) => issue.kind !== 'cross-coverage')
+                    .sort((a, b) => a[1].startDay.localeCompare(b[1].startDay))
+                    .map(([id, issue]) => (
+                      <RuleViolation
+                        key={id}
+                        id={id}
+                        issue={issue}
+                        weekListRef={weekListRef}
+                      />
+                    ))}
+                </Column>
               </Column>
-              <ElementSpacer />
-              <Highlight />
-              <RenderCallCounts />
-              <Column
-                style={{
-                  paddingRight: `10px`,
-                  overflowY: 'scroll',
-                  height: '100%',
-                }}
-              >
-                <Heading>
-                  Rule violations (hard: {processed.issueCounts.hard}, soft:{' '}
-                  {processed.issueCounts.soft})
-                </Heading>
-                {Object.entries(processed.issues)
-                  // .filter(([_, issue]) => issue.kind !== 'cross-coverage')
-                  .sort((a, b) => a[1].startDay.localeCompare(b[1].startDay))
-                  .map(([id, issue]) => (
-                    <RuleViolation
-                      key={id}
-                      id={id}
-                      issue={issue}
-                      weekListRef={weekListRef}
-                    />
-                  ))}
-              </Column>
-            </Column>
-          </Row>
-        </DefaultTextSize>
-      </Column>
-      <PersonPickerDialog />
+            </Row>
+          </DefaultTextSize>
+        </Column>
+        <PersonPickerDialog />
+        <ConfigEditorDialog />
+      </ConfigEditorProvider>
     </PersonPickerProvider>
   );
 }

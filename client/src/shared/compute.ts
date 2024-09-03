@@ -270,10 +270,11 @@ export function scheduleToStoredSchedule(
 ): StoredCallSchedule {
   const processed = processCallSchedule(data);
   data.lastEditedBy = lastEditedBy;
+  data.lastEditedAt = dateToIsoDatetime(new Date());
   return {
     name,
     lastEditedBy: data.lastEditedBy,
-    ts: dateToIsoDatetime(new Date()),
+    ts: data.lastEditedAt,
     callSchedule: data,
     issueCounts: processed.issueCounts,
     shiftCounts: processed.shiftCounts,

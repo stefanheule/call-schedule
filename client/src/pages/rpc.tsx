@@ -2,6 +2,7 @@ import {
   assertListCallSchedulesResponse,
   assertLoadCallScheduleResponse,
   assertSaveCallScheduleResponse,
+  assertSaveFullCallScheduleResponse,
 } from '../shared/check-type.generated';
 import { axiosPost } from '../shared/common/axios';
 import {
@@ -11,6 +12,7 @@ import {
   LoadCallScheduleResponse,
   SaveCallScheduleRequest,
   SaveCallScheduleResponse,
+  SaveFullCallScheduleResponse,
 } from '../shared/types';
 
 const AXIOS_PROPS = {
@@ -34,6 +36,15 @@ export async function rpcSaveCallSchedules(
     await axiosPost('/api/save-call-schedule', request, AXIOS_PROPS)
   ).data;
   return assertSaveCallScheduleResponse(data);
+}
+
+export async function rpcSaveFullCallSchedules(
+  request: SaveCallScheduleRequest,
+): Promise<SaveFullCallScheduleResponse> {
+  const data = (
+    await axiosPost('/api/save-full-call-schedule', request, AXIOS_PROPS)
+  ).data;
+  return assertSaveFullCallScheduleResponse(data);
 }
 
 export async function rpcListCallSchedules(

@@ -26,6 +26,7 @@ import {
   ListCallSchedulesResponse,
   LoadCallScheduleResponse,
   SaveCallScheduleResponse,
+  SaveFullCallScheduleResponse,
   StoredCallSchedules,
 } from './shared/types';
 import { loadStorage, storeStorage } from './storage';
@@ -66,6 +67,7 @@ async function main() {
             }
 
             result.callSchedule.isPublic = IS_PUBLIC;
+            result.callSchedule.currentUser = extractAuthedUser(req);
             res.send(assertCallSchedule(result.callSchedule));
             return;
           } catch (e) {
@@ -116,6 +118,57 @@ async function main() {
             };
             storeStorage(newStorage);
             res.send({ ts: nextVersion.ts });
+          } catch (e) {
+            console.log(e);
+            res.status(500).send(`exception: ${exceptionToString(e)}`);
+            return;
+          }
+        },
+      );
+
+      app.post(
+        '/api/save-full-call-schedule',
+        async (
+          req: Request,
+          res: Response<SaveFullCallScheduleResponse | string>,
+        ) => {
+          try {
+            if (IS_PUBLIC) {
+              res.status(500).send(`Cannot save on public server`);
+              return;
+            }
+            const request = assertSaveCallScheduleRequest(req.body);
+            const storage = loadStorage({
+              noCheck: true,
+            });
+            const last =
+              storage.versions[storage.versions.length - 1]?.callSchedule;
+            if (!last) {
+              console.log('No last schedule found');
+              res.send({ kind: 'error' });
+              return;
+            }
+            if (last.lastEditedAt !== request.callSchedule.lastEditedAt) {
+              console.log(
+                'Last edited at does not match: ',
+                last.lastEditedAt,
+                request.callSchedule.lastEditedAt,
+              );
+              res.send({ kind: 'error' });
+              return;
+            }
+            const nextSchedule = request.callSchedule;
+            const authedUser = extractAuthedUser(req);
+            const nextVersion = scheduleToStoredSchedule(
+              nextSchedule,
+              request.name,
+              isLocal() ? '<local>' : authedUser,
+            );
+            const newStorage: StoredCallSchedules = {
+              versions: [...storage.versions, nextVersion],
+            };
+            storeStorage(newStorage);
+            res.send({ kind: 'ok' });
           } catch (e) {
             console.log(e);
             res.status(500).send(`exception: ${exceptionToString(e)}`);
