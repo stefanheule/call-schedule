@@ -1438,8 +1438,8 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   forEveryDay(data, (day, _) => {
     for (const person of PEOPLE) {
       const config = data.people[person];
-      if (!config.dueDate) continue;
-      if (isLxNotTakingCallDueToMaternity(day)) {
+      if (!config.maternity) continue;
+      if (config.maternity.from <= day && day <= config.maternity.to) {
         const today = assertNonNull(result.day2person2info[day][person]);
         if (!today.shift) continue;
         addIssue(result, {
