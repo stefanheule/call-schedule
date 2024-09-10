@@ -148,8 +148,8 @@ function objectToCode(obj: unknown, level: number = 0): string {
   return String(obj);
 }
 
-export function configEditorTitle(config: ConfigEditorConfig): string {
-  return mapEnum(config.kind, {
+export function configEditorTitle(kind: ConfigEditorConfig['kind']): string {
+  return mapEnum(kind, {
     holidays: 'Holidays',
     'special-days': 'Special days',
     vacations: 'Vacations',
@@ -171,7 +171,7 @@ export function ConfigEditorDialog() {
     getDefaultValue(data, config),
   );
 
-  const title = configEditorTitle(config).toLowerCase();
+  const title = configEditorTitle(config.kind).toLowerCase();
 
   function getDefaultValue(
     data: CallSchedule,
