@@ -963,7 +963,6 @@ const people: {
   },
   LX: {
     year: 'R',
-    dueDate: '2024-10-22',
     priorityWeekendSaturday: '2025-05-17',
   },
   CC: {
