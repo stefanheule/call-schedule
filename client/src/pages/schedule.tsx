@@ -233,19 +233,6 @@ function RenderCallScheduleImpl() {
 
   const configEditor = useConfigEditor();
   const showEditRaw = showEditRawData(data, localData);
-  const canEditRaw = canEditRawData(data, localData);
-
-  function RenderRegularEditor({ kind }: { kind: RegularConfigEditorKind }) {
-    return (
-      <RenderEditConfigButton
-        config={{
-          kind,
-        }}
-        canEditRaw={canEditRaw}
-        showEditRaw={showEditRaw}
-      />
-    );
-  }
 
   function EditorToggleRow({ children }: { children: React.ReactNode }) {
     return (
