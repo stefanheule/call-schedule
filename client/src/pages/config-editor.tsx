@@ -1,15 +1,44 @@
-import { assertNonNull, mapEnum } from 'check-type';
+import { assertNonNull, IsoDate, mapEnum } from 'check-type';
 import { createContext, useContext, useState } from 'react';
 import { Children, Column, ElementSpacer, Row } from '../common/flex';
 import { CallSchedule, MaybePerson } from '../shared/types';
 import { useData } from './data-context';
-import { Button, Dialog } from '@mui/material';
+import { Button, Dialog, IconButton, Snackbar } from '@mui/material';
 import { Heading } from '../common/text';
 import Editor from '@monaco-editor/react';
+import CloseIcon from '@mui/icons-material/Close';
+import { rpcSaveFullCallSchedules } from './rpc';
+import {
+  assertCallTarget,
+  assertChiefShiftAssignment,
+  assertChiefShiftConfigs,
+  assertHolidays,
+  assertPeopleConfig,
+  assertRotationSchedule,
+  assertShiftAssignment,
+  assertShiftConfigs,
+  assertSpecialDays,
+  assertVacationSchedule,
+} from '../shared/check-type.generated';
 
-export type ConfigEditorConfig = {
-  kind: 'holidays';
-};
+export type RegularConfigEditorKind =
+  | 'holidays'
+  | 'special-days'
+  | 'vacations'
+  | 'rotations'
+  | 'call-targets'
+  | 'people'
+  | 'shift-configs'
+  | 'chief-shift-configs';
+
+export type ConfigEditorConfig =
+  | {
+      kind: RegularConfigEditorKind;
+    }
+  | {
+      kind: 'shifts' | 'chief-shifts';
+      day: IsoDate;
+    };
 
 export type ConfigEditorCallback = () => void;
 
@@ -21,6 +50,10 @@ export type ConfigEditorType = {
   handleDialogResult: (person: MaybePerson, assignWholeWeek: boolean) => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  isSubmitting: boolean;
+  setIsSubmitting: (submitting: boolean) => void;
+  snackbar: string;
+  setSnackbar: (message: string) => void;
   config: ConfigEditorConfig;
 };
 
@@ -33,7 +66,9 @@ export function useConfigEditor(): ConfigEditorType {
 }
 
 export const ConfigEditorProvider = ({ children }: Children) => {
-  const [isOpen, setIsOpen] = useState(true);
+  const [snackbar, setSnackbar] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [onResult, setOnResult] = useState(() => () => {});
   const [config, setConfig] = useState<ConfigEditorConfig>({
     kind: 'holidays',
@@ -60,6 +95,10 @@ export const ConfigEditorProvider = ({ children }: Children) => {
         handleDialogResult,
         isOpen,
         setIsOpen,
+        isSubmitting,
+        setIsSubmitting,
+        snackbar,
+        setSnackbar,
         config,
       }}
     >
@@ -109,24 +148,156 @@ function objectToCode(obj: unknown, level: number = 0): string {
   return String(obj);
 }
 
+export function configEditorTitle(config: ConfigEditorConfig): string {
+  return mapEnum(config.kind, {
+    holidays: 'Holidays',
+    'special-days': 'Special days',
+    vacations: 'Vacations',
+    rotations: 'rotations',
+    'call-targets': 'Call targets',
+    people: 'People',
+    shifts: 'Shifts',
+    'chief-shifts': 'Chief shifts',
+    'shift-configs': 'Shift configs',
+    'chief-shift-configs': 'Chief shift configs',
+  });
+}
+
 export function ConfigEditorDialog() {
   const configEditor = useConfigEditor();
   const [data, setData] = useData();
   const config = configEditor.config;
+  const [currentValue, setCurrentValue] = useState(
+    getDefaultValue(data, config),
+  );
 
-  const title = mapEnum(config.kind, {
-    holidays: 'holidays',
-  });
+  const title = configEditorTitle(config).toLowerCase();
 
   function getDefaultValue(
     data: CallSchedule,
     config: ConfigEditorConfig,
   ): string {
+    return `const result = ${objectToCode(getDefaultObject(data, config))}`;
+  }
+
+  function getDefaultObject(
+    data: CallSchedule,
+    config: ConfigEditorConfig,
+  ): unknown {
     switch (config.kind) {
       case 'holidays':
-        return `
-const result = ${objectToCode(data.callTargets)}`;
+        return data.holidays;
+      case 'special-days':
+        return data.specialDays;
+      case 'vacations':
+        return data.vacations;
+      case 'rotations':
+        return data.rotations;
+      case 'call-targets':
+        return data.callTargets;
+      case 'people':
+        return data.people;
+      case 'shifts':
+        for (const week of data.weeks) {
+          for (const day of week.days) {
+            if (day.date === config.day) {
+              return day.shifts;
+            }
+          }
+        }
+        throw new Error(`Cannot find shifts for day ${config.day}`);
+      case 'chief-shifts':
+        for (const week of data.weeks) {
+          for (const day of week.days) {
+            if (day.date === config.day) {
+              return day.backupShifts;
+            }
+          }
+        }
+        throw new Error(`Cannot find chief shifts for day ${config.day}`);
+      case 'shift-configs':
+        return data.shiftConfigs;
+      case 'chief-shift-configs':
+        return data.chiefShiftConfigs;
     }
+  }
+
+  function updateData(
+    data: CallSchedule,
+    config: ConfigEditorConfig,
+    newValue: string,
+  ): CallSchedule {
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    const fn = new Function(`${newValue}; return result;`) as () => unknown;
+    const value = fn();
+    switch (config.kind) {
+      case 'holidays':
+        return {
+          ...data,
+          holidays: assertHolidays(value),
+        };
+      case 'special-days':
+        return {
+          ...data,
+          specialDays: assertSpecialDays(value),
+        };
+      case 'vacations':
+        return {
+          ...data,
+          vacations: assertVacationSchedule(value),
+        };
+      case 'rotations':
+        return {
+          ...data,
+          rotations: assertRotationSchedule(value),
+        };
+      case 'call-targets':
+        return {
+          ...data,
+          callTargets: assertCallTarget(value),
+        };
+      case 'people':
+        return {
+          ...data,
+          people: assertPeopleConfig(value),
+        };
+      case 'shifts':
+        for (const week of data.weeks) {
+          for (const day of week.days) {
+            if (day.date === config.day) {
+              day.shifts = assertShiftAssignment(value);
+              return data;
+            }
+          }
+        }
+        throw new Error(`Cannot find shifts for day ${config.day}`);
+      case 'chief-shifts':
+        for (const week of data.weeks) {
+          for (const day of week.days) {
+            if (day.date === config.day) {
+              day.shifts = assertChiefShiftAssignment(value);
+              return data;
+            }
+          }
+        }
+        throw new Error(`Cannot find chief shifts for day ${config.day}`);
+      case 'shift-configs':
+        return {
+          ...data,
+          shiftConfigs: assertShiftConfigs(value),
+        };
+      case 'chief-shift-configs':
+        return {
+          ...data,
+          chiefShiftConfigs: assertChiefShiftConfigs(value),
+        };
+    }
+  }
+
+  function resetStateBeforeClose() {
+    configEditor.setIsOpen(false);
+    configEditor.setIsSubmitting(false);
+    configEditor.setSnackbar('');
   }
 
   return (
@@ -140,6 +311,22 @@ const result = ${objectToCode(data.callTargets)}`;
       // }}
       onClose={() => configEditor.setIsOpen(false)}
     >
+      <Snackbar
+        open={configEditor.snackbar != ''}
+        onClose={() => configEditor.setSnackbar('')}
+        message={configEditor.snackbar}
+        autoHideDuration={5000}
+        action={
+          <IconButton
+            aria-label="close"
+            color="inherit"
+            sx={{ p: 0.5 }}
+            onClick={() => configEditor.setSnackbar('')}
+          >
+            <CloseIcon />
+          </IconButton>
+        }
+      />
       <Column style={{ padding: '20px', maxWidth: '800px' }} spacing="10px">
         <Heading>Edit {title}</Heading>
         <Editor
@@ -152,10 +339,16 @@ const result = ${objectToCode(data.callTargets)}`;
           // }}
           options={{
             tabSize: 2,
+            readOnly: configEditor.isSubmitting,
           }}
           height="70vh"
           defaultLanguage="typescript"
-          defaultValue={`  ` + getDefaultValue(data, config)}
+          defaultValue={getDefaultValue(data, config)}
+          onChange={value => {
+            if (value !== undefined) {
+              setCurrentValue(value);
+            }
+          }}
         />
         <ElementSpacer />
         <Row
@@ -166,16 +359,55 @@ const result = ${objectToCode(data.callTargets)}`;
           <Button
             variant="outlined"
             size="small"
-            onClick={() => configEditor.setIsOpen(false)}
+            onClick={() => {
+              resetStateBeforeClose();
+            }}
+            disabled={configEditor.isSubmitting}
           >
             Cancel
           </Button>
           <Button
             variant="contained"
             size="small"
-            onClick={() => configEditor.handleDialogResult('', false)}
+            onClick={async () => {
+              configEditor.setIsSubmitting(true);
+
+              try {
+                const newData = updateData(
+                  data,
+                  configEditor.config,
+                  currentValue,
+                );
+                const result = await rpcSaveFullCallSchedules({
+                  callSchedule: newData,
+                  name: 'Config editor',
+                });
+
+                switch (result.kind) {
+                  case 'was-edited':
+                    configEditor.setSnackbar(
+                      'Data was edited recently. Please remember your changes, and refresh the page.',
+                    );
+                    configEditor.setIsSubmitting(false);
+                    return;
+                  case 'ok':
+                    setData(result.newData);
+                    break;
+                }
+
+                resetStateBeforeClose();
+                configEditor.handleDialogResult('', false);
+              } catch (e) {
+                console.log(e);
+                configEditor.setSnackbar(
+                  'Some unexpected error occurred. Please try again. If this persists, please contact Stefan.',
+                );
+                configEditor.setIsSubmitting(false);
+              }
+            }}
+            disabled={configEditor.isSubmitting}
           >
-            Save
+            {configEditor.isSubmitting ? 'Saving...' : 'Save'}
           </Button>
         </Row>
       </Column>

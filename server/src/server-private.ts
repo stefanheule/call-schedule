@@ -145,7 +145,7 @@ async function main() {
               storage.versions[storage.versions.length - 1]?.callSchedule;
             if (!last) {
               console.log('No last schedule found');
-              res.send({ kind: 'error' });
+              res.status(500).send(`No last schedule found`);
               return;
             }
             if (last.lastEditedAt !== request.callSchedule.lastEditedAt) {
@@ -154,7 +154,7 @@ async function main() {
                 last.lastEditedAt,
                 request.callSchedule.lastEditedAt,
               );
-              res.send({ kind: 'error' });
+              res.send({ kind: 'was-edited' });
               return;
             }
             const nextSchedule = request.callSchedule;
@@ -168,7 +168,7 @@ async function main() {
               versions: [...storage.versions, nextVersion],
             };
             storeStorage(newStorage);
-            res.send({ kind: 'ok' });
+            res.send({ kind: 'ok', newData: nextVersion.callSchedule });
           } catch (e) {
             console.log(e);
             res.status(500).send(`exception: ${exceptionToString(e)}`);
@@ -229,6 +229,9 @@ async function main() {
 }
 
 function extractAuthedUser(req: express.Request) {
+  if (isLocal()) {
+    return 'local';
+  }
   const cookies = cookie.parse(req.headers.cookie || '');
   const data = cookies['_forward_auth'];
   if (data) {

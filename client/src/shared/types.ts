@@ -108,10 +108,13 @@ export type WeekId = {
   weekIndex: number;
 };
 
+export type ShiftAssignment =  Record<ShiftKind, MaybeCallPoolPerson>;
+export type ChiefShiftAssignment = Record<ChiefShiftKind, MaybeChief>;
+
 export type Day = {
   date: IsoDate;
-  shifts: Record<ShiftKind, MaybeCallPoolPerson>;
-  backupShifts: Record<ChiefShiftKind, MaybeChief>;
+  shifts: ShiftAssignment;
+  backupShifts: ChiefShiftAssignment;
 };
 
 export type Week = {
@@ -140,6 +143,16 @@ export type CallTarget = {
   weekend: SingleCallTarget;
 };
 
+export type ShiftConfigs = Record<ShiftKind, ShiftConfig>;
+export type ChiefShiftConfigs = Record<ChiefShiftKind, ChiefShiftConfig>;
+export type PeopleConfig = Record<Person, PersonConfig>;
+export type Holidays = {
+  [date: string]: string;
+};
+export type SpecialDays = {
+  [date: string]: string;
+}
+
 export type CallSchedule = {
   lastEditedBy?: string;
   lastEditedAt?: IsoDatetime;
@@ -148,23 +161,14 @@ export type CallSchedule = {
   lastDay: string;
   weeks: Week[];
 
-  shiftConfigs: Record<ShiftKind, ShiftConfig>;
-  chiefShiftConfigs: Record<ChiefShiftKind, ChiefShiftConfig>;
+  shiftConfigs: ShiftConfigs;
+  chiefShiftConfigs: ChiefShiftConfigs;
 
   callTargets: CallTarget;
-
-  people: Record<Person, PersonConfig>;
-
-  holidays: {
-    [date: string]: string;
-  };
-
-  specialDays: {
-    [date: string]: string;
-  };
-
+  people: PeopleConfig;
+  holidays: Holidays;
+  specialDays: SpecialDays;
   vacations: VacationSchedule;
-
   rotations: RotationSchedule;
 
   isPublic?: boolean;
@@ -428,7 +432,10 @@ export type SaveCallScheduleResponse = {
 };
 
 export type SaveFullCallScheduleResponse = {
-  kind: 'ok' | 'error';
+  kind: 'was-edited';
+} | {
+  kind: 'ok';
+  newData: CallSchedule;
 };
 
 export type ListCallSchedulesRequest = {

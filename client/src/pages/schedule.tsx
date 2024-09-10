@@ -52,6 +52,7 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import { WarningOutlined, ErrorOutlined } from '@mui/icons-material';
+import TuneIcon from '@mui/icons-material/Tune';
 import {
   HolidayShift,
   applyActions,
@@ -90,7 +91,28 @@ import {
   PersonPickerProvider,
   usePersonPicker,
 } from './person-picker';
-import { ConfigEditorDialog, ConfigEditorProvider, useConfigEditor } from './config-editor';
+import {
+  ConfigEditorConfig,
+  ConfigEditorDialog,
+  ConfigEditorProvider,
+  configEditorTitle,
+  RegularConfigEditorKind,
+  useConfigEditor,
+} from './config-editor';
+
+function canEditRawData(_data: CallSchedule, localData: LocalData): boolean {
+  return localData.unsavedChanges == 0;
+}
+function showEditRawData(data: CallSchedule, _localData: LocalData): boolean {
+  if (data.isPublic) return false;
+  if (data.currentUser === undefined) return false;
+
+  return [
+    'local',
+    'stefanheule@gmail.com',
+    'lisazhang0829@hotmail.com',
+  ].includes(data.currentUser);
+}
 
 export function RenderCallSchedule() {
   const [showRotations, _setShowRotations] = useState(true);
@@ -198,6 +220,21 @@ export function RenderCallSchedule() {
     },
     [],
   );
+
+  const showEditRaw = showEditRawData(data, localData);
+  const canEditRaw = canEditRawData(data, localData);
+
+  function RenderRegularEditor({ kind }: { kind: RegularConfigEditorKind }) {
+    return (
+      <RenderEditConfigButton
+        config={{
+          kind,
+        }}
+        canEditRaw={canEditRaw}
+        showEditRaw={showEditRaw}
+      />
+    );
+  }
 
   // ...
 
@@ -502,6 +539,21 @@ export function RenderCallSchedule() {
                   </Row>
                 </Column>
                 <ElementSpacer />
+                {showEditRaw && (
+                  <>
+                    <Row spacing={3}>
+                      <RenderRegularEditor kind="people" />
+                      <RenderRegularEditor kind="holidays" />
+                      <RenderRegularEditor kind="special-days" />
+                      <RenderRegularEditor kind="vacations" />
+                      <RenderRegularEditor kind="rotations" />
+                      <RenderRegularEditor kind="shift-configs" />
+                      <RenderRegularEditor kind="chief-shift-configs" />
+                      <RenderRegularEditor kind="call-targets" />
+                    </Row>
+                    <ElementSpacer />
+                  </>
+                )}
                 <Highlight />
                 <RenderCallCounts />
                 <Column
@@ -1249,6 +1301,31 @@ function RenderLegend({ showRotations }: { showRotations: boolean }) {
   );
 }
 
+function RenderEditConfigButton({
+  config,
+  canEditRaw,
+  showEditRaw,
+}: {
+  config: ConfigEditorConfig;
+  canEditRaw: boolean;
+  showEditRaw: boolean;
+}) {
+  const configEditor = useConfigEditor();
+  if (!showEditRaw) return null;
+  return (
+    <Tooltip title={configEditorTitle(config)}>
+      <TuneIcon
+        sx={{
+          fontSize: 13,
+          cursor: canEditRaw ? 'pointer' : undefined,
+          color: canEditRaw ? undefined : 'disabled',
+        }}
+        onClick={() => configEditor.requestDialog(() => {}, config)}
+      />
+    </Tooltip>
+  );
+}
+
 function RenderDay({
   id,
   showRotations,
@@ -1259,6 +1336,7 @@ function RenderDay({
   setWarningSnackbar: (v: string) => void;
 }) {
   const [data] = useData();
+  const [localData] = useLocalData();
   const [today, setToday] = useState(dateToIsoDate(new Date()));
   const day = data.weeks[id.weekIndex].days[id.dayIndex];
   const date = isoDateToDate(day.date);
@@ -1297,6 +1375,8 @@ function RenderDay({
         ([_, info]) => assertNonNull(info).onPriorityWeekend,
       )
     : [];
+  const showEditRaw = showEditRawData(data, localData);
+  const canEditRaw = canEditRawData(data, localData);
   return (
     <Column
       id={elementIdForDay(day.date)}
@@ -1316,13 +1396,37 @@ function RenderDay({
           ...DAY_BOX_STYLE,
         }}
       >
-        <Text
-          style={{
-            fontWeight: isHoliday || isSpecial ? 'bold' : 'normal',
-          }}
-        >
-          {datefns.format(date, 'EEE, M/d')}
-        </Text>
+        <Row>
+          <Text
+            style={{
+              fontWeight: isHoliday || isSpecial ? 'bold' : 'normal',
+            }}
+          >
+            {datefns.format(date, 'EEE, M/d')}
+          </Text>
+          <ElementSpacer space={2} />
+          {showEditRaw && (
+            <>
+              <RenderEditConfigButton
+                showEditRaw={showEditRaw}
+                canEditRaw={canEditRaw}
+                config={{
+                  kind: 'shifts',
+                  day: day.date,
+                }}
+              />
+              <ElementSpacer space={2} />
+              <RenderEditConfigButton
+                showEditRaw={showEditRaw}
+                canEditRaw={canEditRaw}
+                config={{
+                  kind: 'chief-shifts',
+                  day: day.date,
+                }}
+              />
+            </>
+          )}
+        </Row>
         <Text
           color={isHoliday || isSpecial ? undefined : 'white'}
           style={{
