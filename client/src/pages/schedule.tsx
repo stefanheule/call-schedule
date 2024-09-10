@@ -115,18 +115,27 @@ function showEditRawData(data: CallSchedule, _localData: LocalData): boolean {
 }
 
 export function RenderCallSchedule() {
+  const [copyPasteSnackbar, setCopyPasteSnackbar] = useState('');
   return (
     <PersonPickerProvider>
-      <ConfigEditorProvider>
-        <RenderCallScheduleImpl />
+      <ConfigEditorProvider setCopyPasteSnackbar={setCopyPasteSnackbar}>
+        <RenderCallScheduleImpl
+          copyPasteSnackbar={copyPasteSnackbar}
+          setCopyPasteSnackbar={setCopyPasteSnackbar}
+        />
       </ConfigEditorProvider>
     </PersonPickerProvider>
   );
 }
 
-function RenderCallScheduleImpl() {
+function RenderCallScheduleImpl({
+  copyPasteSnackbar,
+  setCopyPasteSnackbar,
+}: {
+  copyPasteSnackbar: string;
+  setCopyPasteSnackbar: (v: string) => void;
+}) {
   const [showRotations, _setShowRotations] = useState(true);
-  const [copyPasteSnackbar, setCopyPasteSnackbar] = useState('');
   const [localData, setLocalData] = useLocalData();
   const [data, setData] = useData();
   const processed = useProcessedData();

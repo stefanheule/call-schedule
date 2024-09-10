@@ -54,6 +54,7 @@ export type ConfigEditorType = {
   setIsSubmitting: (submitting: boolean) => void;
   snackbar: string;
   setSnackbar: (message: string) => void;
+  setCopyPasteSnackbar: (v: string) => void;
   config: ConfigEditorConfig;
 };
 
@@ -65,7 +66,12 @@ export function useConfigEditor(): ConfigEditorType {
   return assertNonNull(useContext(ConfigEditorContext));
 }
 
-export const ConfigEditorProvider = ({ children }: Children) => {
+export const ConfigEditorProvider = ({
+  children,
+  setCopyPasteSnackbar,
+}: {
+  setCopyPasteSnackbar: (v: string) => void;
+} & Children) => {
   const [snackbar, setSnackbar] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -99,6 +105,7 @@ export const ConfigEditorProvider = ({ children }: Children) => {
         setIsSubmitting,
         snackbar,
         setSnackbar,
+        setCopyPasteSnackbar,
         config,
       }}
     >
@@ -167,8 +174,8 @@ export function ConfigEditorDialog() {
   const configEditor = useConfigEditor();
   const [data, setData] = useData();
   const config = configEditor.config;
-  const [currentValue, setCurrentValue] = useState(
-    getDefaultValue(data, config),
+  const [currentValue, setCurrentValue] = useState<undefined | string>(
+    undefined,
   );
 
   const title = configEditorTitle(config.kind).toLowerCase();
@@ -370,6 +377,13 @@ export function ConfigEditorDialog() {
             variant="contained"
             size="small"
             onClick={async () => {
+              if (currentValue === undefined) {
+                resetStateBeforeClose();
+                configEditor.setCopyPasteSnackbar(
+                  'No changes, so no need to save.',
+                );
+                return;
+              }
               configEditor.setIsSubmitting(true);
 
               try {
@@ -396,6 +410,7 @@ export function ConfigEditorDialog() {
                 }
 
                 resetStateBeforeClose();
+                configEditor.setCopyPasteSnackbar('Changes saved.');
                 configEditor.handleDialogResult('', false);
               } catch (e) {
                 console.log(e);
