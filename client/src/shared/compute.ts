@@ -323,10 +323,6 @@ function isWeekday(day: string): boolean {
   return date.getDay() != 0 && date.getDay() != 6;
 }
 
-function isLxNotTakingCallDueToMaternity(day: string): boolean {
-  return day >= '2024-09-01' && day <= '2025-01-07';
-}
-
 export function applyActions(
   data: CallSchedule,
   actions: Action[],
@@ -1506,7 +1502,12 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       if (day.date > data.lastDay || day.date < data.firstDay) continue;
       for (const [s, person] of Object.entries(day.shifts)) {
         const shift = s;
-        const isMaternity = isLxNotTakingCallDueToMaternity(day.date);
+        const personConfig = data.people[person];
+        const isMaternity =
+          personConfig &&
+          personConfig.maternity &&
+          personConfig.maternity.from <= day.date &&
+          day.date <= personConfig.maternity.to;
         if (isHolidayShift(result, day.date, shift)) continue;
         const shiftConfig = data.shiftConfigs[shift];
         if (shiftConfig.type === 'weekday') {
