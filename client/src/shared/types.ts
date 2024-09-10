@@ -66,7 +66,10 @@ export function yearToString(year: Year): string {
 
 export type PersonConfig = {
   year: Year;
-  dueDate?: string;
+  maternity?: {
+    from: IsoDate;
+    to: IsoDate;
+  };
   priorityWeekendSaturday?: string;
 };
 
