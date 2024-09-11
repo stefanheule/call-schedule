@@ -205,6 +205,7 @@ export type LocalData = {
   undoHistory: Action[];
   unsavedChanges: number;
   firstUnsavedChange?: IsoDatetime;
+  processedFromLastSave?: CallScheduleProcessed;
 };
 
 export type RotationDetails = {

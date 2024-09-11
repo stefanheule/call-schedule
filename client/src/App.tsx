@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { MainLayout } from './pages/layout';
-import { DataContext, LocalDataContext } from './pages/data-context';
+import { DataContext, LocalDataContext, useData } from './pages/data-context';
 import { RenderCallSchedule } from './pages/schedule';
 import { CallSchedule, LocalData } from './shared/types';
 import { DndContext } from '@dnd-kit/core';
@@ -43,6 +43,15 @@ export function Ui() {
     undoHistory: [],
     unsavedChanges: 0,
   });
+  const [data] = useData();
+  useEffect(() => {
+    if (data !== undefined && localData.processedFromLastSave === undefined) {
+      setLocalData({
+        ...localData,
+        processedFromLastSave: processCallSchedule(data),
+      });
+    }
+  }, [data, localData]);
   return (
     <LocalDataContext.Provider value={{ localData, setLocalData }}>
       <DndContext>

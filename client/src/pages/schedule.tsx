@@ -69,6 +69,7 @@ import {
   undoActions,
   yearToColor,
   serializeActions,
+  diffIssues,
 } from '../shared/compute';
 import { useHotkeys } from 'react-hotkeys-hook';
 import Snackbar from '@mui/material/Snackbar';
@@ -149,6 +150,7 @@ function RenderCallScheduleImpl({
   const [isSaving, setIsSaving] = useState(false);
   const weekListRef = useRef<VListHandle>(null);
   const initialData = useInitialData();
+  const [onlyNew, setOnlyNew] = useState<'yes' | null>('yes');
 
   useMediaQuery(`(min-width:${SIDEBAR_WIDTH + WEEK_WIDTH}px)`);
 
@@ -279,6 +281,13 @@ function RenderCallScheduleImpl({
       </ToggleButton>
     );
   }
+
+  const issues =
+    localData.processedFromLastSave == undefined
+      ? {}
+      : onlyNew === 'yes'
+        ? diffIssues(localData.processedFromLastSave, processed)
+        : processed.issues;
 
   // ...
 
@@ -610,11 +619,29 @@ function RenderCallScheduleImpl({
                   height: '100%',
                 }}
               >
-                <Heading>
-                  Rule violations (hard: {processed.issueCounts.hard}, soft:{' '}
-                  {processed.issueCounts.soft})
-                </Heading>
-                {Object.entries(processed.issues)
+                <Row>
+                  <Heading>
+                    Rule violations (hard:{' '}
+                    {Object.values(issues).filter(x => x.isHard).length}, soft:{' '}
+                    {Object.values(issues).filter(x => !x.isHard).length})
+                  </Heading>
+                  <ElementSpacer />
+                  <ToggleButtonGroup
+                    size="small"
+                    exclusive
+                    value={onlyNew}
+                    color="primary"
+                    style={{
+                      height: '28px',
+                    }}
+                    onChange={(_, v) => setOnlyNew(v as 'yes' | null)}
+                  >
+                    <ToggleButton size="small" value="yes">
+                      only new
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                </Row>
+                {Object.entries(issues)
                   // .filter(([_, issue]) => issue.kind !== 'cross-coverage')
                   .sort((a, b) => a[1].startDay.localeCompare(b[1].startDay))
                   .map(([id, issue]) => (
@@ -965,13 +992,13 @@ function computeBackupCallTallies(
   });
 }
 
-const SHOW_TARGETS = true;
 function RenderCallCounts() {
   const processed = useProcessedData();
   const [data] = useData();
   const [holiday, setHoliday] = useState<
     'regular' | 'holiday' | 'backup' | 'backup_holiday'
   >('regular');
+  const [showTargets, setShowTargets] = useState<'yes' | null>(null); // null for no, 'yes' for yes
   return (
     <Column>
       <Row>
@@ -1000,6 +1027,21 @@ function RenderCallCounts() {
           </ToggleButton>
           <ToggleButton size="small" value="backup_holiday">
             Backup Hol
+          </ToggleButton>
+        </ToggleButtonGroup>
+        <ElementSpacer />
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={showTargets}
+          color="primary"
+          style={{
+            height: '28px',
+          }}
+          onChange={(_, v) => setShowTargets(v as 'yes' | null)}
+        >
+          <ToggleButton size="small" value="yes">
+            Targets
           </ToggleButton>
         </ToggleButtonGroup>
       </Row>
@@ -1077,20 +1119,24 @@ function RenderCallCounts() {
                       style={{
                         fontWeight:
                           counts.weekday + counts.sunday >
-                          data.callTargets.weekday[personConfig.year][person]
+                            data.callTargets.weekday[personConfig.year][
+                              person
+                            ] && showTargets
                             ? 'bold'
                             : 'normal',
                       }}
                     >
                       {counts.weekday + counts.sunday} weekday{' '}
                     </Text>
-                    {SHOW_TARGETS && (
+                    {showTargets && (
                       <Text
                         inline
                         style={{
                           fontWeight:
                             counts.weekday + counts.sunday <
-                            data.callTargets.weekday[personConfig.year][person]
+                              data.callTargets.weekday[personConfig.year][
+                                person
+                              ] && showTargets
                               ? 'bold'
                               : 'normal',
                         }}
@@ -1108,14 +1154,16 @@ function RenderCallCounts() {
                       style={{
                         fontWeight:
                           counts.weekend >
-                          data.callTargets.weekend[personConfig.year][person]
+                            data.callTargets.weekend[personConfig.year][
+                              person
+                            ] && showTargets
                             ? 'bold'
                             : 'normal',
                       }}
                     >
                       {counts.weekend} weekend{' '}
                     </Text>
-                    {SHOW_TARGETS && (
+                    {showTargets && (
                       <Text
                         inline
                         style={{

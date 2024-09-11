@@ -263,6 +263,23 @@ export function rate(
   return [processed.issueCounts.hard, processed.issueCounts.soft, target];
 }
 
+export function diffIssues(
+  before: CallScheduleProcessed,
+  after: CallScheduleProcessed,
+): {
+  [key: string]: Issue;
+} {
+  const result: {
+    [key: string]: Issue;
+} = {};
+  for (const [key, issue] of Object.entries(after.issues)) {
+    if (!(key in before.issues)) {
+      result[key] = issue;
+    }
+  }
+  return result;
+}
+
 export function scheduleToStoredSchedule(
   data: CallSchedule,
   name: string,
