@@ -11,9 +11,9 @@ import {
   CallPoolPerson,
   CallSchedule,
   CallScheduleProcessed,
-  ChiefShiftKind,
+  BackupShiftKind,
   DayPersonInfo,
-  HospitalKind,
+  Hospital,
   ISSUE_KINDS_HARD,
   ISSUE_KINDS_SOFT,
   Issue,
@@ -271,7 +271,7 @@ export function diffIssues(
 } {
   const result: {
     [key: string]: Issue;
-} = {};
+  } = {};
   for (const [key, issue] of Object.entries(after.issues)) {
     if (!(key in before.issues)) {
       result[key] = issue;
@@ -305,7 +305,7 @@ export function elementIdForDay(date: string): string {
 export function elementIdForShift(
   date: string,
   // eslint-disable-next-line @typescript-eslint/no-duplicate-type-constituents
-  shift: ShiftKind | ChiefShiftKind,
+  shift: ShiftKind | BackupShiftKind,
 ): string {
   return `shift-${shift}-on-day-${date}`;
 }
@@ -376,7 +376,7 @@ export function deserializePerson(s: string): string {
 export function serializeShift(
   data: CallSchedule,
   // eslint-disable-next-line @typescript-eslint/no-duplicate-type-constituents
-  s: ShiftKind | ChiefShiftKind,
+  s: ShiftKind | BackupShiftKind,
 ) {
   if (s in data.shiftConfigs) {
     return data.shiftConfigs[s].nameLong;
@@ -387,7 +387,7 @@ export function deserializeShift(
   data: CallSchedule,
   s: string,
   // eslint-disable-next-line @typescript-eslint/no-duplicate-type-constituents
-): ShiftKind | ChiefShiftKind {
+): ShiftKind | BackupShiftKind {
   for (const [k, v] of Object.entries(data.shiftConfigs)) {
     if (v.nameLong == s) return k;
   }
@@ -743,7 +743,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   // Compute vacations
   for (const [person, vacations] of Object.entries(data.vacations)) {
     for (const vacation of vacations) {
-      let vacationStart, vacationEnd;
+      let vacationStart: IsoDate, vacationEnd: IsoDate;
       if (typeof vacation == 'string') {
         const vacationMonday = vacation;
         vacationStart = nextDay(vacationMonday, -2);
@@ -813,7 +813,8 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   });
 
   // Compute day2hospital2people
-  for (const [day, person2info] of Object.entries(result.day2person2info)) {
+  for (const [d, person2info] of Object.entries(result.day2person2info)) {
+    const day = d as IsoDate;
     for (const [person, i] of Object.entries(person2info)) {
       const info = assertNonNull(i);
       if (info.rotation == 'OFF') continue;
@@ -834,12 +835,13 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       result.day2shift2unavailablePeople[day.date] = {};
       for (const shift of Object.keys(day.shifts)) {
         const shiftConfig = assertNonNull(data.shiftConfigs[shift]);
-        const unavailablePeople: {
-          [Property in Person]?: {
+        const unavailablePeople: Record<
+          Person,
+          {
             reason: string;
             soft: boolean;
-          };
-        } = {};
+          }
+        > = {};
         result.day2shift2unavailablePeople[day.date][shift] = unavailablePeople;
         for (const person of PEOPLE) {
           let hardReason = undefined;
@@ -874,14 +876,15 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   }
 
   // Compute holiday shifts
-  function shiftsOfDay(day: string): { day: string; shift: ShiftKind }[] {
+  function shiftsOfDay(day: IsoDate): { day: IsoDate; shift: ShiftKind }[] {
     return Object.keys(result.day2shift2unavailablePeople[day] || {}).map(
       shift => ({ day, shift }),
     );
   }
-  for (const [date, holiday] of Object.entries(data.holidays)) {
+  for (const [d, holiday] of Object.entries(data.holidays)) {
+    const date = d as IsoDate;
     const dow = dateToDayOfWeek(date);
-    const shifts: { day: string; shift: ShiftKind }[] = [];
+    const shifts: { day: IsoDate; shift: ShiftKind }[] = [];
     if (holiday == 'Indigenous Ppl') {
       shifts.push({
         day: date,
@@ -1127,7 +1130,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
 
         const allShifts = [...today, ...tomorrow];
         const texts = allShifts.map(s => `${shiftName(s.shift)} on ${s.day}`);
-        const startDay = today.map(s => s.day).sort()[0] as IsoDate;
+        const startDay = today.map(s => s.day).sort()[0];
         addIssue(result, {
           kind: 'consecutive-call',
           startDay,
@@ -1343,7 +1346,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
 
         const allShifts = [...today, ...dayAfterTomorrow];
         const texts = allShifts.map(s => `${shiftName(s.shift)} on ${s.day}`);
-        const startDay = today.map(s => s.day).sort()[0] as IsoDate;
+        const startDay = today.map(s => s.day).sort()[0];
         addIssue(result, {
           kind: 'almost-consecutive-call',
           startDay,
@@ -1419,7 +1422,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       if (today.rotation == 'Alaska') continue;
       if (today.rotation == 'NF') continue;
       if (today.rotation == 'OFF') continue;
-      const rotationHospitals: HospitalKind[] =
+      const rotationHospitals: Hospital[] =
         today.rotation == 'Andro' ? ['UW', 'NWH'] : [today.rotation];
 
       // for seniors we don't consider cross-call during weekdays, because they have way to much
@@ -1484,7 +1487,8 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   }
 
   // Count calls
-  for (const [day, person2info] of Object.entries(result.day2person2info)) {
+  for (const [d, person2info] of Object.entries(result.day2person2info)) {
+    const day = d as IsoDate;
     const dayOfWeek = dateToDayOfWeek(day);
     for (const [person, i] of Object.entries(person2info)) {
       const info = assertNonNull(i);
@@ -1594,7 +1598,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     ) {
       addIssue(result, {
         kind: 'over-call-target',
-        startDay: data.firstDay as IsoDate,
+        startDay: data.firstDay,
         message: `Over weekday call target: ${person} has ${
           callCount.weekday
         } calls, target is ${
@@ -1609,7 +1613,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     ) {
       addIssue(result, {
         kind: 'over-call-target',
-        startDay: data.firstDay as IsoDate,
+        startDay: data.firstDay,
         message: `Over weekend call target: ${person} has ${
           callCount.weekend
         } calls, target is ${
@@ -1633,7 +1637,7 @@ function forEveryDay(
   stopNDaysBeforeEnd?: number,
 ) {
   if (stopNDaysBeforeEnd === undefined) stopNDaysBeforeEnd = 0;
-  let day = data.firstDay as IsoDate;
+  let day = data.firstDay;
   while (true) {
     const date = isoDateToDate(day);
     if (nextDay(day, stopNDaysBeforeEnd) > data.lastDay) break;
@@ -1726,7 +1730,8 @@ export function collectHolidayCall(
   processed: CallScheduleProcessed,
 ): HolidayShift[] {
   const holidayCalls: HolidayShift[] = [];
-  for (const day in processed.day2shift2isHoliday) {
+  for (const d in processed.day2shift2isHoliday) {
+    const day = d as IsoDate;
     const index = processed.day2weekAndDay[day];
     for (const s in processed.day2shift2isHoliday[day]) {
       const shift = s;

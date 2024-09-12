@@ -9,7 +9,7 @@ export type ShiftConfig = {
   type: 'weekday' | 'weekend' | 'special';
   name: string;
   nameLong: string;
-  hospitals: HospitalKind[];
+  hospitals: Hospital[];
   /** How many days (1 for just today, 2 for today and tomorrow, etc) */
   days: number;
   /** How many days, for considering consecutive calls. Day shifts get 0 here, for instance. */
@@ -18,8 +18,8 @@ export type ShiftConfig = {
   daysForExport?: number;
   hours: number;
 };
-export type ChiefShiftConfig = {
-  kind: ChiefShiftKind;
+export type BackupShiftConfig = {
+  kind: BackupShiftKind;
   name: string;
   nameLong: string;
 };
@@ -28,12 +28,12 @@ export type Year = '1' | '2' | '3' | 'S' | 'C' | 'R' | 'M';
 export type YearOnSchedule = '2' | '3' | 'S' | 'R' | 'M';
 export const YEAR_ORDER = ['1', '2', '3', 'S', 'R', 'M', 'C'] as const;
 
-export type ChiefShiftKind = string;
+export type BackupShiftKind = string;
 export type ShiftKind = string;
 
 export const HOSPITAL_ORDER = ['NWH', 'SCH', 'UW', 'HMC', 'VA'] as const;
 export const HOSPITALS = ['UW', 'VA', 'HMC', 'SCH', 'NWH'] as const;
-export type HospitalKind = (typeof HOSPITALS)[number];
+export type Hospital = (typeof HOSPITALS)[number];
 export const EXTRA_ROTATIONS = [
   'Alaska',
   'Research',
@@ -42,14 +42,14 @@ export const EXTRA_ROTATIONS = [
   'OFF',
 ] as const;
 export const ROTATIONS = [...HOSPITALS, ...EXTRA_ROTATIONS] as const;
-export type RotationKind = (typeof ROTATIONS)[number];
+export type Rotation = (typeof ROTATIONS)[number];
 export const NO_CALL_ROTATION = ['OFF', 'Alaska', 'NF'] as const;
-export type NoCallRotationKind = (typeof NO_CALL_ROTATION)[number];
+export type NoCallRotation = (typeof NO_CALL_ROTATION)[number];
 
 export function isNoCallRotation(
-  rotation: RotationKind,
-): rotation is NoCallRotationKind {
-  return NO_CALL_ROTATION.includes(rotation as NoCallRotationKind);
+  rotation: Rotation,
+): rotation is NoCallRotation {
+  return NO_CALL_ROTATION.includes(rotation as NoCallRotation);
 }
 
 export function yearToString(year: Year): string {
@@ -70,7 +70,7 @@ export type PersonConfig = {
     from: IsoDate;
     to: IsoDate;
   };
-  priorityWeekendSaturday?: string;
+  priorityWeekendSaturday?: IsoDate;
 };
 
 export type DayOfWeek = 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
@@ -92,7 +92,7 @@ export type ShiftId = DayId & {
   shiftName: ShiftKind;
 };
 export type ChiefShiftId = DayId & {
-  shiftName: ChiefShiftKind;
+  shiftName: BackupShiftKind;
 };
 
 export function shiftIdToString(shiftId: ShiftId) {
@@ -111,8 +111,8 @@ export type WeekId = {
   weekIndex: number;
 };
 
-export type ShiftAssignment =  Record<ShiftKind, MaybeCallPoolPerson>;
-export type ChiefShiftAssignment = Record<ChiefShiftKind, MaybeChief>;
+export type ShiftAssignment = Record<ShiftKind, MaybeCallPoolPerson>;
+export type ChiefShiftAssignment = Record<BackupShiftKind, MaybeChief>;
 
 export type Day = {
   date: IsoDate;
@@ -129,9 +129,9 @@ export type Week = {
 
 // Marks the start Monday
 export type Vacation =
-  | string
+  | IsoDate
   | {
-      start: string;
+      start: IsoDate;
       length: number;
     };
 
@@ -147,21 +147,69 @@ export type CallTarget = {
 };
 
 export type ShiftConfigs = Record<ShiftKind, ShiftConfig>;
-export type ChiefShiftConfigs = Record<ChiefShiftKind, ChiefShiftConfig>;
+export type ChiefShiftConfigs = Record<BackupShiftKind, BackupShiftConfig>;
 export type PeopleConfig = Record<Person, PersonConfig>;
-export type Holidays = {
-  [date: string]: string;
-};
-export type SpecialDays = {
-  [date: string]: string;
-}
+export type Holidays = Record<IsoDate, string>;
+export type SpecialDays = Record<IsoDate, string>;
+
+export const EDITOR_TYPES = {
+  // Base types
+  IsoDate: `string; // YYYY-MM-DD`,
+  Person: `string;`,
+  BackupShiftKind: `string;`,
+  ShiftKind: `string;`,
+  Hospital: `'UW' | 'VA' | 'HMC' | 'SCH' | 'NWH';`,
+  Year: `'1' | '2' | '3' | 'S' | 'C' | 'R' | 'M';`,
+  PersonConfig: `{
+  year: Year;
+  maternity?: {
+    from: IsoDate;
+    to: IsoDate;
+  };
+  priorityWeekendSaturday?: IsoDate;
+};`,
+  ShiftConfig: `{
+  kind: ShiftKind;
+  /** Should we map this to a different kind for export in excel? */
+  exportKind?: ShiftKind;
+  type: 'weekday' | 'weekend' | 'special';
+  name: string;
+  nameLong: string;
+  hospitals: Hospital[];
+  /** How many days (1 for just today, 2 for today and tomorrow, etc) */
+  days: number;
+  /** How many days, for considering consecutive calls. Day shifts get 0 here, for instance. */
+  daysForConsecutiveCall: number;
+  /** How many days, for export in excel (defaults to days) */
+  daysForExport?: number;
+  hours: number;
+};`,
+  Rotation: `'UW' | 'VA' | 'HMC' | 'SCH' | 'NWH' | 'Alaska' | 'Research' | 'NF' | 'Andro' | 'OFF';`,
+  BackupShiftConfig: `{ kind: BackupShiftKind; name: string; nameLong: string; };`,
+  RotationConfig: `{ rotation: Rotation; start: IsoDate; chief: boolean; };`,
+  Vacation: `IsoDate | { start: IsoDate; length: number; };`,
+  SingleCallTarget: `Record<Year, Partial<Record<Person, number>>>;`,
+  CallPoolPerson: `string;`,
+  Chief: `string;`,
+  // types for the actual data
+  holidays: `Record<IsoDate, string>;`,
+  'special-days': `Record<IsoDate, string>;`,
+  vacations: `Record<Person, Vacation[]>;`,
+  rotations: `Record<Person, RotationConfig[]>;`,
+  'call-targets': `{ weekday: SingleCallTarget; weekend: SingleCallTarget; };`,
+  people: `Record<Person, PersonConfig>;`,
+  'shift-configs': `Record<ShiftKind, ShiftConfig>;`,
+  'backup-shift-configs': `Record<BackupShiftKind, BackupShiftConfig>;`,
+  shifts: `Record<ShiftKind, '' | CallPoolPerson>;`,
+  'backup-shifts': `Record<ShiftKind, '' | Chief>;`,
+} as const;
 
 export type CallSchedule = {
   lastEditedBy?: string;
   lastEditedAt?: IsoDatetime;
 
-  firstDay: string;
-  lastDay: string;
+  firstDay: IsoDate;
+  lastDay: IsoDate;
   weeks: Week[];
 
   shiftConfigs: ShiftConfigs;
@@ -179,8 +227,8 @@ export type CallSchedule = {
 };
 
 export type RotationConfig = RotationDetails & {
-  rotation: RotationKind;
-  start: string;
+  rotation: Rotation;
+  start: IsoDate;
 };
 
 export type Action =
@@ -213,7 +261,7 @@ export type RotationDetails = {
 };
 
 export type DayPersonInfo = {
-  rotation: RotationKind;
+  rotation: Rotation;
   rotationDetails: RotationDetails;
   shift?: ShiftKind;
   onVacation: boolean;
@@ -222,12 +270,12 @@ export type DayPersonInfo = {
   isWorking: boolean;
   shifts: {
     shift: ShiftKind;
-    day: string;
+    day: IsoDate;
   }[];
   // shifts2 is used for consecutive and almost-consecutive call. it's weird what does and does not count.
   shifts2: {
     shift: ShiftKind;
-    day: string;
+    day: IsoDate;
   }[];
 };
 
@@ -236,7 +284,7 @@ export type HospitalDayInfo = RotationDetails & {
 };
 
 export type Hospital2People = {
-  [Property in RotationKind]?: HospitalDayInfo[];
+  [Property in Rotation]?: HospitalDayInfo[];
 };
 
 export type IssueCount = {
@@ -263,19 +311,11 @@ export function callPoolPeople(data: CallSchedule): CallPoolPerson[] {
 export type CallScheduleProcessed = {
   data: CallSchedule;
 
-  day2person2info: {
-    [day: string]: {
-      [Property in Person]?: DayPersonInfo;
-    };
-  };
+  day2person2info: Record<IsoDate, Record<Person, DayPersonInfo>>;
 
-  day2hospital2people: {
-    [day: string]: Hospital2People;
-  };
+  day2hospital2people: Record<IsoDate, Hospital2People>;
 
-  issues: {
-    [key: string]: Issue;
-  };
+  issues: Record<string, Issue>;
 
   element2issueKind: {
     [elementIdForShift: string]: 'soft' | 'hard' | undefined;
@@ -307,41 +347,31 @@ export type CallScheduleProcessed = {
     weekdayOutsideMaternity: number;
   };
 
-  day2weekAndDay: {
-    [key: string]: {
+  day2weekAndDay: Record<
+    IsoDate,
+    {
       dayIndex: number;
       weekIndex: number;
-    };
-  };
+    }
+  >;
 
-  day2shift2unavailablePeople: {
-    [day: string]: {
-      [Property in ShiftKind]?: UnavailablePeople;
-    };
-  };
-
-  day2shift2isHoliday: {
-    [day: string]: {
-      [Property in ShiftKind]?: string;
-    };
-  };
-
-  day2isR2EarlyCall: {
-    [day: string]: boolean;
-  };
+  day2shift2unavailablePeople: Record<
+    IsoDate,
+    Record<ShiftKind, UnavailablePeople>
+  >;
+  day2shift2isHoliday: Record<IsoDate, Record<ShiftKind, string>>;
+  day2isR2EarlyCall: Record<IsoDate, boolean>;
 };
 
 export function isHolidayShift(
   processed: CallScheduleProcessed,
-  day: string,
+  day: IsoDate,
   shift: ShiftKind,
 ): string | undefined {
   return processed.day2shift2isHoliday[day]?.[shift];
 }
 
-export type UnavailablePeople = {
-  [Property in Person]?: UnavailableReason;
-};
+export type UnavailablePeople = Record<Person, UnavailableReason>;
 
 export type UnavailableReason = {
   reason: string;
@@ -435,12 +465,14 @@ export type SaveCallScheduleResponse = {
   ts: IsoDatetime;
 };
 
-export type SaveFullCallScheduleResponse = {
-  kind: 'was-edited';
-} | {
-  kind: 'ok';
-  newData: CallSchedule;
-};
+export type SaveFullCallScheduleResponse =
+  | {
+      kind: 'was-edited';
+    }
+  | {
+      kind: 'ok';
+      newData: CallSchedule;
+    };
 
 export type ListCallSchedulesRequest = {
   kind: 'list';

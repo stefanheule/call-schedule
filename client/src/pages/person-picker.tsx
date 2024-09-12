@@ -2,7 +2,7 @@ import { assertNonNull, IsoDate } from 'check-type';
 import { createContext, useContext, useState } from 'react';
 import { Children, Column, Row } from '../common/flex';
 import {
-  ChiefShiftKind,
+  BackupShiftKind,
   MaybeCallPoolPerson,
   MaybeChief,
   MaybePerson,
@@ -35,7 +35,7 @@ export type PersonPickerConfig =
   | {
       kind: 'backup';
       currentPersonId: MaybeChief;
-      shift: ChiefShiftKind;
+      shift: BackupShiftKind;
       day: IsoDate;
       shiftName: string;
     };

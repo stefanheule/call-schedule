@@ -22,7 +22,7 @@ import {
   Issue,
   RotationDetails,
   Hospital2People,
-  ChiefShiftKind,
+  BackupShiftKind,
   ChiefShiftId,
   Chief,
   CallScheduleProcessed,
@@ -241,6 +241,16 @@ function RenderCallScheduleImpl({
     },
     [],
   );
+
+  const DEBUG_CONFIG_EDITOR = true;
+  useEffect(() => {
+    if (DEBUG_CONFIG_EDITOR) {
+      configEditor.requestDialog(() => {}, {
+        kind: 'vacations',
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const configEditor = useConfigEditor();
   const showEditRaw = showEditRawData(data, localData);
@@ -603,7 +613,7 @@ function RenderCallScheduleImpl({
                     <EditorToggleRow>
                       <EditorToggleButton kind="special-days" />
                       <EditorToggleButton kind="shift-configs" />
-                      <EditorToggleButton kind="chief-shift-configs" />
+                      <EditorToggleButton kind="backup-shift-configs" />
                       <EditorToggleButton kind="call-targets" />
                     </EditorToggleRow>
                   </Column>
@@ -1517,7 +1527,7 @@ function RenderDay({
                 showEditRaw={showEditRaw}
                 canEditRaw={canEditRaw}
                 config={{
-                  kind: 'chief-shifts',
+                  kind: 'backup-shifts',
                   day: day.date,
                 }}
                 tiny
@@ -1843,7 +1853,7 @@ function RenderShiftGeneric({
   personId: MaybePerson;
   name: string;
   // eslint-disable-next-line @typescript-eslint/no-duplicate-type-constituents
-  shiftId: ShiftKind | ChiefShiftKind;
+  shiftId: ShiftKind | BackupShiftKind;
   dashedBorder?: boolean;
   onClick?: () => void;
 }) {

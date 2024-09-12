@@ -1,7 +1,7 @@
 import { assertNonNull, IsoDate, mapEnum } from 'check-type';
 import { createContext, useContext, useState } from 'react';
 import { Children, Column, ElementSpacer, Row } from '../common/flex';
-import { CallSchedule, MaybePerson } from '../shared/types';
+import { CallSchedule, EDITOR_TYPES, MaybePerson } from '../shared/types';
 import { useData } from './data-context';
 import { Button, Dialog, IconButton, Snackbar } from '@mui/material';
 import { Heading } from '../common/text';
@@ -29,14 +29,14 @@ export type RegularConfigEditorKind =
   | 'call-targets'
   | 'people'
   | 'shift-configs'
-  | 'chief-shift-configs';
+  | 'backup-shift-configs';
 
 export type ConfigEditorConfig =
   | {
       kind: RegularConfigEditorKind;
     }
   | {
-      kind: 'shifts' | 'chief-shifts';
+      kind: 'shifts' | 'backup-shifts';
       day: IsoDate;
     };
 
@@ -57,6 +57,98 @@ export type ConfigEditorType = {
   setCopyPasteSnackbar: (v: string) => void;
   config: ConfigEditorConfig;
 };
+
+function findRequiredTypes(type: string): string[] {
+  const noComments = type
+    .split(`\n`)
+    .map(x => x.split('//')[0])
+    .map(x => x.split('/*')[0])
+    .join('\n');
+  return (
+    noComments
+      // Split by type boundaries
+      .split(/[ >;:,<\[\]]/)
+      // Only keep types (i.e. alphabetic strings starting with an uppercase letter)
+      .filter(t => /^[A-Z][A-Za-z]+$/.test(t))
+      // Remove built-in types
+      .filter(x => !['Record', 'Partial'].includes(x))
+  );
+}
+function getEditorTypeForKind(
+  kind: ConfigEditorConfig['kind'],
+  data: CallSchedule,
+): string {
+  // Start with the Result type
+  const result: { name: string; definition: string }[] = [
+    {
+      name: 'Result',
+      definition: EDITOR_TYPES[kind],
+    },
+  ];
+
+  // Then go through the types, and find all dependencies
+  const newTypes: string[] = [EDITOR_TYPES[kind]];
+  while (newTypes.length > 0) {
+    const type = newTypes.pop();
+    if (type === undefined) break;
+    const requirements = findRequiredTypes(type);
+    for (const requirement of requirements) {
+      if (!result.find(x => x.name === requirement)) {
+        const definition = assertNonNull(
+          EDITOR_TYPES[requirement as 'holidays'],
+          `Could not find type definition for ${requirement}`,
+        );
+
+        // Replace string types with union when possible
+        function optionsToUnion(options: string[]): string {
+          return options.map(x => `'${x}'`).join(' | ') + `;`;
+        }
+        if (requirement == 'Person') {
+          result.push({
+            name: requirement,
+            definition: optionsToUnion(Object.keys(data.people)),
+          });
+        } else if (requirement == 'Chief') {
+          result.push({
+            name: requirement,
+            definition: optionsToUnion(
+              Object.keys(data.people).filter(p => data.people[p].year === 'C'),
+            ),
+          });
+        } else if (requirement == 'CallPoolPerson') {
+          result.push({
+            name: requirement,
+            definition: optionsToUnion(
+              Object.keys(data.people).filter(
+                p => !['C', '1'].includes(data.people[p].year),
+              ),
+            ),
+          });
+        } else if (requirement == 'ShiftKind') {
+          result.push({
+            name: requirement,
+            definition: optionsToUnion(Object.keys(data.shiftConfigs)),
+          });
+        } else if (requirement == 'BackupShiftKind') {
+          result.push({
+            name: requirement,
+            definition: optionsToUnion(Object.keys(data.chiefShiftConfigs)),
+          });
+        } else {
+          result.push({
+            name: requirement,
+            definition,
+          });
+          newTypes.push(definition);
+        }
+      }
+    }
+  }
+  return result
+    .reverse()
+    .map(item => `type ${item.name} = ${item.definition}`)
+    .join('\n');
+}
 
 const ConfigEditorContext = createContext<ConfigEditorType | undefined>(
   undefined,
@@ -164,9 +256,9 @@ export function configEditorTitle(kind: ConfigEditorConfig['kind']): string {
     'call-targets': 'Call targets',
     people: 'People',
     shifts: 'Shifts',
-    'chief-shifts': 'Chief shifts',
+    'backup-shifts': 'Backup shifts',
     'shift-configs': 'Shift configs',
-    'chief-shift-configs': 'Chief shift configs',
+    'backup-shift-configs': 'Backup shift configs',
   });
 }
 
@@ -184,7 +276,8 @@ export function ConfigEditorDialog() {
     data: CallSchedule,
     config: ConfigEditorConfig,
   ): string {
-    return `const result = ${objectToCode(getDefaultObject(data, config))}`;
+    return `${getEditorTypeForKind(config.kind, data)}
+const result: Result = ${objectToCode(getDefaultObject(data, config))}`;
   }
 
   function getDefaultObject(
@@ -213,7 +306,7 @@ export function ConfigEditorDialog() {
           }
         }
         throw new Error(`Cannot find shifts for day ${config.day}`);
-      case 'chief-shifts':
+      case 'backup-shifts':
         for (const week of data.weeks) {
           for (const day of week.days) {
             if (day.date === config.day) {
@@ -224,7 +317,7 @@ export function ConfigEditorDialog() {
         throw new Error(`Cannot find chief shifts for day ${config.day}`);
       case 'shift-configs':
         return data.shiftConfigs;
-      case 'chief-shift-configs':
+      case 'backup-shift-configs':
         return data.chiefShiftConfigs;
     }
   }
@@ -278,7 +371,7 @@ export function ConfigEditorDialog() {
           }
         }
         throw new Error(`Cannot find shifts for day ${config.day}`);
-      case 'chief-shifts':
+      case 'backup-shifts':
         for (const week of data.weeks) {
           for (const day of week.days) {
             if (day.date === config.day) {
@@ -287,13 +380,13 @@ export function ConfigEditorDialog() {
             }
           }
         }
-        throw new Error(`Cannot find chief shifts for day ${config.day}`);
+        throw new Error(`Cannot find backup shifts for day ${config.day}`);
       case 'shift-configs':
         return {
           ...data,
           shiftConfigs: assertShiftConfigs(value),
         };
-      case 'chief-shift-configs':
+      case 'backup-shift-configs':
         return {
           ...data,
           chiefShiftConfigs: assertChiefShiftConfigs(value),
