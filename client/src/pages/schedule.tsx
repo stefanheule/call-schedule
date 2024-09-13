@@ -1,6 +1,7 @@
 import {
   assertNonNull,
   dateToIsoDatetime,
+  deepCopy,
   isoDateToDate,
   mapEnum,
   sleep,
@@ -70,6 +71,7 @@ import {
   yearToColor,
   serializeActions,
   diffIssues,
+  processCallSchedule,
 } from '../shared/compute';
 import { useHotkeys } from 'react-hotkeys-hook';
 import Snackbar from '@mui/material/Snackbar';
@@ -242,12 +244,24 @@ function RenderCallScheduleImpl({
     [],
   );
 
-  const DEBUG_CONFIG_EDITOR = true;
+  const DEBUG_CONFIG_EDITOR = false;
   useEffect(() => {
     if (DEBUG_CONFIG_EDITOR) {
       configEditor.requestDialog(() => {}, {
         kind: 'vacations',
       });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const DEBUG_IMPORT_CALL_SWAP = true;
+  useEffect(() => {
+    if (DEBUG_IMPORT_CALL_SWAP) {
+      setImportDialogOpen(true);
+      setImportDoneDialogOpen(false);
+      setImportText(
+        `1. Replace CPu with AA for Weekend South (5pm-5pm) on Fri 9/13/2024`,
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -684,13 +698,22 @@ function RenderImportCallSwitchDialog({
   importText: string;
   setImportText: (v: string) => void;
 }) {
-  const [, setData] = useData();
+  const [data, setData] = useData();
   const processed = useProcessedData();
   const [localData, setLocalData] = useLocalData();
 
   let content = undefined;
 
   const { actions, errors } = deserializeActions(importText, processed);
+  const updatedData = deepCopy(data);
+  let issues: Record<string, Issue> = {};
+  let removedIssues: Record<string, Issue> = {};
+  if (errors.length == 0) {
+    applyActions(updatedData, actions);
+    const newProcessed = processCallSchedule(updatedData);
+    issues = diffIssues(processed, newProcessed);
+    removedIssues = diffIssues(newProcessed, processed);
+  }
 
   if (localData.unsavedChanges != 0) {
     content = (
@@ -707,7 +730,7 @@ function RenderImportCallSwitchDialog({
         <Text>What call swaps would you like to import?</Text>
         <ElementSpacer />
         <TextField
-          minRows={6}
+          minRows={4}
           multiline
           placeholder="Paste the proposed call switch here"
           variant="outlined"
@@ -734,6 +757,28 @@ function RenderImportCallSwitchDialog({
             </Text>
           )}
         </DefaultTextSize>
+        {errors.length == 0 && Object.keys(issues).length > 0 && (
+          <>
+            <ElementSpacer />
+            <Heading>New rule violations</Heading>
+            {Object.entries(issues)
+              .sort((a, b) => a[1].startDay.localeCompare(b[1].startDay))
+              .map(([id, issue]) => (
+                <RuleViolation key={id} id={id} issue={issue} />
+              ))}
+          </>
+        )}
+        {errors.length == 0 && Object.keys(removedIssues).length > 0 && (
+          <>
+            <ElementSpacer />
+            <Heading>Removed rule violations</Heading>
+            {Object.entries(removedIssues)
+              .sort((a, b) => a[1].startDay.localeCompare(b[1].startDay))
+              .map(([id, issue]) => (
+                <RuleViolation key={id} id={id} issue={issue} />
+              ))}
+          </>
+        )}
       </Column>
     );
   }
@@ -760,17 +805,7 @@ function RenderImportCallSwitchDialog({
                 setLocalData((localData: LocalData) => {
                   const lastAction = localData.undoHistory.pop();
                   setData((data: CallSchedule) => {
-                    for (const action of actions) {
-                      const day =
-                        data.weeks[action.shift.weekIndex].days[
-                          action.shift.dayIndex
-                        ];
-                      if (action.kind == 'regular') {
-                        day.shifts[action.shift.shiftName] = action.next;
-                      } else {
-                        day.backupShifts[action.shift.shiftName] = action.next;
-                      }
-                    }
+                    applyActions(data, actions);
                     localData.firstUnsavedChange = dateToIsoDatetime(
                       new Date(),
                     );
@@ -1207,7 +1242,7 @@ function RuleViolation({
 }: {
   id: string;
   issue: Issue;
-  weekListRef: React.RefObject<VListHandle>;
+  weekListRef?: React.RefObject<VListHandle>;
 }) {
   const processed = useProcessedData();
   const weekIndex = processed.day2weekAndDay[issue.startDay].weekIndex;
@@ -1222,6 +1257,7 @@ function RuleViolation({
         cursor: 'pointer',
       }}
       onClick={async () => {
+        if (!weekListRef) return;
         const firstElement = document.getElementById(`day-${issue.startDay}`);
         if (firstElement) {
           firstElement.scrollIntoView({ behavior: 'smooth', block: 'start' });

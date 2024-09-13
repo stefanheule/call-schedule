@@ -31,6 +31,7 @@ import {
 } from './shared/types';
 import { loadStorage, storeStorage } from './storage';
 import cookie from 'cookie';
+import { validateData } from './shared/validate';
 
 export const AXIOS_PROPS = {
   isLocal: true,
@@ -68,7 +69,9 @@ async function main() {
 
             result.callSchedule.isPublic = IS_PUBLIC;
             result.callSchedule.currentUser = extractAuthedUser(req);
-            res.send(assertCallSchedule(result.callSchedule));
+            const checkedSchedule = assertCallSchedule(result.callSchedule);
+            validateData(checkedSchedule);
+            res.send(checkedSchedule);
             return;
           } catch (e) {
             console.log(e);

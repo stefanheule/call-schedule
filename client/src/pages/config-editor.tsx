@@ -1,14 +1,14 @@
 import { assertNonNull, IsoDate, mapEnum } from 'check-type';
 import { createContext, useContext, useState } from 'react';
 import { Children, Column, ElementSpacer, Row } from '../common/flex';
-import { CallSchedule, EDITOR_TYPES, MaybePerson } from '../shared/types';
+import { CallSchedule, CallTarget, ChiefShiftAssignment, ChiefShiftConfigs, EDITOR_TYPES, Holidays, MaybePerson, PeopleConfig, RotationSchedule, ShiftAssignment, ShiftConfigs, SpecialDays, VacationSchedule } from '../shared/types';
 import { useData } from './data-context';
-import { Button, Dialog, IconButton, Snackbar } from '@mui/material';
-import { Heading } from '../common/text';
+import { Button, Dialog } from '@mui/material';
+import { Heading, Text } from '../common/text';
 import Editor from '@monaco-editor/react';
-import CloseIcon from '@mui/icons-material/Close';
 import { rpcSaveFullCallSchedules } from './rpc';
 import {
+  assertCallSchedule,
   assertCallTarget,
   assertChiefShiftAssignment,
   assertChiefShiftConfigs,
@@ -20,6 +20,7 @@ import {
   assertSpecialDays,
   assertVacationSchedule,
 } from '../shared/check-type.generated';
+import { validateData } from '../shared/validate';
 
 export type RegularConfigEditorKind =
   | 'holidays'
@@ -52,8 +53,8 @@ export type ConfigEditorType = {
   setIsOpen: (open: boolean) => void;
   isSubmitting: boolean;
   setIsSubmitting: (submitting: boolean) => void;
-  snackbar: string;
-  setSnackbar: (message: string) => void;
+  dialogContent: string;
+  setDialogContent: (message: string) => void;
   setCopyPasteSnackbar: (v: string) => void;
   config: ConfigEditorConfig;
 };
@@ -134,7 +135,10 @@ function getEditorTypeForKind(
             name: requirement,
             definition: optionsToUnion(Object.keys(data.chiefShiftConfigs)),
           });
-        } else {
+        }
+
+        // Otherwise, just use the type from the constant, and make sure to also go through its dependencies.
+        else {
           result.push({
             name: requirement,
             definition,
@@ -164,7 +168,7 @@ export const ConfigEditorProvider = ({
 }: {
   setCopyPasteSnackbar: (v: string) => void;
 } & Children) => {
-  const [snackbar, setSnackbar] = useState('');
+  const [dialogContent, setDialogContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [onResult, setOnResult] = useState(() => () => {});
@@ -195,8 +199,8 @@ export const ConfigEditorProvider = ({
         setIsOpen,
         isSubmitting,
         setIsSubmitting,
-        snackbar,
-        setSnackbar,
+        dialogContent,
+        setDialogContent,
         setCopyPasteSnackbar,
         config,
       }}
@@ -328,44 +332,51 @@ const result: Result = ${objectToCode(getDefaultObject(data, config))}`;
     newValue: string,
   ): CallSchedule {
     // eslint-disable-next-line @typescript-eslint/no-implied-eval
-    const fn = new Function(`${newValue}; return result;`) as () => unknown;
+    const fn = new Function(
+      `const result = ${
+        newValue.split(`const result: Result = `)[1]
+      }; return result;`,
+    ) as () => unknown;
     const value = fn();
+
+    // NOTE: we don't assertX but do value as X below, because we will still run a full
+    // check later on, and this way we can run validate first, which has better error messages.
     switch (config.kind) {
       case 'holidays':
         return {
           ...data,
-          holidays: assertHolidays(value),
+          holidays: value as Holidays,
         };
       case 'special-days':
         return {
           ...data,
-          specialDays: assertSpecialDays(value),
+          specialDays: value as SpecialDays,
         };
       case 'vacations':
         return {
           ...data,
-          vacations: assertVacationSchedule(value),
+          vacations: value as VacationSchedule,
         };
       case 'rotations':
         return {
           ...data,
-          rotations: assertRotationSchedule(value),
+          rotations: value as RotationSchedule,
         };
       case 'call-targets':
         return {
           ...data,
-          callTargets: assertCallTarget(value),
+          callTargets: value as CallTarget,
         };
       case 'people':
         return {
           ...data,
-          people: assertPeopleConfig(value),
+          people: value as PeopleConfig,
         };
       case 'shifts':
         for (const week of data.weeks) {
           for (const day of week.days) {
             if (day.date === config.day) {
-              day.shifts = assertShiftAssignment(value);
+              day.shifts = value as ShiftAssignment;
               return data;
             }
           }
@@ -375,7 +386,7 @@ const result: Result = ${objectToCode(getDefaultObject(data, config))}`;
         for (const week of data.weeks) {
           for (const day of week.days) {
             if (day.date === config.day) {
-              day.shifts = assertChiefShiftAssignment(value);
+              day.shifts = value as ChiefShiftAssignment;
               return data;
             }
           }
@@ -384,12 +395,12 @@ const result: Result = ${objectToCode(getDefaultObject(data, config))}`;
       case 'shift-configs':
         return {
           ...data,
-          shiftConfigs: assertShiftConfigs(value),
+          shiftConfigs: value as ShiftConfigs,
         };
       case 'backup-shift-configs':
         return {
           ...data,
-          chiefShiftConfigs: assertChiefShiftConfigs(value),
+          chiefShiftConfigs: value as ChiefShiftConfigs,
         };
     }
   }
@@ -397,7 +408,7 @@ const result: Result = ${objectToCode(getDefaultObject(data, config))}`;
   function resetStateBeforeClose() {
     configEditor.setIsOpen(false);
     configEditor.setIsSubmitting(false);
-    configEditor.setSnackbar('');
+    configEditor.setDialogContent('');
   }
 
   return (
@@ -411,22 +422,18 @@ const result: Result = ${objectToCode(getDefaultObject(data, config))}`;
       // }}
       onClose={() => configEditor.setIsOpen(false)}
     >
-      <Snackbar
-        open={configEditor.snackbar != ''}
-        onClose={() => configEditor.setSnackbar('')}
-        message={configEditor.snackbar}
-        autoHideDuration={5000}
-        action={
-          <IconButton
-            aria-label="close"
-            color="inherit"
-            sx={{ p: 0.5 }}
-            onClick={() => configEditor.setSnackbar('')}
-          >
-            <CloseIcon />
-          </IconButton>
-        }
-      />
+      <Dialog open={configEditor.dialogContent != ''}>
+        <Column
+          style={{
+            padding: '20px',
+          }}
+        >
+          <Text>{configEditor.dialogContent}</Text>
+          <Button onClick={() => configEditor.setDialogContent('')}>
+            Close
+          </Button>
+        </Column>
+      </Dialog>
       <Column style={{ padding: '20px', maxWidth: '800px' }} spacing="10px">
         <Heading>Edit {title}</Heading>
         <Editor
@@ -477,14 +484,23 @@ const result: Result = ${objectToCode(getDefaultObject(data, config))}`;
                 );
                 return;
               }
+
+              let newData: CallSchedule;
+              try {
+                newData = updateData(data, configEditor.config, currentValue);
+                validateData(newData);
+                assertCallSchedule(newData);
+              } catch (e) {
+                console.log(e);
+                configEditor.setDialogContent(
+                  `The updated data is not valid: ${e}`,
+                );
+                return;
+              }
+
               configEditor.setIsSubmitting(true);
 
               try {
-                const newData = updateData(
-                  data,
-                  configEditor.config,
-                  currentValue,
-                );
                 const result = await rpcSaveFullCallSchedules({
                   callSchedule: newData,
                   name: 'Config editor',
@@ -492,7 +508,7 @@ const result: Result = ${objectToCode(getDefaultObject(data, config))}`;
 
                 switch (result.kind) {
                   case 'was-edited':
-                    configEditor.setSnackbar(
+                    configEditor.setDialogContent(
                       'Data was edited recently. Please remember your changes, and refresh the page.',
                     );
                     configEditor.setIsSubmitting(false);
@@ -507,7 +523,7 @@ const result: Result = ${objectToCode(getDefaultObject(data, config))}`;
                 configEditor.handleDialogResult('', false);
               } catch (e) {
                 console.log(e);
-                configEditor.setSnackbar(
+                configEditor.setDialogContent(
                   'Some unexpected error occurred. Please try again. If this persists, please contact Stefan.',
                 );
                 configEditor.setIsSubmitting(false);

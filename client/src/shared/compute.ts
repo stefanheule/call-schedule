@@ -266,12 +266,8 @@ export function rate(
 export function diffIssues(
   before: CallScheduleProcessed,
   after: CallScheduleProcessed,
-): {
-  [key: string]: Issue;
-} {
-  const result: {
-    [key: string]: Issue;
-  } = {};
+): Record<string, Issue> {
+  const result: Record<string, Issue> = {};
   for (const [key, issue] of Object.entries(after.issues)) {
     if (!(key in before.issues)) {
       result[key] = issue;
