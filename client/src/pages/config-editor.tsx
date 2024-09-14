@@ -23,6 +23,7 @@ import Editor from '@monaco-editor/react';
 import { rpcSaveFullCallSchedules } from './rpc';
 import { assertCallSchedule } from '../shared/check-type.generated';
 import { validateData } from '../shared/validate';
+import { processCallSchedule } from '../shared/compute';
 
 export type RegularConfigEditorKind =
   | 'holidays'
@@ -106,7 +107,7 @@ function getEditorTypeForKind(
         function optionsToUnion(options: string[]): string {
           return options.map(x => `'${x}'`).join(' | ') + `;`;
         }
-        if (requirement == 'Person') {
+        if (requirement == 'Person' && kind !== 'people') {
           result.push({
             name: requirement,
             definition: optionsToUnion(Object.keys(data.people)),
@@ -127,12 +128,15 @@ function getEditorTypeForKind(
               ),
             ),
           });
-        } else if (requirement == 'ShiftKind') {
+        } else if (requirement == 'ShiftKind' && kind !== 'shift-configs') {
           result.push({
             name: requirement,
             definition: optionsToUnion(Object.keys(data.shiftConfigs)),
           });
-        } else if (requirement == 'BackupShiftKind') {
+        } else if (
+          requirement == 'BackupShiftKind' &&
+          kind !== 'backup-shift-configs'
+        ) {
           result.push({
             name: requirement,
             definition: optionsToUnion(Object.keys(data.chiefShiftConfigs)),
@@ -492,6 +496,7 @@ const result: Result = ${objectToCode(getDefaultObject(data, config))}`;
                 newData = updateData(data, configEditor.config, currentValue);
                 validateData(newData);
                 assertCallSchedule(newData);
+                processCallSchedule(newData);
               } catch (e) {
                 console.log(e);
                 configEditor.setDialogContent(

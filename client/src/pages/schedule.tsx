@@ -248,7 +248,7 @@ function RenderCallScheduleImpl({
   useEffect(() => {
     if (DEBUG_CONFIG_EDITOR) {
       configEditor.requestDialog(() => {}, {
-        kind: 'vacations',
+        kind: 'people',
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

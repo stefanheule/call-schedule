@@ -681,6 +681,28 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     day2shift2isHoliday: {},
   };
 
+  // Initialize day2person2info with default info
+  for (const person in data.people) {
+    for (const week of data.weeks) {
+      for (const day of week.days) {
+        if (day.date > data.lastDay || day.date < data.firstDay) continue;
+        result.day2person2info[day.date] =
+          result.day2person2info[day.date] || {};
+        result.day2person2info[day.date][person] = {
+          rotation: 'OFF',
+          rotationDetails: {
+            chief: false,
+          },
+          onVacation: false,
+          onPriorityWeekend: false,
+          isWorking: false,
+          shifts: [],
+          shifts2: [],
+        };
+      }
+    }
+  }
+
   // Figure out where everyone is working
   for (const [person, rotations] of Object.entries(data.rotations)) {
     if (rotations.length == 0) continue;

@@ -200,8 +200,8 @@ export const EDITOR_TYPES = {
   people: `Record<Person, PersonConfig>;`,
   'shift-configs': `Record<ShiftKind, ShiftConfig>;`,
   'backup-shift-configs': `Record<BackupShiftKind, BackupShiftConfig>;`,
-  shifts: `Record<ShiftKind, '' | CallPoolPerson>;`,
-  'backup-shifts': `Record<ShiftKind, '' | Chief>;`,
+  shifts: `Partial<Record<ShiftKind, '' | CallPoolPerson>>;`,
+  'backup-shifts': `Partial<Record<ShiftKind, '' | Chief>>;`,
 } as const;
 
 export type CallSchedule = {
