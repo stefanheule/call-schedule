@@ -254,7 +254,7 @@ function RenderCallScheduleImpl({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const DEBUG_IMPORT_CALL_SWAP = true;
+  const DEBUG_IMPORT_CALL_SWAP = false;
   useEffect(() => {
     if (DEBUG_IMPORT_CALL_SWAP) {
       setImportDialogOpen(true);
