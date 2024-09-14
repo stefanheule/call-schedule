@@ -1,25 +1,27 @@
 import { assertNonNull, IsoDate, mapEnum } from 'check-type';
 import { createContext, useContext, useState } from 'react';
 import { Children, Column, ElementSpacer, Row } from '../common/flex';
-import { CallSchedule, CallTarget, ChiefShiftAssignment, ChiefShiftConfigs, EDITOR_TYPES, Holidays, MaybePerson, PeopleConfig, RotationSchedule, ShiftAssignment, ShiftConfigs, SpecialDays, VacationSchedule } from '../shared/types';
+import {
+  CallSchedule,
+  CallTarget,
+  ChiefShiftAssignment,
+  ChiefShiftConfigs,
+  EDITOR_TYPES,
+  Holidays,
+  MaybePerson,
+  PeopleConfig,
+  RotationSchedule,
+  ShiftAssignment,
+  ShiftConfigs,
+  SpecialDays,
+  VacationSchedule,
+} from '../shared/types';
 import { useData } from './data-context';
 import { Button, Dialog } from '@mui/material';
 import { Heading, Text } from '../common/text';
 import Editor from '@monaco-editor/react';
 import { rpcSaveFullCallSchedules } from './rpc';
-import {
-  assertCallSchedule,
-  assertCallTarget,
-  assertChiefShiftAssignment,
-  assertChiefShiftConfigs,
-  assertHolidays,
-  assertPeopleConfig,
-  assertRotationSchedule,
-  assertShiftAssignment,
-  assertShiftConfigs,
-  assertSpecialDays,
-  assertVacationSchedule,
-} from '../shared/check-type.generated';
+import { assertCallSchedule } from '../shared/check-type.generated';
 import { validateData } from '../shared/validate';
 
 export type RegularConfigEditorKind =
