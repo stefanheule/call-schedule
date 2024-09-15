@@ -65,6 +65,7 @@ export function yearToString(year: Year): string {
 }
 
 export type PersonConfig = {
+  name?: { first: string | string[]; last: string | string[] };
   year: Year;
   maternity?: {
     from: IsoDate;
@@ -161,6 +162,7 @@ export const EDITOR_TYPES = {
   Hospital: `'UW' | 'VA' | 'HMC' | 'SCH' | 'NWH';`,
   Year: `'1' | '2' | '3' | 'S' | 'C' | 'R' | 'M';`,
   PersonConfig: `{
+  name: { first: string | string[]; last: string | string[] };
   year: Year;
   maternity?: {
     from: IsoDate;

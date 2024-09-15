@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv';
 dotenv.config({ path: __dirname + '/../.env' });
 
-import { exceptionToString } from 'check-type';
+import { assertNonNull, exceptionToString } from 'check-type';
 import express, { Request, Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import path from 'path';
@@ -32,6 +32,7 @@ import {
 import { loadStorage, storeStorage } from './storage';
 import cookie from 'cookie';
 import { validateData } from './shared/validate';
+import { assertApplyAmionChangeRequest } from './check-type.generated';
 
 export const AXIOS_PROPS = {
   isLocal: true,
@@ -40,6 +41,35 @@ export const AXIOS_PROPS = {
 
 const IS_PUBLIC = process.env['CALL_SCHEDULE_PUBLIC'] === 'yes';
 console.log(`IS_PUBLIC: ${IS_PUBLIC}`);
+
+// ---- IMPORTANT: these are shared definitions/types between metro and call-schedule.
+
+const TERRA_AUTH_ENV_VARIABLE = `TERRA_SECRET`;
+
+// @check-type
+export type ApplyAmionChangeRequest = {
+  auth: string;
+  initialTry: boolean;
+  email: {
+    subject: string;
+    body: {
+      text: string;
+      html?: string;
+    };
+  };
+};
+
+// @check-type
+export type ApplyAmionChangeResponse =
+  | {
+      kind: 'ok';
+    }
+  | {
+      kind: 'error';
+      message: string;
+    };
+
+// ---- end shared definitions.
 
 async function main() {
   await setupExpressServer({
@@ -207,6 +237,42 @@ async function main() {
           }
         },
       );
+
+      if (IS_PUBLIC) {
+        app.post(
+          '/api/apply-amion-change',
+          async (
+            req: Request,
+            res: Response<ApplyAmionChangeResponse | string>,
+          ) => {
+            try {
+              const request = assertApplyAmionChangeRequest(req.body);
+              if (
+                request.auth !=
+                assertNonNull(
+                  process.env[TERRA_AUTH_ENV_VARIABLE],
+                  `$${TERRA_AUTH_ENV_VARIABLE} not set?`,
+                )
+              ) {
+                res.status(200).send({
+                  kind: 'error',
+                  message: 'Invalid auth',
+                });
+                return;
+              }
+
+              res.send({
+                kind: 'error',
+                message: 'Not implemented',
+              });
+            } catch (e) {
+              console.log(e);
+              res.status(500).send(`exception: ${exceptionToString(e)}`);
+              return;
+            }
+          },
+        );
+      }
 
       if (!isLocal()) {
         app.use(express.static(path.join(__dirname, '../../client/build')));
