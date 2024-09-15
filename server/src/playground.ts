@@ -42,6 +42,7 @@ import { loadStorage, storeStorage } from './storage';
 import fs from 'fs';
 import { exportSchedule } from './shared/export';
 import * as Diff from 'diff';
+import { parseAmionEmail } from './parse-amion-email';
 
 // @check-type
 export type RunType =
@@ -52,7 +53,8 @@ export type RunType =
   | 'export'
   | 'clear-weekends'
   | 'clear-weekdays'
-  | 'diff-previous';
+  | 'diff-previous'
+  | 'parse-email';
 
 function runType(): RunType {
   if (process.argv.length < 3) return 'noop';
@@ -85,6 +87,31 @@ async function main() {
   const latest = storage.versions[storage.versions.length - 1];
   let data = deepCopy(latest.callSchedule);
   console.log(`Latest = ${latest.name}`);
+
+  if (run == 'parse-email') {
+    console.log(
+      parseAmionEmail(
+        {
+          auth: '',
+          initialTry: false,
+          email: {
+            subject: 'Trade with Lillian Xie approved',
+            body: {
+              text:
+                'Trade approved!\r\n' +
+                '\r\n' +
+                'Lillian Xie will take HMC Night on Wed. April 23.\r\n' +
+                'Rilwan Babajide will take HMC Night on Thu. April 24.\r\n' +
+                '\r\n' +
+                'View your schedule<https://urldefense.com/v3/__http://www.amion.com/cgi-bin/ocs?Fi=new_31778.sch&Ps=43&Mo=5-24__;!!K-Hz7m0Vt54!i0IvxJd_dmVd9pNVJE-KgreGcb8pTfniIvaD35fqfH7kezHgs3qFu1s4-dm5wTJuo1KPG88MW0p9ZMQ$>.\r\n',
+            },
+          },
+        },
+        data,
+      ),
+    );
+    return;
+  }
 
   if (run == 'diff-previous') {
     for (let i = 0; i < 8; i++) {

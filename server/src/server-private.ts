@@ -33,6 +33,10 @@ import { loadStorage, storeStorage } from './storage';
 import cookie from 'cookie';
 import { validateData } from './shared/validate';
 import { assertApplyAmionChangeRequest } from './check-type.generated';
+import {
+  ApplyAmionChangeResponse,
+  TERRA_AUTH_ENV_VARIABLE,
+} from './parse-amion-email';
 
 export const AXIOS_PROPS = {
   isLocal: true,
@@ -41,35 +45,6 @@ export const AXIOS_PROPS = {
 
 const IS_PUBLIC = process.env['CALL_SCHEDULE_PUBLIC'] === 'yes';
 console.log(`IS_PUBLIC: ${IS_PUBLIC}`);
-
-// ---- IMPORTANT: these are shared definitions/types between metro and call-schedule.
-
-const TERRA_AUTH_ENV_VARIABLE = `TERRA_SECRET`;
-
-// @check-type
-export type ApplyAmionChangeRequest = {
-  auth: string;
-  initialTry: boolean;
-  email: {
-    subject: string;
-    body: {
-      text: string;
-      html?: string;
-    };
-  };
-};
-
-// @check-type
-export type ApplyAmionChangeResponse =
-  | {
-      kind: 'ok';
-    }
-  | {
-      kind: 'error';
-      message: string;
-    };
-
-// ---- end shared definitions.
 
 async function main() {
   await setupExpressServer({

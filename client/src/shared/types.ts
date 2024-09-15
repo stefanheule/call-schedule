@@ -9,6 +9,7 @@ export type ShiftConfig = {
   type: 'weekday' | 'weekend' | 'special';
   name: string;
   nameLong: string;
+  amionName?: string;
   hospitals: Hospital[];
   /** How many days (1 for just today, 2 for today and tomorrow, etc) */
   days: number;
@@ -22,6 +23,7 @@ export type BackupShiftConfig = {
   kind: BackupShiftKind;
   name: string;
   nameLong: string;
+  amionName?: string;
 };
 
 export type Year = '1' | '2' | '3' | 'S' | 'C' | 'R' | 'M';
@@ -177,6 +179,7 @@ export const EDITOR_TYPES = {
   type: 'weekday' | 'weekend' | 'special';
   name: string;
   nameLong: string;
+  amionName?: string;
   hospitals: Hospital[];
   /** How many days (1 for just today, 2 for today and tomorrow, etc) */
   days: number;
@@ -187,7 +190,7 @@ export const EDITOR_TYPES = {
   hours: number;
 };`,
   Rotation: `'UW' | 'VA' | 'HMC' | 'SCH' | 'NWH' | 'Alaska' | 'Research' | 'NF' | 'Andro' | 'OFF';`,
-  BackupShiftConfig: `{ kind: BackupShiftKind; name: string; nameLong: string; };`,
+  BackupShiftConfig: `{ kind: BackupShiftKind; name: string; nameLong: string; amionName?: string; };`,
   RotationConfig: `{ rotation: Rotation; start: IsoDate; chief: boolean; };`,
   Vacation: `IsoDate | { start: IsoDate; length: number; };`,
   SingleCallTarget: `Record<Year, Partial<Record<Person, number>>>;`,
