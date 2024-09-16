@@ -241,6 +241,56 @@ export function validateData(data: CallSchedule): void {
         );
       }
     }
+    if (person != 'MAD') {
+      if (Array.isArray(config.name.first)) {
+        if (
+          !config.name.first.some(
+            first => first[0].toLowerCase() == person[0].toLowerCase(),
+          )
+        ) {
+          throw new Error(
+            `Person ${person}: name.first must contain a name starting with ${person[0]}.`,
+          );
+        }
+      } else {
+        if (config.name.first[0].toLowerCase() != person[0].toLowerCase()) {
+          throw new Error(
+            `Person ${person}: name.first must start with ${person[0]}.`,
+          );
+        }
+      }
+      if (Array.isArray(config.name.last)) {
+        if (
+          !config.name.last.some(
+            last => last[0].toLowerCase() == person[1].toLowerCase(),
+          )
+        ) {
+          throw new Error(
+            `Person ${person}: name.last must contain a name starting with ${person[1]}.`,
+          );
+        }
+      } else {
+        if (config.name.last[0].toLowerCase() != person[1].toLowerCase()) {
+          throw new Error(
+            `Person ${person}: name.last must start with ${person[1]}.`,
+          );
+        }
+      }
+    } else {
+      if (
+        !Array.isArray(config.name.first) ||
+        !Array.isArray(config.name.last)
+      ) {
+        throw new Error(
+          `Person ${person}: name.first and name.last must be arrays.`,
+        );
+      }
+      if (config.name.first.length != config.name.last.length) {
+        throw new Error(
+          `Person ${person}: name.first and name.last must have the same length.`,
+        );
+      }
+    }
   }
 
   for (const d in data.holidays) {

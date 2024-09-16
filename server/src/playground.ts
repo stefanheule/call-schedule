@@ -100,8 +100,7 @@ async function main() {
               text:
                 'Trade approved!\r\n' +
                 '\r\n' +
-                'Lillian Xie will take HMC Night on Wed. April 23.\r\n' +
-                'Rilwan Babajide will take HMC Night on Thu. April 24.\r\n' +
+                "Connor Chestnut takes Alex Jacobs's HMC Night on Tue. Mar 4.\r\n" +
                 '\r\n' +
                 'View your schedule<https://urldefense.com/v3/__http://www.amion.com/cgi-bin/ocs?Fi=new_31778.sch&Ps=43&Mo=5-24__;!!K-Hz7m0Vt54!i0IvxJd_dmVd9pNVJE-KgreGcb8pTfniIvaD35fqfH7kezHgs3qFu1s4-dm5wTJuo1KPG88MW0p9ZMQ$>.\r\n',
             },

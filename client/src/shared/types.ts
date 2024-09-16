@@ -67,7 +67,7 @@ export function yearToString(year: Year): string {
 }
 
 export type PersonConfig = {
-  name?: { first: string | string[]; last: string | string[] };
+  name: { first: string | string[]; last: string | string[] };
   year: Year;
   maternity?: {
     from: IsoDate;
