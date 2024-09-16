@@ -248,20 +248,20 @@ async function main() {
                 console.log(parsed);
                 res.send({ kind: 'error', message: 'Not implemented' });
                 return;
-                if (parsed.kind === 'not-relevant') {
-                  res.send({ kind: 'ok' });
-                } else if (parsed.kind === 'changes') {
-                  const nextSchedule = applyActions(last, parsed.changes);
-                  const nextVersion = scheduleToStoredSchedule(
-                    nextSchedule,
-                    `Amion auto-applied change`,
-                    `<system>`,
-                  );
-                  const newStorage: StoredCallSchedules = {
-                    versions: [...storage.versions, nextVersion],
-                  };
-                  storeStorage(newStorage);
-                }
+                // if (parsed.kind === 'not-relevant') {
+                //   res.send({ kind: 'ok' });
+                // } else if (parsed.kind === 'changes') {
+                //   const nextSchedule = applyActions(last, parsed.changes);
+                //   const nextVersion = scheduleToStoredSchedule(
+                //     nextSchedule,
+                //     `Amion auto-applied change`,
+                //     `<system>`,
+                //   );
+                //   const newStorage: StoredCallSchedules = {
+                //     versions: [...storage.versions, nextVersion],
+                //   };
+                //   storeStorage(newStorage);
+                // }
               } catch (e) {
                 console.log(e);
                 res.send({
@@ -269,11 +269,6 @@ async function main() {
                   message: `${exceptionToString(e)}`,
                 });
               }
-
-              res.send({
-                kind: 'error',
-                message: 'Not implemented',
-              });
             } catch (e) {
               console.log(e);
               res.status(500).send(`exception: ${exceptionToString(e)}`);
