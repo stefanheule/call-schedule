@@ -249,7 +249,7 @@ async function main() {
                 console.log(`Parsed email result:`);
                 console.log(parsed);
                 await sendPushoverMessage({
-                  title: `Amion successfully parsed`,
+                  title: `Amion successfully parsed: ${request.email.subject}`,
                   message: `Parsed email: ${JSON.stringify(parsed, null, 2)}`,
                 });
                 if (parsed.kind === 'not-relevant') {
