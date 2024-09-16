@@ -254,6 +254,7 @@ async function main() {
                 });
                 if (parsed.kind === 'not-relevant') {
                   res.send({ kind: 'ok' });
+                  return;
                 } else if (parsed.kind === 'changes') {
                   const nextSchedule = applyActions(last, parsed.changes);
                   const nextVersion = scheduleToStoredSchedule(
@@ -265,6 +266,8 @@ async function main() {
                     versions: [...storage.versions, nextVersion],
                   };
                   storeStorage(newStorage);
+                  res.send({ kind: 'ok' });
+                  return;
                 }
               } catch (e) {
                 console.log(e);
