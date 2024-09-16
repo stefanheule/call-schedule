@@ -95,14 +95,19 @@ async function main() {
           auth: '',
           initialTry: false,
           email: {
-            subject: 'Trade with Lillian Xie approved',
+            subject: 'FW: Approved trade between Alex Jacobs & Connor Chestnut',
             body: {
               text:
-                'Trade approved!\r\n' +
                 '\r\n' +
-                "Connor Chestnut takes Alex Jacobs's HMC Night on Tue. Mar 4.\r\n" +
+                '________________________________\r\n' +
+                'From: Amion (no reply) <noreply@amion.com>\r\n' +
+                'Sent: Sunday, September 15, 2024 10:20:22 PM (UTC-08:00) Pacific Time (US & Canada)\r\n' +
+                'To: Chloe E Peters <cepeters@uw.edu>\r\n' +
+                'Cc: Renee Kyle <drkyle@uw.edu>; Amy Say <amysay91@uw.edu>\r\n' +
+                'Subject: Approved trade between Alex Jacobs & Connor Chestnut\r\n' +
                 '\r\n' +
-                'View your schedule<https://urldefense.com/v3/__http://www.amion.com/cgi-bin/ocs?Fi=new_31778.sch&Ps=43&Mo=5-24__;!!K-Hz7m0Vt54!i0IvxJd_dmVd9pNVJE-KgreGcb8pTfniIvaD35fqfH7kezHgs3qFu1s4-dm5wTJuo1KPG88MW0p9ZMQ$>.\r\n',
+                "Connor Chestnut is taking Alex Jacobs's HMC Night on Tue. Mar 4.\r\n" +
+                '\r\n',
             },
           },
         },
