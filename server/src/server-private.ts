@@ -35,6 +35,7 @@ import { validateData } from './shared/validate';
 import { assertApplyAmionChangeRequest } from './check-type.generated';
 import {
   ApplyAmionChangeResponse,
+  parseAmionEmail,
   TERRA_AUTH_ENV_VARIABLE,
 } from './parse-amion-email';
 
@@ -234,6 +235,39 @@ async function main() {
                   message: 'Invalid auth',
                 });
                 return;
+              }
+
+              try {
+                const storage = loadStorage({
+                  noCheck: true,
+                });
+                const last = assertNonNull(
+                  storage.versions[storage.versions.length - 1]?.callSchedule,
+                );
+                const parsed = parseAmionEmail(request, last);
+                console.log(parsed);
+                res.send({ kind: 'error', message: 'Not implemented' });
+                return;
+                if (parsed.kind === 'not-relevant') {
+                  res.send({ kind: 'ok' });
+                } else if (parsed.kind === 'changes') {
+                  const nextSchedule = applyActions(last, parsed.changes);
+                  const nextVersion = scheduleToStoredSchedule(
+                    nextSchedule,
+                    `Amion auto-applied change`,
+                    `<system>`,
+                  );
+                  const newStorage: StoredCallSchedules = {
+                    versions: [...storage.versions, nextVersion],
+                  };
+                  storeStorage(newStorage);
+                }
+              } catch (e) {
+                console.log(e);
+                res.send({
+                  kind: 'error',
+                  message: `${exceptionToString(e)}`,
+                });
               }
 
               res.send({

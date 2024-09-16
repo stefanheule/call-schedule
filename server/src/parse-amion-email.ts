@@ -1,5 +1,5 @@
 import { dateToIsoDate, IsoDate } from 'check-type';
-import { Action, CallSchedule, DayId, ShiftKind } from './shared/types';
+import { Action, CallSchedule, DayId } from './shared/types';
 import { dateToDayOfWeek } from './shared/compute';
 
 // ---- IMPORTANT: these are shared definitions/types between metro and call-schedule.
@@ -53,18 +53,18 @@ function parseDate(input: {
   return dateToIsoDate(date);
 }
 
-function parseShift(
-  input: { line: string; shift: string },
-  data: CallSchedule,
-): ShiftKind {
-  for (const shift of Object.values(data.shiftConfigs)) {
-    if (shift.amionName === undefined) continue;
-    if (shift.amionName === input.shift) {
-      return shift.kind;
-    }
-  }
-  throw new Error(`Unknown shift: ${input.shift} while parsing ${input.line}.`);
-}
+// function parseShift(
+//   input: { line: string; shift: string },
+//   data: CallSchedule,
+// ): ShiftKind {
+//   for (const shift of Object.values(data.shiftConfigs)) {
+//     if (shift.amionName === undefined) continue;
+//     if (shift.amionName === input.shift) {
+//       return shift.kind;
+//     }
+//   }
+//   throw new Error(`Unknown shift: ${input.shift} while parsing ${input.line}.`);
+// }
 
 function parsePerson(
   input: { line: string; person: string },
@@ -119,63 +119,99 @@ function parsePerson(
 export function parseAmionEmail(
   request: ApplyAmionChangeRequest,
   data: CallSchedule,
-): Action[] {
-  const result = [];
-  console.log(`Parsing email with subject: ${request.email.subject}`);
-  console.log(request.email.body.text);
-  const regex =
-    /([A-Za-z ]+) takes ([A-Za-z ]+)'s ([A-Za-z ]+) on ([A-Za-z]+). ([A-Za-z]+) ([0-9]+)./g;
-  const matches = Array.from(request.email.body.text.matchAll(regex));
-  console.log(`Found ${matches.length} changes.`);
-  for (const match of matches) {
-    console.log(`Match: ${match[0]}`);
-    const date = parseDate({
-      line: match[0],
-      dow: match[4],
-      month: match[5],
-      day: match[6],
-    });
-    console.log(`Parsed date: ${date}`);
-    const newPerson = parsePerson({ line: match[0], person: match[1] }, data);
-    const oldPerson = parsePerson({ line: match[0], person: match[2] }, data);
-    console.log(`Parsed new person: ${newPerson}`);
-    console.log(`Parsed old person: ${oldPerson}`);
-    const shift = parseShift({ line: match[0], shift: match[3] }, data);
-    console.log(`Parsed shift: ${shift}`);
+):
+  | {
+      kind: 'not-relevant';
+    }
+  | {
+      kind: 'changes';
+      changes: Action[];
+    } {
+  if (request.email.subject.startsWith('FW: Pending trade')) {
+    return { kind: 'not-relevant' };
+  }
+  if (request.email.subject.startsWith('FW: Approved trade')) {
+    const changes = [];
+    let ignoredChanges = false;
+    console.log(`Parsing email with subject: ${request.email.subject}`);
+    console.log(request.email.body.text);
+    const regex =
+      /([A-Za-z ]+) is taking ([A-Za-z ]+)'s ([A-Za-z ]+) on ([A-Za-z]+). ([A-Za-z]+) ([0-9]+)./g;
+    const matches = Array.from(request.email.body.text.matchAll(regex));
+    console.log(`Found ${matches.length} changes.`);
+    for (const match of matches) {
+      console.log(`Match: ${match[0]}`);
+      const date = parseDate({
+        line: match[0],
+        dow: match[4],
+        month: match[5],
+        day: match[6],
+      });
+      console.log(`Parsed date: ${date}`);
+      const newPerson = parsePerson({ line: match[0], person: match[1] }, data);
+      const oldPerson = parsePerson({ line: match[0], person: match[2] }, data);
+      console.log(`Parsed new person: ${newPerson}`);
+      console.log(`Parsed old person: ${oldPerson}`);
+      const amionShift = match[3];
+      let shift;
+      if (amionShift === 'VA Night') {
+        console.log(`Ignoring VA Night shift, because we react to HMC Night.`);
+        ignoredChanges = true;
+        continue;
+      } else if (amionShift === 'HMC Night') {
+        shift = 'weekday_south';
+      } else {
+        throw new Error(`Unknown shift: ${amionShift}`);
+      }
 
-    let dayId: DayId | undefined = undefined;
-    for (let weekIndex = 0; weekIndex < data.weeks.length; weekIndex++) {
-      const week = data.weeks[weekIndex];
-      for (let dayIndex = 0; dayIndex < week.days.length; dayIndex++) {
-        const day = week.days[dayIndex];
-        if (date === day.date) {
-          dayId = { weekIndex, dayIndex };
-          if (day.shifts[shift] === undefined) {
-            throw new Error(`Shift ${shift} does not exist for ${date}`);
+      // Find day and check that the shift is taken by the old person.
+      let dayId: DayId | undefined = undefined;
+      for (let weekIndex = 0; weekIndex < data.weeks.length; weekIndex++) {
+        const week = data.weeks[weekIndex];
+        for (let dayIndex = 0; dayIndex < week.days.length; dayIndex++) {
+          const day = week.days[dayIndex];
+          if (date === day.date) {
+            dayId = { weekIndex, dayIndex };
+            if (day.shifts[shift] === undefined) {
+              throw new Error(`Shift ${shift} does not exist for ${date}`);
+            }
+            if (day.shifts[shift] !== oldPerson) {
+              throw new Error(
+                `Shift ${shift} is not taken by ${oldPerson} for ${date}`,
+              );
+            }
+            break;
           }
-          if (day.shifts[shift] !== oldPerson) {
-            throw new Error(
-              `Shift ${shift} is not taken by ${oldPerson} for ${date}`,
-            );
-          }
-          break;
         }
       }
-    }
-    if (dayId === undefined) {
-      throw new Error(`Cannot find day for date ${date}`);
+      if (dayId === undefined) {
+        throw new Error(`Cannot find day for date ${date}`);
+      }
+
+      const action: Action = {
+        kind: 'regular',
+        shift: {
+          ...dayId,
+          shiftName: shift,
+        },
+        previous: oldPerson,
+        next: newPerson,
+      };
+      changes.push(action);
     }
 
-    const action: Action = {
-      kind: 'regular',
-      shift: {
-        ...dayId,
-        shiftName: shift,
-      },
-      previous: oldPerson,
-      next: newPerson,
+    if (changes.length === 0) {
+      if (ignoredChanges) {
+        return { kind: 'not-relevant' };
+      }
+      throw new Error(`No changes found in email.`);
+    }
+
+    return {
+      kind: 'changes',
+      changes,
     };
-    result.push(action);
   }
-  return result;
+
+  throw new Error(`Unknown email subject: ${request.email.subject}`);
 }
