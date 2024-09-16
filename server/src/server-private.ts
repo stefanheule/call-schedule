@@ -245,23 +245,22 @@ async function main() {
                   storage.versions[storage.versions.length - 1]?.callSchedule,
                 );
                 const parsed = parseAmionEmail(request, last);
+                console.log(`Parsed email result:`);
                 console.log(parsed);
-                res.send({ kind: 'error', message: 'Not implemented' });
-                return;
-                // if (parsed.kind === 'not-relevant') {
-                //   res.send({ kind: 'ok' });
-                // } else if (parsed.kind === 'changes') {
-                //   const nextSchedule = applyActions(last, parsed.changes);
-                //   const nextVersion = scheduleToStoredSchedule(
-                //     nextSchedule,
-                //     `Amion auto-applied change`,
-                //     `<system>`,
-                //   );
-                //   const newStorage: StoredCallSchedules = {
-                //     versions: [...storage.versions, nextVersion],
-                //   };
-                //   storeStorage(newStorage);
-                // }
+                if (parsed.kind === 'not-relevant') {
+                  res.send({ kind: 'ok' });
+                } else if (parsed.kind === 'changes') {
+                  const nextSchedule = applyActions(last, parsed.changes);
+                  const nextVersion = scheduleToStoredSchedule(
+                    nextSchedule,
+                    `Amion auto-applied change`,
+                    `<system>`,
+                  );
+                  const newStorage: StoredCallSchedules = {
+                    versions: [...storage.versions, nextVersion],
+                  };
+                  storeStorage(newStorage);
+                }
               } catch (e) {
                 console.log(e);
                 res.send({
