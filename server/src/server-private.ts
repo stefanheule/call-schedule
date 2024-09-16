@@ -38,6 +38,7 @@ import {
   parseAmionEmail,
   TERRA_AUTH_ENV_VARIABLE,
 } from './parse-amion-email';
+import { sendPushoverMessage } from './common/notifications';
 
 export const AXIOS_PROPS = {
   isLocal: true,
@@ -247,6 +248,10 @@ async function main() {
                 const parsed = parseAmionEmail(request, last);
                 console.log(`Parsed email result:`);
                 console.log(parsed);
+                await sendPushoverMessage({
+                  title: `Amion successfully parsed`,
+                  message: `Parsed email: ${JSON.stringify(parsed, null, 2)}`,
+                });
                 if (parsed.kind === 'not-relevant') {
                   res.send({ kind: 'ok' });
                 } else if (parsed.kind === 'changes') {
