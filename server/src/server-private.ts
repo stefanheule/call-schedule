@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv';
 dotenv.config({ path: __dirname + '/../.env' });
 
-import { assertNonNull, exceptionToString } from 'check-type';
+import { assertNever, assertNonNull, exceptionToString } from 'check-type';
 import express, { Request, Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import path from 'path';
@@ -252,23 +252,27 @@ async function main() {
                   title: `Amion successfully parsed: ${request.email.subject}`,
                   message: `Parsed email: ${JSON.stringify(parsed, null, 2)}`,
                 });
-                if (parsed.kind === 'not-relevant') {
-                  res.send({ kind: 'ok' });
-                  return;
-                } else if (parsed.kind === 'changes') {
-                  const nextSchedule = applyActions(last, parsed.changes);
-                  const nextVersion = scheduleToStoredSchedule(
-                    nextSchedule,
-                    `Amion auto-applied change`,
-                    `<system>`,
-                  );
-                  const newStorage: StoredCallSchedules = {
-                    versions: [...storage.versions, nextVersion],
-                  };
-                  storeStorage(newStorage);
-                  res.send({ kind: 'ok' });
-                  return;
+                switch (parsed.kind) {
+                  case 'not-relevant':
+                  case 'pending-changes':
+                    res.send({ kind: 'ok' });
+                    return;
+                  case 'changes': {
+                    const nextSchedule = applyActions(last, parsed.changes);
+                    const nextVersion = scheduleToStoredSchedule(
+                      nextSchedule,
+                      `Amion auto-applied change`,
+                      `<system>`,
+                    );
+                    const newStorage: StoredCallSchedules = {
+                      versions: [...storage.versions, nextVersion],
+                    };
+                    storeStorage(newStorage);
+                    res.send({ kind: 'ok' });
+                    return;
+                  }
                 }
+                assertNever(parsed);
               } catch (e) {
                 console.log(e);
                 res.send({
