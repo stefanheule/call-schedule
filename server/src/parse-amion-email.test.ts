@@ -102,3 +102,71 @@ describe('test', () => {
     `);
   });
 });
+
+describe('test', () => {
+  it('test', () => {
+    const email: ApplyAmionChangeRequest = {
+      auth: 'test',
+      initialTry: true,
+      email: {
+        subject: 'FW: Approved trade between Alex Jacobs & Connor Chestnut',
+        body:
+          '\r\n' +
+          '________________________________\r\n' +
+          'From: Amion (no reply) <noreply@amion.com>\r\n' +
+          'Sent: Sunday, September 15, 2024 10:20:22 PM (UTC-08:00) Pacific Time (US & Canada)\r\n' +
+          'To: Chloe E Peters <cepeters@uw.edu>\r\n' +
+          'Cc: Renee Kyle <drkyle@uw.edu>; Amy Say <amysay91@uw.edu>\r\n' +
+          'Subject: Approved trade between Alex Jacobs & Connor Chestnut\r\n' +
+          '\r\n' +
+          "Connor Chestnut is taking Alex Jacobs's HMC Night on Tue. Mar 4.\r\n" +
+          '\r\n',
+      },
+    };
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "changes": [
+          {
+            "kind": "regular",
+            "next": "CC",
+            "previous": "AJ",
+            "shift": {
+              "dayIndex": 2,
+              "shiftName": "weekday_south",
+              "weekIndex": 35,
+            },
+          },
+        ],
+        "kind": "changes",
+      }
+    `);
+  });
+});
+
+describe('test', () => {
+  it('test', () => {
+    const email: ApplyAmionChangeRequest = {
+      auth: 'test',
+      initialTry: true,
+      email: {
+        subject: 'FW: Approved trade between Alex Jacobs & Connor Chestnut',
+        body:
+          '\r\n' +
+          '________________________________\r\n' +
+          'From: Amion (no reply) <noreply@amion.com>\r\n' +
+          'Sent: Sunday, September 15, 2024 10:20:14 PM (UTC-08:00) Pacific Time (US & Canada)\r\n' +
+          'To: Chloe E Peters <cepeters@uw.edu>\r\n' +
+          'Cc: Renee Kyle <drkyle@uw.edu>; Amy Say <amysay91@uw.edu>\r\n' +
+          'Subject: Approved trade between Alex Jacobs & Connor Chestnut\r\n' +
+          '\r\n' +
+          "Connor Chestnut is taking Alex Jacobs's VA Night on Tue. Mar 4.\r\n" +
+          '\r\n',
+      },
+    };
+    expect(parseAmionEmail(email, readData(), false)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
+  });
+});
