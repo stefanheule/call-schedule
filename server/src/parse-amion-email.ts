@@ -12,10 +12,7 @@ export type ApplyAmionChangeRequest = {
   initialTry: boolean;
   email: {
     subject: string;
-    body: {
-      text: string;
-      html?: string;
-    };
+    body: string;
   };
 };
 
@@ -119,6 +116,7 @@ function parsePerson(
 export function parseAmionEmail(
   request: ApplyAmionChangeRequest,
   data: CallSchedule,
+  skipShiftCheck: boolean = false,
 ):
   | {
       kind: 'not-relevant';
@@ -126,33 +124,37 @@ export function parseAmionEmail(
   | {
       kind: 'changes';
       changes: Action[];
+    }
+  | {
+      kind: 'pending-changes';
+      changes: Action[];
     } {
-  if (request.email.subject.startsWith('FW: Pending trade')) {
-    return { kind: 'not-relevant' };
-  }
-  if (request.email.subject.startsWith('FW: Approved trade')) {
+  const isPending = request.email.subject.startsWith('FW: Pending trade');
+  if (request.email.subject.startsWith('FW: Approved trade') || isPending) {
     const changes = [];
     let ignoredChanges = false;
     console.log(`Parsing email with subject: ${request.email.subject}`);
-    console.log(request.email.body.text);
+    console.log(request.email.body);
     const regex =
-      /([A-Za-z ]+) is taking ([A-Za-z ]+)'s ([A-Za-z ]+) on ([A-Za-z]+). ([A-Za-z]+) ([0-9]+)./g;
-    const matches = Array.from(request.email.body.text.matchAll(regex));
+      /([A-Za-z ]+) (is taking|takes) ([A-Za-z ]+)'s ([A-Za-z ]+) on ([A-Za-z]+). ([A-Za-z]+) ([0-9]+)./g;
+    const matches = Array.from(request.email.body.matchAll(regex));
     console.log(`Found ${matches.length} changes.`);
     for (const match of matches) {
       console.log(`Match: ${match[0]}`);
-      const date = parseDate({
+      const dateData = {
         line: match[0],
-        dow: match[4],
-        month: match[5],
-        day: match[6],
-      });
+        dow: match[5],
+        month: match[6],
+        day: match[7],
+      };
+      console.log(`Parsed date data: ${JSON.stringify(dateData)}`);
+      const date = parseDate(dateData);
       console.log(`Parsed date: ${date}`);
       const newPerson = parsePerson({ line: match[0], person: match[1] }, data);
-      const oldPerson = parsePerson({ line: match[0], person: match[2] }, data);
+      const oldPerson = parsePerson({ line: match[0], person: match[3] }, data);
       console.log(`Parsed new person: ${newPerson}`);
       console.log(`Parsed old person: ${oldPerson}`);
-      const amionShift = match[3];
+      const amionShift = match[4];
       let shift;
       if (amionShift === 'VA Night') {
         console.log(`Ignoring VA Night shift, because we react to HMC Night.`);
@@ -175,7 +177,7 @@ export function parseAmionEmail(
             if (day.shifts[shift] === undefined) {
               throw new Error(`Shift ${shift} does not exist for ${date}`);
             }
-            if (day.shifts[shift] !== oldPerson) {
+            if (day.shifts[shift] !== oldPerson && !skipShiftCheck) {
               throw new Error(
                 `Shift ${shift} is not taken by ${oldPerson} for ${date}`,
               );
@@ -205,6 +207,13 @@ export function parseAmionEmail(
         return { kind: 'not-relevant' };
       }
       throw new Error(`No changes found in email.`);
+    }
+
+    if (isPending) {
+      return {
+        kind: 'pending-changes',
+        changes,
+      };
     }
 
     return {

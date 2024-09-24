@@ -96,19 +96,17 @@ async function main() {
           initialTry: false,
           email: {
             subject: 'FW: Approved trade between Alex Jacobs & Connor Chestnut',
-            body: {
-              text:
-                '\r\n' +
-                '________________________________\r\n' +
-                'From: Amion (no reply) <noreply@amion.com>\r\n' +
-                'Sent: Sunday, September 15, 2024 10:20:22 PM (UTC-08:00) Pacific Time (US & Canada)\r\n' +
-                'To: Chloe E Peters <cepeters@uw.edu>\r\n' +
-                'Cc: Renee Kyle <drkyle@uw.edu>; Amy Say <amysay91@uw.edu>\r\n' +
-                'Subject: Approved trade between Alex Jacobs & Connor Chestnut\r\n' +
-                '\r\n' +
-                "Connor Chestnut is taking Alex Jacobs's HMC Night on Tue. Mar 4.\r\n" +
-                '\r\n',
-            },
+            body:
+              '\r\n' +
+              '________________________________\r\n' +
+              'From: Amion (no reply) <noreply@amion.com>\r\n' +
+              'Sent: Sunday, September 15, 2024 10:20:22 PM (UTC-08:00) Pacific Time (US & Canada)\r\n' +
+              'To: Chloe E Peters <cepeters@uw.edu>\r\n' +
+              'Cc: Renee Kyle <drkyle@uw.edu>; Amy Say <amysay91@uw.edu>\r\n' +
+              'Subject: Approved trade between Alex Jacobs & Connor Chestnut\r\n' +
+              '\r\n' +
+              "Connor Chestnut is taking Alex Jacobs's HMC Night on Tue. Mar 4.\r\n" +
+              '\r\n',
           },
         },
         data,
