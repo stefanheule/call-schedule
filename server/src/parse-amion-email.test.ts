@@ -170,3 +170,40 @@ describe('test', () => {
     `);
   });
 });
+
+describe('test', () => {
+  it('test', () => {
+    const email: ApplyAmionChangeRequest = {
+      auth: 'test',
+      initialTry: true,
+      email: {
+        subject: 'FW: Changes to your Amion schedule',
+        body:
+          '\r\n' +
+          '________________________________\r\n' +
+          'From: Amion schedule update <noreply@amion.com>\r\n' +
+          'Sent: Friday, September 27, 2024 2:27:14 AM (UTC-08:00) Pacific Time (US & Canada)\r\n' +
+          'To: Chloe E Peters <cepeters@uw.edu>\r\n' +
+          'Subject: Changes to your Amion schedule\r\n' +
+          '\r\n' +
+          "This message should go to Brian Jordan but Amion doesn't have an email address for him/her.\r\n" +
+          '\r\n' +
+          "Open the schedule in OnCall. Put a block schedule on screen and click a person's name in the left-most column. The top field in the lower left of the Infobox (the blue i on the main toolbar) is for email addresses.\r\n" +
+          '\r\n' +
+          'Changes to your Amion work schedule<https://urldefense.com/v3/__http://www.amion.com/cgi-bin/ocs?Lo=urology&Ps=!1h4mna23Q152R&Mo=10-24__;!!K-Hz7m0Vt54!kEkXLL2NGk0oXBA5XabdRB0zOWKWlYcS_BIJf8FN6vICYhula2Qx6U9gDujeUCqoyQ5a6Q7OrUMftw$>:\r\n' +
+          '\r\n' +
+          "You've been scheduled for Attending North Night on 10-9-24.\r\n" +
+          "You've been scheduled for Attending North Night on 10-16-24.\r\n" +
+          "You've been scheduled for Attending North Night on 10-29-24.\r\n" +
+          "You've been scheduled for Attending North Night on 10-31-24.\r\n" +
+          '\r\n' +
+          'jqs: Lo=urology&Msgo=25\r\n',
+      },
+    };
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
+  });
+});

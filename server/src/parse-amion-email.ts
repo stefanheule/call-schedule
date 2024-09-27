@@ -129,6 +129,11 @@ export function parseAmionEmail(
       kind: 'pending-changes';
       changes: Action[];
     } {
+  if (request.email.subject === 'FW: Changes to your Amion schedule') {
+    console.log(`Ignoring email with subject: ${request.email.subject}`);
+    return { kind: 'not-relevant' };
+  }
+
   const isPending = request.email.subject.startsWith('FW: Pending trade');
   if (request.email.subject.startsWith('FW: Approved trade') || isPending) {
     const changes = [];
