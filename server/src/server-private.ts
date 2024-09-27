@@ -248,10 +248,12 @@ async function main() {
                 const parsed = parseAmionEmail(request, last);
                 console.log(`Parsed email result:`);
                 console.log(parsed);
-                await sendPushoverMessage({
-                  title: `Amion successfully parsed: ${request.email.subject}`,
-                  message: `Parsed email: ${JSON.stringify(parsed, null, 2)}`,
-                });
+                if (parsed.skipNotification !== true) {
+                  await sendPushoverMessage({
+                    title: `Amion successfully parsed: ${request.email.subject}`,
+                    message: `Parsed email: ${JSON.stringify(parsed, null, 2)}`,
+                  });
+                }
                 switch (parsed.kind) {
                   case 'not-relevant':
                   case 'pending-changes':

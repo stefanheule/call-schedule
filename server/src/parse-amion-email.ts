@@ -120,18 +120,21 @@ export function parseAmionEmail(
 ):
   | {
       kind: 'not-relevant';
+      skipNotification?: boolean;
     }
   | {
       kind: 'changes';
       changes: Action[];
+      skipNotification?: boolean;
     }
   | {
       kind: 'pending-changes';
       changes: Action[];
+      skipNotification?: boolean;
     } {
   if (request.email.subject === 'FW: Changes to your Amion schedule') {
     console.log(`Ignoring email with subject: ${request.email.subject}`);
-    return { kind: 'not-relevant' };
+    return { kind: 'not-relevant', skipNotification: true };
   }
 
   const isPending = request.email.subject.startsWith('FW: Pending trade');
