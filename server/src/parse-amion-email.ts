@@ -137,6 +137,13 @@ export function parseAmionEmail(
     return { kind: 'not-relevant', skipNotification: true };
   }
 
+  const isScheduleSubjectRegex =
+    /FW: (January|February|March|April|May|June|July|August|September|October|November|December) schedule/;
+  if (isScheduleSubjectRegex.exec(request.email.subject) !== null) {
+    console.log(`Ignoring email with subject: ${request.email.subject}`);
+    return { kind: 'not-relevant', skipNotification: true };
+  }
+
   const isPending = request.email.subject.startsWith('FW: Pending trade');
   if (request.email.subject.startsWith('FW: Approved trade') || isPending) {
     const changes = [];
