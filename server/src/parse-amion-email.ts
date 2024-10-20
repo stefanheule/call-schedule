@@ -1,6 +1,6 @@
-import { dateToIsoDate, IsoDate } from 'check-type';
-import { Action, CallSchedule, DayId } from './shared/types';
-import { dateToDayOfWeek } from './shared/compute';
+import { assertNonNull, dateToIsoDate, IsoDate } from 'check-type';
+import { Action, CallSchedule, Day, DayId } from './shared/types';
+import { dateToDayOfWeek, findDay, nextDay } from './shared/compute';
 
 // ---- IMPORTANT: these are shared definitions/types between metro and call-schedule.
 
@@ -170,18 +170,8 @@ export function parseAmionEmail(
       console.log(`Parsed new person: ${newPerson}`);
       console.log(`Parsed old person: ${oldPerson}`);
       const amionShift = match[4];
-      let shift;
-      if (amionShift === 'VA Night') {
-        console.log(`Ignoring VA Night shift, because we react to HMC Night.`);
-        ignoredChanges = true;
-        continue;
-      } else if (amionShift === 'HMC Night') {
-        shift = 'weekday_south';
-      } else {
-        throw new Error(`Unknown shift: ${amionShift}`);
-      }
 
-      // Find day and check that the shift is taken by the old person.
+      // Find day
       let dayId: DayId | undefined = undefined;
       for (let weekIndex = 0; weekIndex < data.weeks.length; weekIndex++) {
         const week = data.weeks[weekIndex];
@@ -189,20 +179,105 @@ export function parseAmionEmail(
           const day = week.days[dayIndex];
           if (date === day.date) {
             dayId = { weekIndex, dayIndex };
-            if (day.shifts[shift] === undefined) {
-              throw new Error(`Shift ${shift} does not exist for ${date}`);
-            }
-            if (day.shifts[shift] !== oldPerson && !skipShiftCheck) {
-              throw new Error(
-                `Shift ${shift} is not taken by ${oldPerson} for ${date}`,
-              );
-            }
             break;
           }
         }
       }
       if (dayId === undefined) {
         throw new Error(`Cannot find day for date ${date}`);
+      }
+      const day = data.weeks[dayId.weekIndex].days[dayId.dayIndex];
+      const dow = dateToDayOfWeek(day.date);
+
+      // Figure out what shift this is
+      const candidates: {
+        shift: string;
+        day: Day;
+        validateThenIgnore?: boolean;
+      }[] = [];
+      if (
+        ['VA Night', 'VA Day Inpatients', 'VA Day Consults'].includes(
+          amionShift,
+        )
+      ) {
+        console.log(
+          `Ignoring ${amionShift} shift, because we react to HMC instead.`,
+        );
+        ignoredChanges = true;
+        continue;
+      } else if (amionShift === 'HMC Night') {
+        if (dow == 'fri' || dow == 'sat' || dow == 'sun') {
+          const friday = assertNonNull(
+            findDay(
+              data,
+              nextDay(day.date, dow == 'fri' ? 0 : dow == 'sat' ? -1 : -2),
+            ),
+          );
+          if (dow != 'sun') {
+            candidates.push({
+              shift: 'weekend_south',
+              day: friday,
+              validateThenIgnore: dow == 'fri',
+            });
+          }
+          candidates.push({
+            shift: 'south_power',
+            day: friday,
+            validateThenIgnore: dow == 'fri',
+          });
+        }
+
+        if (!(dow == 'fri' || dow == 'sat')) {
+          candidates.push({
+            shift: 'weekday_south',
+            day,
+          });
+        }
+      } else if (
+        ['HMC Day Inpatient', 'HMC Day Consult'].includes(amionShift)
+      ) {
+        // if (dow == 'sat' || dow == 'sun') {
+        //   const friday = assertNonNull(
+        //     findDay(data, nextDay(day.date, dow == 'sat' ? -1 : -2)),
+        //   );
+        //   shift = 'weekend';
+        // } else {
+        //   throw new Error(
+        //     `Don't know how to handle day shifts not on a weekend.`,
+        //   );
+        // }
+      } else {
+        throw new Error(
+          `No implementation yet to handle ${amionShift} on ${day.date}`,
+        );
+      }
+
+      let shift = undefined;
+      for (const candidate of candidates) {
+        const personOnCall = candidate.day.shifts[candidate.shift];
+        if (personOnCall !== undefined) {
+          if (personOnCall !== oldPerson && !skipShiftCheck) {
+            throw new Error(
+              `Inferred ${amionShift} on ${day.date} to be ${candidate.shift} on ${candidate.day.date}, but found ${personOnCall} to be on call then, instead of ${oldPerson}.`,
+            );
+          } else {
+            shift = candidate.shift;
+          }
+        }
+      }
+      if (shift == undefined) {
+        if (candidates.length === 0) {
+          throw new Error(
+            `No candidate shifts found for ${amionShift} on ${day.date}.`,
+          );
+        }
+        throw new Error(
+          `Tried to handle ${amionShift} on ${
+            day.date
+          } using these candidates, but none worked: ${candidates
+            .map(c => `${c.shift} on ${c.day.date}`)
+            .join('; ')}.`,
+        );
       }
 
       const action: Action = {

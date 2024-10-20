@@ -26,6 +26,7 @@ import {
   callPoolPeople,
   isHolidayShift,
   isNoCallRotation,
+  Day,
 } from './types';
 import {
   assertIsoDate,
@@ -329,6 +330,15 @@ export function nextDay(day: string, n: number = 1): IsoDate {
   if (!(day in _nextDayCache)) _nextDayCache[day] = {};
   _nextDayCache[day][n] = result;
   return result;
+}
+
+export function findDay(data: CallSchedule, date: IsoDate): Day | undefined {
+  for (const week of data.weeks) {
+    for (const day of week.days) {
+      if (day.date == date) return day;
+    }
+  }
+  return undefined;
 }
 
 function isWeekday(day: string): boolean {
