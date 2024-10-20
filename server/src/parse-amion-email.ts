@@ -236,16 +236,22 @@ export function parseAmionEmail(
       } else if (
         ['HMC Day Inpatient', 'HMC Day Consult'].includes(amionShift)
       ) {
-        // if (dow == 'sat' || dow == 'sun') {
-        //   const friday = assertNonNull(
-        //     findDay(data, nextDay(day.date, dow == 'sat' ? -1 : -2)),
-        //   );
-        //   shift = 'weekend';
-        // } else {
-        //   throw new Error(
-        //     `Don't know how to handle day shifts not on a weekend.`,
-        //   );
-        // }
+        if (dow == 'sat' || dow == 'sun') {
+          const friday = assertNonNull(
+            findDay(data, nextDay(day.date, dow == 'sat' ? -1 : -2)),
+          );
+          for (const shift of ['weekend_south', 'south_power']) {
+            candidates.push({
+              shift,
+              day: friday,
+              validateThenIgnore: true,
+            });
+          }
+        } else {
+          throw new Error(
+            `Don't know how to handle day shifts not on a weekend.`,
+          );
+        }
       } else {
         throw new Error(
           `No implementation yet to handle ${amionShift} on ${day.date}`,
@@ -253,6 +259,7 @@ export function parseAmionEmail(
       }
 
       let shift = undefined;
+      const errors = [];
       for (const candidate of candidates) {
         const personOnCall = candidate.day.shifts[candidate.shift];
         if (personOnCall !== undefined) {
@@ -262,7 +269,17 @@ export function parseAmionEmail(
             );
           } else {
             shift = candidate.shift;
+            if (candidate.validateThenIgnore) {
+              ignoredChanges = true;
+            }
+            break;
           }
+        } else {
+          errors.push(
+            `${candidate.shift} on ${
+              candidate.day.date
+            }, but only has ${Object.keys(candidate.day.shifts).join('/')}`,
+          );
         }
       }
       if (shift == undefined) {
@@ -274,9 +291,7 @@ export function parseAmionEmail(
         throw new Error(
           `Tried to handle ${amionShift} on ${
             day.date
-          } using these candidates, but none worked: ${candidates
-            .map(c => `${c.shift} on ${c.day.date}`)
-            .join('; ')}.`,
+          } using these candidates, but none worked: ${errors.join('; ')}.`,
         );
       }
 
