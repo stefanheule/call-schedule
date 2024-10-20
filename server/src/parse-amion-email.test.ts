@@ -42,6 +42,7 @@ describe('test', () => {
       {
         "changes": [
           {
+            "date": "2024-11-03",
             "kind": "regular",
             "next": "MJ",
             "previous": "CC",
@@ -52,6 +53,7 @@ describe('test', () => {
             },
           },
           {
+            "date": "2025-03-02",
             "kind": "regular",
             "next": "CC",
             "previous": "MJ",
@@ -127,6 +129,7 @@ describe('test', () => {
       {
         "changes": [
           {
+            "date": "2025-03-04",
             "kind": "regular",
             "next": "CC",
             "previous": "AJ",
@@ -203,6 +206,7 @@ describe('test', () => {
     expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
       {
         "kind": "not-relevant",
+        "skipNotification": true,
       }
     `);
   });
@@ -230,7 +234,11 @@ describe('test', () => {
           '\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -256,7 +264,11 @@ describe('test', () => {
           '\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -282,7 +294,11 @@ describe('test', () => {
           '\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -308,7 +324,11 @@ describe('test', () => {
           '\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -334,7 +354,11 @@ describe('test', () => {
           '\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -360,7 +384,11 @@ describe('test', () => {
           '\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -386,7 +414,11 @@ describe('test', () => {
           '\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -412,7 +444,11 @@ describe('test', () => {
           '\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -438,7 +474,11 @@ describe('test', () => {
           '\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -462,7 +502,11 @@ describe('test', () => {
           '\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -488,7 +532,35 @@ describe('test', () => {
           '\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "changes": [
+          {
+            "date": "2025-01-24",
+            "kind": "regular",
+            "next": "RB",
+            "previous": "LX",
+            "shift": {
+              "dayIndex": 5,
+              "shiftName": "weekend_south",
+              "weekIndex": 29,
+            },
+          },
+          {
+            "date": "2025-01-17",
+            "kind": "regular",
+            "next": "LX",
+            "previous": "RB",
+            "shift": {
+              "dayIndex": 5,
+              "shiftName": "south_power",
+              "weekIndex": 28,
+            },
+          },
+        ],
+        "kind": "changes",
+      }
+    `);
   });
 });
 
@@ -519,7 +591,35 @@ describe('test', () => {
           '(pid: 2217358) jqs: File=%21167842dahnew_31778&Syr=2024&Page=Swca&Rsel=%21167842dah0mxa48Q209R&Ui=24*209*Xie%2C+Lillian&Month=1-25&Swjd=10251&Swsvc=4u159&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10244&Swsvc=4u159&Swop=4&Syr=2024&Swjd=10251&Swsvc=4u159&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10244&Swsvc=4u159&Swop=4&Syr=2024&Submit=Accept+switch&Enote=Note\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "changes": [
+          {
+            "date": "2025-01-24",
+            "kind": "regular",
+            "next": "RB",
+            "previous": "LX",
+            "shift": {
+              "dayIndex": 5,
+              "shiftName": "weekend_south",
+              "weekIndex": 29,
+            },
+          },
+          {
+            "date": "2025-01-17",
+            "kind": "regular",
+            "next": "LX",
+            "previous": "RB",
+            "shift": {
+              "dayIndex": 5,
+              "shiftName": "south_power",
+              "weekIndex": 28,
+            },
+          },
+        ],
+        "kind": "pending-changes",
+      }
+    `);
   });
 });
 
@@ -549,7 +649,11 @@ describe('test', () => {
           '(pid: 2210295) jqs: File=%2116784271hnew_31778&Syr=2024&Page=Swca&Rsel=%2116784271h3mla51Q210R&Ui=24*209*Xie%2C+Lillian&Month=1-25&Swjd=10149&Swsvc=-1u0&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10246&Swsvc=4u159&Swop=4&Syr=2024&Swjd=10149&Swsvc=-1u0&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10246&Swsvc=4u159&Swop=4&Syr=2024&Submit=Accept+switch&Enote=Note\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -580,7 +684,11 @@ describe('test', () => {
           '(pid: 2207251) jqs: File=%2116784246hnew_31778&Syr=2024&Page=Swca&Rsel=%2116784246h5mla53Q211R&Ui=24*209*Xie%2C+Lillian&Month=1-25&Swjd=10252&Swsvc=4u159&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10245&Swsvc=4u159&Swop=4&Syr=2024&Swjd=10252&Swsvc=4u159&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10245&Swsvc=4u159&Swop=4&Syr=2024&Submit=Accept+switch&Enote=Note\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -611,7 +719,11 @@ describe('test', () => {
           '(pid: 2206181) jqs: File=%2116784237hnew_31778&Syr=2024&Page=Swca&Rsel=%2116784237h8maa56Q213R&Ui=24*209*Xie%2C+Lillian&Month=1-25&Swjd=10252&Swsvc=10u185&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10245&Swsvc=10u185&Swop=4&Syr=2024&Swjd=10252&Swsvc=10u185&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10245&Swsvc=10u185&Swop=4&Syr=2024&Submit=Accept+switch&Enote=Note\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -642,7 +754,11 @@ describe('test', () => {
           '(pid: 2205689) jqs: File=%211678422fhnew_31778&Syr=2024&Page=Swca&Rsel=%211678422fh0mxa48Q209R&Ui=24*209*Xie%2C+Lillian&Month=1-25&Swjd=10252&Swsvc=11u187&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10245&Swsvc=11u187&Swop=4&Syr=2024&Swjd=10252&Swsvc=11u187&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10245&Swsvc=11u187&Swop=4&Syr=2024&Submit=Accept+switch&Enote=Note\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -673,7 +789,11 @@ describe('test', () => {
           '(pid: 2203702) jqs: File=%2116784212hnew_31778&Syr=2024&Page=Swca&Rsel=%2116784212h7mia55Q212R&Ui=24*209*Xie%2C+Lillian&Month=1-25&Swjd=10252&Swsvc=13u193&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10245&Swsvc=13u193&Swop=4&Syr=2024&Swjd=10252&Swsvc=13u193&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10245&Swsvc=13u193&Swop=4&Syr=2024&Submit=Accept+switch&Enote=Note\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -704,7 +824,11 @@ describe('test', () => {
           '(pid: 2202850) jqs: File=%2116784203hnew_31778&Syr=2024&Page=Swca&Rsel=%2116784203h1mia49Q209R&Ui=24*209*Xie%2C+Lillian&Month=1-25&Swjd=10252&Swsvc=13u193&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10245&Swsvc=13u193&Swop=4&Syr=2024&Swjd=10252&Swsvc=13u193&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10245&Swsvc=13u193&Swop=4&Syr=2024&Submit=Accept+switch&Enote=Note\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -735,7 +859,11 @@ describe('test', () => {
           '(pid: 2202006) jqs: File=%21167841f6hnew_31778&Syr=2024&Page=Swca&Rsel=%21167841f6h6mla54Q212R&Ui=24*209*Xie%2C+Lillian&Month=1-25&Swjd=10252&Swsvc=14u195&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10245&Swsvc=14u195&Swop=4&Syr=2024&Swjd=10252&Swsvc=14u195&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10245&Swsvc=14u195&Swop=4&Syr=2024&Submit=Accept+switch&Enote=Note\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -766,7 +894,11 @@ describe('test', () => {
           '(pid: 2201192) jqs: File=%21167841e9hnew_31778&Syr=2024&Page=Swca&Rsel=%21167841e9h2mea50Q210R&Ui=24*209*Xie%2C+Lillian&Month=1-25&Swjd=10253&Swsvc=13u193&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10246&Swsvc=13u193&Swop=4&Syr=2024&Swjd=10253&Swsvc=13u193&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10246&Swsvc=13u193&Swop=4&Syr=2024&Submit=Accept+switch&Enote=Note\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -797,7 +929,11 @@ describe('test', () => {
           '(pid: 2199262) jqs: File=%21167841d2hnew_31778&Syr=2024&Page=Swca&Rsel=%21167841d2h6mla54Q212R&Ui=24*209*Xie%2C+Lillian&Month=1-25&Swjd=10253&Swsvc=10u185&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10246&Swsvc=10u185&Swop=4&Syr=2024&Swjd=10253&Swsvc=10u185&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10246&Swsvc=10u185&Swop=4&Syr=2024&Submit=Accept+switch&Enote=Note\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -828,7 +964,11 @@ describe('test', () => {
           '(pid: 2200227) jqs: File=%21167841dfhnew_31778&Syr=2024&Page=Swca&Rsel=%21167841dfh1mia49Q209R&Ui=24*209*Xie%2C+Lillian&Month=1-25&Swjd=10253&Swsvc=14u195&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10246&Swsvc=14u195&Swop=4&Syr=2024&Swjd=10253&Swsvc=14u195&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10246&Swsvc=14u195&Swop=4&Syr=2024&Submit=Accept+switch&Enote=Note\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });
 
@@ -859,6 +999,10 @@ describe('test', () => {
           '(pid: 2198031) jqs: File=%21167841bdhnew_31778&Syr=2024&Page=Swca&Rsel=%21167841bdh3mla51Q210R&Ui=24*209*Xie%2C+Lillian&Month=1-25&Swjd=10253&Swsvc=11u187&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10246&Swsvc=11u187&Swop=4&Syr=2024&Swjd=10253&Swsvc=11u187&Rsel=57&Ui=24*255*Babajide%2C+Rilwan&Swjd=10246&Swsvc=11u187&Swop=4&Syr=2024&Submit=Accept+switch&Enote=Note\r\n',
       },
     };
-    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(``);
+    expect(parseAmionEmail(email, readData(), true)).toMatchInlineSnapshot(`
+      {
+        "kind": "not-relevant",
+      }
+    `);
   });
 });

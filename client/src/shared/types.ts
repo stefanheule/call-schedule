@@ -242,12 +242,14 @@ export type Action =
       previous: MaybeCallPoolPerson;
       next: MaybeCallPoolPerson;
       shift: ShiftId;
+      date?: IsoDate;
     }
   | {
       kind: 'backup';
       previous: MaybeChief;
       next: MaybeChief;
       shift: ChiefShiftId;
+      date?: IsoDate;
     };
 
 export type LocalData = {

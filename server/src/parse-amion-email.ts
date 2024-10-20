@@ -145,9 +145,9 @@ export function parseAmionEmail(
   }
 
   const isPending = request.email.subject.startsWith('FW: Pending trade');
+  let hasAnyIgnoredChanges = false;
   if (request.email.subject.startsWith('FW: Approved trade') || isPending) {
     const changes = [];
-    let ignoredChanges = false;
     console.log(`Parsing email with subject: ${request.email.subject}`);
     console.log(request.email.body);
     const regex =
@@ -155,6 +155,7 @@ export function parseAmionEmail(
     const matches = Array.from(request.email.body.matchAll(regex));
     console.log(`Found ${matches.length} changes.`);
     for (const match of matches) {
+      let thisMatchIsIgnored = false;
       console.log(`Match: ${match[0]}`);
       const dateData = {
         line: match[0],
@@ -203,7 +204,7 @@ export function parseAmionEmail(
         console.log(
           `Ignoring ${amionShift} shift, because we react to HMC instead.`,
         );
-        ignoredChanges = true;
+        thisMatchIsIgnored = hasAnyIgnoredChanges = true;
         continue;
       } else if (amionShift === 'HMC Night') {
         if (dow == 'fri' || dow == 'sat' || dow == 'sun') {
@@ -217,13 +218,13 @@ export function parseAmionEmail(
             candidates.push({
               shift: 'weekend_south',
               day: friday,
-              validateThenIgnore: dow == 'fri',
+              validateThenIgnore: dow != 'fri',
             });
           }
           candidates.push({
             shift: 'south_power',
             day: friday,
-            validateThenIgnore: dow == 'fri',
+            validateThenIgnore: dow != 'fri',
           });
         }
 
@@ -258,7 +259,7 @@ export function parseAmionEmail(
         );
       }
 
-      let shift = undefined;
+      let selectedCandidate = undefined;
       const errors = [];
       for (const candidate of candidates) {
         const personOnCall = candidate.day.shifts[candidate.shift];
@@ -268,9 +269,9 @@ export function parseAmionEmail(
               `Inferred ${amionShift} on ${day.date} to be ${candidate.shift} on ${candidate.day.date}, but found ${personOnCall} to be on call then, instead of ${oldPerson}.`,
             );
           } else {
-            shift = candidate.shift;
-            if (candidate.validateThenIgnore) {
-              ignoredChanges = true;
+            selectedCandidate = candidate;
+            if (candidate.validateThenIgnore === true) {
+              thisMatchIsIgnored = hasAnyIgnoredChanges = true;
             }
             break;
           }
@@ -282,7 +283,7 @@ export function parseAmionEmail(
           );
         }
       }
-      if (shift == undefined) {
+      if (selectedCandidate == undefined) {
         if (candidates.length === 0) {
           throw new Error(
             `No candidate shifts found for ${amionShift} on ${day.date}.`,
@@ -299,16 +300,19 @@ export function parseAmionEmail(
         kind: 'regular',
         shift: {
           ...dayId,
-          shiftName: shift,
+          shiftName: selectedCandidate.shift,
         },
         previous: oldPerson,
         next: newPerson,
+        date: selectedCandidate.day.date,
       };
-      changes.push(action);
+      if (!thisMatchIsIgnored) {
+        changes.push(action);
+      }
     }
 
     if (changes.length === 0) {
-      if (ignoredChanges) {
+      if (hasAnyIgnoredChanges) {
         return { kind: 'not-relevant' };
       }
       throw new Error(`No changes found in email.`);
