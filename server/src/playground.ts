@@ -42,7 +42,6 @@ import { loadStorage, storeStorage } from './storage';
 import fs from 'fs';
 import { exportSchedule } from './shared/export';
 import * as Diff from 'diff';
-import { parseAmionEmail } from './parse-amion-email';
 
 // @check-type
 export type RunType =
@@ -89,29 +88,7 @@ async function main() {
   console.log(`Latest = ${latest.name}`);
 
   if (run == 'parse-email') {
-    console.log(
-      parseAmionEmail(
-        {
-          auth: '',
-          initialTry: false,
-          email: {
-            subject: 'FW: Approved trade between Alex Jacobs & Connor Chestnut',
-            body:
-              '\r\n' +
-              '________________________________\r\n' +
-              'From: Amion (no reply) <noreply@amion.com>\r\n' +
-              'Sent: Sunday, September 15, 2024 10:20:22 PM (UTC-08:00) Pacific Time (US & Canada)\r\n' +
-              'To: Chloe E Peters <cepeters@uw.edu>\r\n' +
-              'Cc: Renee Kyle <drkyle@uw.edu>; Amy Say <amysay91@uw.edu>\r\n' +
-              'Subject: Approved trade between Alex Jacobs & Connor Chestnut\r\n' +
-              '\r\n' +
-              "Connor Chestnut is taking Alex Jacobs's HMC Night on Tue. Mar 4.\r\n" +
-              '\r\n',
-          },
-        },
-        data,
-      ),
-    );
+    console.log(`not implemented`);
     return;
   }
 

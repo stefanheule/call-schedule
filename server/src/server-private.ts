@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv';
 dotenv.config({ path: __dirname + '/../.env' });
 
-import { assertNever, assertNonNull, exceptionToString } from 'check-type';
+import { assertNonNull, exceptionToString } from 'check-type';
 import express, { Request, Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import path from 'path';
@@ -35,7 +35,8 @@ import { validateData } from './shared/validate';
 import { assertApplyAmionChangeRequest } from './check-type.generated';
 import {
   ApplyAmionChangeResponse,
-  parseAmionEmail,
+  parseAmionEmails,
+  summarizeEmailParseResults,
   TERRA_AUTH_ENV_VARIABLE,
 } from './parse-amion-email';
 import { sendPushoverMessage } from './common/notifications';
@@ -245,22 +246,54 @@ async function main() {
                 const last = assertNonNull(
                   storage.versions[storage.versions.length - 1]?.callSchedule,
                 );
-                const parsed = parseAmionEmail(request, last);
+                const parsed = parseAmionEmails(request.emails, last);
                 console.log(`Parsed email result:`);
-                console.log(parsed);
-                if (parsed.skipNotification !== true) {
-                  await sendPushoverMessage({
-                    title: `Amion successfully parsed: ${request.email.subject}`,
-                    message: `Parsed email: ${JSON.stringify(parsed, null, 2)}`,
+                const summary = summarizeEmailParseResults(parsed);
+                console.log(summary);
+                const hasError =
+                  parsed.filter(
+                    x =>
+                      x.kind == 'error' ||
+                      (x.kind == 'changes' &&
+                        x.changes.filter(y => y.kind == 'error').length > 0),
+                  ).length > 0;
+                if (hasError) {
+                  res.send({
+                    kind: 'error',
+                    message: `Parsing failed with at least 1 error.\n\n${summary}`,
                   });
-                }
-                switch (parsed.kind) {
-                  case 'not-relevant':
-                  case 'pending-changes':
-                    res.send({ kind: 'ok' });
-                    return;
-                  case 'changes': {
-                    const nextSchedule = applyActions(last, parsed.changes);
+                  return;
+                } else {
+                  let nextSchedule = last;
+                  let madeChanges = false;
+                  for (const item of parsed) {
+                    switch (item.kind) {
+                      case 'error':
+                        throw new Error(`Should not have errors here`);
+                        break;
+                      case 'changes':
+                        if (!item.isPending) {
+                          for (const change of item.changes) {
+                            switch (change.kind) {
+                              case 'error':
+                                throw new Error(`Should not have errors here`);
+                              case 'action':
+                                nextSchedule = applyActions(nextSchedule, [
+                                  change.action,
+                                ]);
+                                madeChanges = true;
+                                break;
+                              case 'ignored':
+                                break;
+                            }
+                          }
+                        }
+                        break;
+                      case 'ignored':
+                        break;
+                    }
+                  }
+                  if (madeChanges) {
                     const nextVersion = scheduleToStoredSchedule(
                       nextSchedule,
                       `Amion auto-applied change`,
@@ -270,11 +303,20 @@ async function main() {
                       versions: [...storage.versions, nextVersion],
                     };
                     storeStorage(newStorage);
-                    res.send({ kind: 'ok' });
-                    return;
                   }
+                  const shouldNotify =
+                    parsed.filter(x => x.kind == 'changes').length > 0;
+                  if (shouldNotify) {
+                    await sendPushoverMessage({
+                      title: madeChanges
+                        ? `Amion email changes successfully applied`
+                        : `Amion email parsed successfully; no action required`,
+                      message: summary,
+                    });
+                  }
+                  res.send({ kind: 'ok' });
+                  return;
                 }
-                assertNever(parsed);
               } catch (e) {
                 console.log(e);
                 res.send({
