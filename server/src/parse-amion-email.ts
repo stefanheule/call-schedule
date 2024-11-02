@@ -13,7 +13,7 @@ import { dateToDayOfWeek, findDay, nextDay } from './shared/compute';
 export const TERRA_AUTH_ENV_VARIABLE = `TERRA_SECRET`;
 
 // @check-type
-export type Email = {
+export type TinyEmail = {
   subject: string;
   body: string;
 };
@@ -22,7 +22,7 @@ export type Email = {
 export type ApplyAmionChangeRequest = {
   auth: string;
   initialTry: boolean;
-  emails: Email[];
+  emails: TinyEmail[];
 };
 
 // @check-type
@@ -71,17 +71,17 @@ type ExtractedAction =
     };
 type EmailParseResult<T> =
   | {
-      email: Email;
+      email: TinyEmail;
       kind: 'ignored';
     }
   | {
-      email: Email;
+      email: TinyEmail;
       kind: 'changes';
       isPending: boolean;
       changes: T[];
     }
   | {
-      email: Email;
+      email: TinyEmail;
       kind: 'error';
       message: string;
     };
@@ -252,7 +252,7 @@ function interpretData(
 }
 
 function extractDataFromAmionEmail(
-  email: Email,
+  email: TinyEmail,
   data: CallSchedule,
 ): EmailParseResult<ExtractedData> {
   try {
@@ -351,7 +351,7 @@ function extractDataFromAmionEmail(
 }
 
 export function parseAmionEmails(
-  emails: Email[],
+  emails: TinyEmail[],
   data: CallSchedule,
   skipShiftCheck: boolean = false,
 ): EmailParseResult<ExtractedAction>[] {

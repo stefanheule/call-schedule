@@ -1,5 +1,5 @@
 import {
-  Email,
+  TinyEmail,
   parseAmionEmails,
   summarizeEmailParseResults,
 } from './parse-amion-email';
@@ -15,12 +15,12 @@ function readData(): CallSchedule {
   return storage.versions[storage.versions.length - 1].callSchedule;
 }
 
-function parseAmionEmailsTest(emails: Email[]) {
+function parseAmionEmailsTest(emails: TinyEmail[]) {
   return summarizeEmailParseResults(parseAmionEmails(emails, readData(), true));
 }
 
 it('2024-09-23', () => {
-  const emails: Email[] = [
+  const emails: TinyEmail[] = [
     {
       subject: 'FW: Pending trade between Connor Chestnut & Max Jentzsch',
       body:
@@ -87,7 +87,7 @@ it('2024-09-23', () => {
 });
 
 it('2024-09-15', () => {
-  const emails: Email[] = [
+  const emails: TinyEmail[] = [
     {
       subject: 'FW: Approved trade between Alex Jacobs & Connor Chestnut',
       body:
@@ -164,7 +164,7 @@ it('changes-to-schedule', () => {
 });
 
 it('2024-10-16 approved', () => {
-  const emails: Email[] = [
+  const emails: TinyEmail[] = [
     {
       subject: 'FW: Approved trade between Lillian Xie & Rilwan Babajide',
       body:
@@ -450,7 +450,7 @@ it('2024-10-16 approved', () => {
 });
 
 it('2024-10-16 pending', () => {
-  const emails: Email[] = [
+  const emails: TinyEmail[] = [
     {
       subject: 'FW: Pending trade between Lillian Xie & Rilwan Babajide',
       body:
