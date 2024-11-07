@@ -191,25 +191,33 @@ function interpretData(
   for (const candidate of candidates) {
     const personOnCall = candidate.day.shifts[candidate.shift];
     if (personOnCall !== undefined) {
-      if (personOnCall !== extracted.oldPerson && !skipShiftCheck) {
-        throw new Error(
-          `Inferred ${amionShift} on ${day.date} to be ${candidate.shift} on ${candidate.day.date}, but found ${personOnCall} to be on call then, instead of ${extracted.oldPerson}.`,
-        );
-      } else {
-        selectedCandidate = candidate;
-        if (candidate.validateThenIgnoreReason !== undefined) {
+      if (!skipShiftCheck) {
+        if (personOnCall === extracted.newPerson) {
           return {
             kind: 'ignored',
             extracted,
-            message: `Ignoring '${amionShift}' on '${day.date}' because ${
-              candidate.validateThenIgnoreReason
-            } (validated against '${candidate.shift}' on '${
-              candidate.day.date
-            }' (${dateToDayOfWeek(candidate.day.date)})).`,
+            message: `Ignoring '${amionShift}' on '${day.date}' because the change has already been applied, and '${extracted.newPerson}' is already on call (instead of ${extracted.oldPerson}).`,
           };
         }
-        break;
+        if (personOnCall !== extracted.oldPerson) {
+          throw new Error(
+            `Inferred ${amionShift} on ${day.date} to be ${candidate.shift} on ${candidate.day.date}, but found ${personOnCall} to be on call then, instead of ${extracted.oldPerson}.`,
+          );
+        }
       }
+      selectedCandidate = candidate;
+      if (candidate.validateThenIgnoreReason !== undefined) {
+        return {
+          kind: 'ignored',
+          extracted,
+          message: `Ignoring '${amionShift}' on '${day.date}' because ${
+            candidate.validateThenIgnoreReason
+          } (validated against '${candidate.shift}' on '${
+            candidate.day.date
+          }' (${dateToDayOfWeek(candidate.day.date)})).`,
+        };
+      }
+      break;
     } else {
       errors.push(
         `${candidate.shift} on ${
