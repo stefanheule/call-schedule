@@ -271,6 +271,14 @@ function extractDataFromAmionEmail(
       return { email, kind: 'ignored' };
     }
 
+    if (
+      email.subject.startsWith(`FW: Cover Chief Back-Up on `) ||
+      email.subject.startsWith(`FW: Your trade proposal to `)
+    ) {
+      console.log(`Ignoring email with subject: ${email.subject}`);
+      return { email, kind: 'ignored' };
+    }
+
     const isScheduleSubjectRegex =
       /FW: (January|February|March|April|May|June|July|August|September|October|November|December) schedule/;
     if (isScheduleSubjectRegex.exec(email.subject) !== null) {
