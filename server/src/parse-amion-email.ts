@@ -273,7 +273,8 @@ function extractDataFromAmionEmail(
 
     if (
       email.subject.startsWith(`FW: Cover Chief Back-Up on `) ||
-      email.subject.startsWith(`FW: Your trade proposal to `)
+      email.subject.startsWith(`FW: Your trade proposal to `) ||
+      email.subject.startsWith(`FW: Coverage for Chief Back-Up on `)
     ) {
       console.log(`Ignoring email with subject: ${email.subject}`);
       return { email, kind: 'ignored' };
