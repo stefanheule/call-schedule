@@ -285,6 +285,8 @@ async function main() {
                                 break;
                               case 'ignored':
                                 break;
+                              case 'manual':
+                                break;
                             }
                           }
                         }
@@ -304,13 +306,19 @@ async function main() {
                     };
                     storeStorage(newStorage);
                   }
-                  const shouldNotify =
+                  const hasChanges =
                     parsed.filter(x => x.kind == 'changes').length > 0;
+                  const hasManual =
+                    parsed.filter(x => x.kind == 'manual').length > 0;
+                  const shouldNotify = hasChanges || hasManual;
                   if (shouldNotify) {
+                    const prefix = hasManual ? `[manual action required] ` : '';
                     await sendPushoverMessage({
-                      title: madeChanges
-                        ? `Amion email changes successfully applied`
-                        : `Amion email parsed successfully; no action required`,
+                      title:
+                        prefix +
+                        (madeChanges
+                          ? `Amion email changes successfully applied`
+                          : `Amion email parsed successfully; no action required`),
                       message: summary,
                     });
                   }

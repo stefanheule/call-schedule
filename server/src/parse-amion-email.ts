@@ -65,6 +65,11 @@ type ExtractedAction =
       message: string;
     }
   | {
+      email: TinyEmail;
+      extracted: ExtractedData;
+      kind: 'manual';
+    }
+  | {
       kind: 'error';
       extracted: ExtractedData;
       message: string;
@@ -73,6 +78,11 @@ type EmailParseResult<T> =
   | {
       email: TinyEmail;
       kind: 'ignored';
+    }
+  | {
+      email: TinyEmail;
+      // For things that need manual intervention.
+      kind: 'manual';
     }
   | {
       email: TinyEmail;
@@ -273,9 +283,14 @@ function extractDataFromAmionEmail(
 
     if (
       email.subject.startsWith(`FW: Cover Chief Back-Up on `) ||
-      email.subject.startsWith(`FW: Your trade proposal to `) ||
       email.subject.startsWith(`FW: Coverage for Chief Back-Up on `)
     ) {
+      console.log(`Manual changes requires: ${email.subject}`);
+      // this is because trades between chiefs don't always generate emails.
+      return { email, kind: 'manual' };
+    }
+
+    if (email.subject.startsWith(`FW: Your trade proposal to `)) {
       console.log(`Ignoring email with subject: ${email.subject}`);
       return { email, kind: 'ignored' };
     }
