@@ -292,6 +292,7 @@ async function main() {
                         }
                         break;
                       case 'ignored':
+                      case 'manual':
                         break;
                     }
                   }
