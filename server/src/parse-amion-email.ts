@@ -188,6 +188,12 @@ function interpretData(
         message: `Don't know how to handle day shifts like ${amionShift} not on a weekend like ${date} (${dow}).`,
       };
     }
+  } else if (amionShift === 'VA Day Consults') {
+    return {
+      kind: 'ignored',
+      extracted,
+      message: `Ignoring ${amionShift} shift, because we don't track day consults.`,
+    };
   } else if (amionShift === 'Chief Back-Up') {
     if (Object.keys(day.backupShifts).length == 1) {
       const backupShift = Object.keys(day.backupShifts)[0];
@@ -376,7 +382,10 @@ function extractDataFromAmionEmail(
       for (const match of matches2) {
         const oldIsChief = match[1] === `You're no longer`;
         const amionShift = match[2];
-        if (amionShift !== 'Chief Back-Up') {
+        if (
+          amionShift !== 'Chief Back-Up' &&
+          amionShift !== 'VA Day Consults'
+        ) {
           return {
             kind: 'error',
             email,
