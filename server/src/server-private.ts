@@ -316,7 +316,7 @@ async function main() {
                     await sendPushoverMessage({
                       title:
                         prefix +
-                        (madeChanges
+                        (actions.length > 0
                           ? `Amion email changes successfully applied`
                           : `Amion email parsed successfully; no action required`),
                       message: summary,
