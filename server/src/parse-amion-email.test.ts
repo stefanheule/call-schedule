@@ -821,3 +821,104 @@ it('2024-10-16 pending', () => {
         -> Ignored: Ignoring 'HMC Day Inpatient' on '2025-01-19' because we react to the Friday shift instead (validated against 'south_power' on '2025-01-17' (fri))."
   `);
 });
+
+it('2025-01-01', () => {
+  const emails: TinyEmail[] = [
+    {
+      subject: 'FW: Changes to your Amion schedule',
+      body:
+        '\r\n' +
+        '________________________________\r\n' +
+        'From: Amion schedule update <noreply@amion.com>\r\n' +
+        'Sent: Wednesday, January 1, 2025 7:33:53 PM (UTC-08:00) Pacific Time (US & Canada)\r\n' +
+        'To: Lisa Xinyuan Zhang <zxinyuan@uw.edu>\r\n' +
+        'Subject: Changes to your Amion schedule\r\n' +
+        '\r\n' +
+        'Changes to your Amion work schedule<https://urldefense.com/v3/__http://www.amion.com/cgi-bin/ocs?Lo=urology&Ps=!1h1mha44Q167R__;!!K-Hz7m0Vt54!lleS_KHJftSkCAWGD7FUYf3981FsdVn67yd6asOJxE3wDmJ6edeH9cBQhi_pLNb4o0FqCFN-X6Q60hY$>:\r\n' +
+        '\r\n' +
+        "You're no longer scheduled for Chief Back-Up from 1-31-25 to 2-2-25.\r\n" +
+        "You've been scheduled for Chief Back-Up from 2-7-25 to 2-9-25.\r\n",
+    },
+    {
+      subject: 'FW: Changes to your Amion schedule',
+      body:
+        '\r\n' +
+        '________________________________\r\n' +
+        'From: Amion schedule update <noreply@amion.com>\r\n' +
+        'Sent: Wednesday, January 1, 2025 7:33:53 PM (UTC-08:00) Pacific Time (US & Canada)\r\n' +
+        'To: Chloe E Peters <cepeters@uw.edu>\r\n' +
+        'Subject: Changes to your Amion schedule\r\n' +
+        '\r\n' +
+        'Changes to your Amion work schedule<https://urldefense.com/v3/__http://www.amion.com/cgi-bin/ocs?Lo=urology&Ps=!1h3mea10Q156R__;!!K-Hz7m0Vt54!mgnhY-76SQ3myqQhcY0mP7Ejem-MZhNdvb7QIcZv5yr9V524e2aCe7MnrunjmsCntmwEfRGJu-8HHg$>:\r\n' +
+        '\r\n' +
+        "You've been scheduled for Chief Back-Up from 1-31-25 to 2-2-25.\r\n" +
+        "You're no longer scheduled for Chief Back-Up from 2-7-25 to 2-9-25.\r\n",
+    },
+    {
+      subject: 'FW: Changes to your Amion schedule',
+      body:
+        '\r\n' +
+        '________________________________\r\n' +
+        'From: Amion schedule update <noreply@amion.com>\r\n' +
+        'Sent: Tuesday, December 24, 2024 8:37:17 AM (UTC-08:00) Pacific Time (US & Canada)\r\n' +
+        'To: Diboro L Kanabolo <kanabolo@uw.edu>\r\n' +
+        'Subject: Changes to your Amion schedule\r\n' +
+        '\r\n' +
+        "This message should go to Schade, Emily but Amion doesn't have an email address for him/her.\r\n" +
+        '\r\n' +
+        "Open the schedule in OnCall. Put a block schedule on screen and click a person's name in the left-most column. The top field in the lower left of the Infobox (the blue i on the main toolbar) is for email addresses.\r\n" +
+        '\r\n' +
+        'Changes to your Amion work schedule<https://urldefense.com/v3/__http://www.amion.com/cgi-bin/ocs?Lo=urology&Ps=!1h7mma52Q203R__;!!K-Hz7m0Vt54!guh5C-xWpPhzf24DqDPAguAQJb4blpcqydhjD16UgjfB-GeO7ReiOCLkl2diDxd_1GBOYSk7FKh95Q$>:\r\n' +
+        '\r\n' +
+        "You're no longer scheduled for UWMC Day Inpatient on 12-26-24 and 12-27-24.\r\n",
+    },
+  ];
+  expect(parseAmionEmailsTest(emails)).toMatchInlineSnapshot(`
+    "Email: FW: Changes to your Amion schedule
+    Found 6 items: 2 actions, 4 ignored [approved]
+     1. 'You're no longer scheduled for Chief Back-Up from 1-31-25 to 2-2-25. (email of LZ)'
+        -> '?' is replacing 'LZ' for 'Chief Back-Up' on '2025-01-31' (fri)'
+        -> Action: 2025-01-31 backup_weekend: LZ -> ?
+     2. 'You're no longer scheduled for Chief Back-Up from 1-31-25 to 2-2-25. (email of LZ)'
+        -> '?' is replacing 'LZ' for 'Chief Back-Up' on '2025-02-01' (sat)'
+        -> Ignored: No backup shift found for Chief Back-Up on 2025-02-01.
+     3. 'You're no longer scheduled for Chief Back-Up from 1-31-25 to 2-2-25. (email of LZ)'
+        -> '?' is replacing 'LZ' for 'Chief Back-Up' on '2025-02-02' (sun)'
+        -> Ignored: No backup shift found for Chief Back-Up on 2025-02-02.
+     4. 'You've been scheduled for Chief Back-Up from 2-7-25 to 2-9-25. (email of LZ)'
+        -> 'LZ' is replacing '?' for 'Chief Back-Up' on '2025-02-07' (fri)'
+        -> Action: 2025-02-07 backup_weekend: ? -> LZ
+     5. 'You've been scheduled for Chief Back-Up from 2-7-25 to 2-9-25. (email of LZ)'
+        -> 'LZ' is replacing '?' for 'Chief Back-Up' on '2025-02-08' (sat)'
+        -> Ignored: No backup shift found for Chief Back-Up on 2025-02-08.
+     6. 'You've been scheduled for Chief Back-Up from 2-7-25 to 2-9-25. (email of LZ)'
+        -> 'LZ' is replacing '?' for 'Chief Back-Up' on '2025-02-09' (sun)'
+        -> Ignored: No backup shift found for Chief Back-Up on 2025-02-09.
+
+
+    Email: FW: Changes to your Amion schedule
+    Found 6 items: 2 actions, 4 ignored [approved]
+     1. 'You've been scheduled for Chief Back-Up from 1-31-25 to 2-2-25. (email of CP)'
+        -> 'CP' is replacing '?' for 'Chief Back-Up' on '2025-01-31' (fri)'
+        -> Action: 2025-01-31 backup_weekend: ? -> CP
+     2. 'You've been scheduled for Chief Back-Up from 1-31-25 to 2-2-25. (email of CP)'
+        -> 'CP' is replacing '?' for 'Chief Back-Up' on '2025-02-01' (sat)'
+        -> Ignored: No backup shift found for Chief Back-Up on 2025-02-01.
+     3. 'You've been scheduled for Chief Back-Up from 1-31-25 to 2-2-25. (email of CP)'
+        -> 'CP' is replacing '?' for 'Chief Back-Up' on '2025-02-02' (sun)'
+        -> Ignored: No backup shift found for Chief Back-Up on 2025-02-02.
+     4. 'You're no longer scheduled for Chief Back-Up from 2-7-25 to 2-9-25. (email of CP)'
+        -> '?' is replacing 'CP' for 'Chief Back-Up' on '2025-02-07' (fri)'
+        -> Action: 2025-02-07 backup_weekend: CP -> ?
+     5. 'You're no longer scheduled for Chief Back-Up from 2-7-25 to 2-9-25. (email of CP)'
+        -> '?' is replacing 'CP' for 'Chief Back-Up' on '2025-02-08' (sat)'
+        -> Ignored: No backup shift found for Chief Back-Up on 2025-02-08.
+     6. 'You're no longer scheduled for Chief Back-Up from 2-7-25 to 2-9-25. (email of CP)'
+        -> '?' is replacing 'CP' for 'Chief Back-Up' on '2025-02-09' (sun)'
+        -> Ignored: No backup shift found for Chief Back-Up on 2025-02-09.
+
+
+    Email: FW: Changes to your Amion schedule
+    Ignored (not relevant)"
+  `);
+});

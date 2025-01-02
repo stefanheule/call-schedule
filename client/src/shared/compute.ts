@@ -350,8 +350,21 @@ export function applyActions(
   data: CallSchedule,
   actions: Action[],
 ): CallSchedule {
+  // First apply all actions that clear something.
   for (const action of actions) {
     const day = data.weeks[action.shift.weekIndex].days[action.shift.dayIndex];
+    if (action.next == '?') {
+      if (action.kind == 'regular') {
+        day.shifts[action.shift.shiftName] = '';
+      } else {
+        day.backupShifts[action.shift.shiftName] = '';
+      }
+    }
+  }
+  // Then apply all actions that set something.
+  for (const action of actions) {
+    const day = data.weeks[action.shift.weekIndex].days[action.shift.dayIndex];
+    if (action.next == '?') continue;
     if (action.kind == 'regular') {
       day.shifts[action.shift.shiftName] = action.next;
     } else {

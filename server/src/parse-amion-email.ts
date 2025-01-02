@@ -188,6 +188,38 @@ function interpretData(
         message: `Don't know how to handle day shifts like ${amionShift} not on a weekend like ${date} (${dow}).`,
       };
     }
+  } else if (amionShift === 'Chief Back-Up') {
+    if (Object.keys(day.backupShifts).length == 1) {
+      const backupShift = Object.keys(day.backupShifts)[0];
+      return {
+        kind: 'action',
+        extracted,
+        action: {
+          kind: 'backup',
+          shift: {
+            ...dayId,
+            shiftName: backupShift,
+          },
+          previous: extracted.oldPerson,
+          next: extracted.newPerson,
+          date: day.date,
+        },
+      };
+    } else if (Object.keys(day.backupShifts).length == 0) {
+      return {
+        kind: 'ignored',
+        extracted,
+        message: `No backup shift found for ${amionShift} on ${day.date}.`,
+      };
+    } else {
+      return {
+        kind: 'error',
+        extracted,
+        message: `Multiple backup shifts found for ${amionShift} on ${
+          day.date
+        }: ${Object.keys(day.backupShifts).join(', ')}.`,
+      };
+    }
   } else {
     return {
       kind: 'error',
@@ -276,8 +308,13 @@ function extractDataFromAmionEmail(
   try {
     const isPending = email.subject.startsWith('FW: Pending trade');
 
-    if (email.subject === 'FW: Changes to your Amion schedule') {
-      console.log(`Ignoring email with subject: ${email.subject}`);
+    if (
+      email.subject === 'FW: Changes to your Amion schedule' &&
+      email.body.includes('This message should go to')
+    ) {
+      console.log(
+        `Ignoring email with subject: ${email.subject} (and 'This message should go to' in body)`,
+      );
       return { email, kind: 'ignored' };
     }
 
@@ -285,9 +322,11 @@ function extractDataFromAmionEmail(
       email.subject.startsWith(`FW: Cover Chief Back-Up on `) ||
       email.subject.startsWith(`FW: Coverage for Chief Back-Up on `)
     ) {
-      console.log(`Manual changes requires: ${email.subject}`);
-      // this is because trades between chiefs don't always generate emails.
-      return { email, kind: 'manual' };
+      // We know support this
+      // console.log(`Manual changes requires: ${email.subject}`);
+      // // this is because trades between chiefs don't always generate emails.
+      // return { email, kind: 'manual' };
+      return { email, kind: 'ignored' };
     }
 
     if (email.subject.startsWith(`FW: Your trade proposal to `)) {
@@ -303,6 +342,70 @@ function extractDataFromAmionEmail(
     }
 
     const changes: ExtractedData[] = [];
+
+    // Chief shift update (somehow has different format)
+    if (email.subject == 'FW: Changes to your Amion schedule') {
+      // Extract name from this kind of line: "To: Lisa Xinyuan Zhang <zxinyuan@uw.edu>"
+      const regex =
+        /To: ([A-Za-z ]+) <([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})>/g;
+      const matches: RegExpMatchArray[] = Array.from(
+        email.body.matchAll(regex),
+      );
+      if (matches.length !== 1) {
+        return {
+          email,
+          kind: 'error',
+          message: `Expected 1 match for chief email, but got ${matches.length}.`,
+        };
+      }
+      const name = matches[0][1];
+      const chief = parsePerson({ line: matches[0][0], person: name }, data, {
+        allowMiddleName: true,
+      });
+      if (typeof chief !== 'string') {
+        return {
+          kind: 'error',
+          message: `Could not parse chief name from ${name}`,
+          email,
+        };
+      }
+      // Extract data from this kind of line: "You're no longer scheduled for Chief Back-Up from 1-31-25 to 2-2-25."
+      const regex2 =
+        /(You're no longer|You've been) scheduled for ([A-Za-z\- ]+) from ([0-9]+)-([0-9]+)-([0-9]+) to ([0-9]+)-([0-9]+)-([0-9]+)./g;
+      const matches2 = Array.from(email.body.matchAll(regex2));
+      for (const match of matches2) {
+        const oldIsChief = match[1] === `You're no longer`;
+        const amionShift = match[2];
+        if (amionShift !== 'Chief Back-Up') {
+          return {
+            kind: 'error',
+            email,
+            message: `Unexpected shift name: ${amionShift}`,
+          };
+        }
+        const start = new Date(
+          Number.parseInt(`20${match[5]}`),
+          Number.parseInt(match[3]) - 1,
+          Number.parseInt(match[4]),
+        );
+        const end = new Date(
+          Number.parseInt(`20${match[8]}`),
+          Number.parseInt(match[6]) - 1,
+          Number.parseInt(match[7]),
+        );
+        // For every day in the range, add a change
+        for (let date = start; date <= end; date.setDate(date.getDate() + 1)) {
+          changes.push({
+            line: `${match[0]} (email of ${chief})`,
+            date: dateToIsoDate(date),
+            oldPerson: oldIsChief ? chief : `?`,
+            newPerson: oldIsChief ? `?` : chief,
+            amionShift,
+          });
+        }
+      }
+    }
+    // Regular shift update
     if (email.subject.startsWith('FW: Approved trade') || isPending) {
       console.log(`Parsing email with subject: ${email.subject}`);
       console.log(email.body);
@@ -317,7 +420,7 @@ function extractDataFromAmionEmail(
           month: match[6],
           day: match[7],
         };
-        const date = parseDate(dateData);
+        const date = parseDate(dateData, email.body);
         if (typeof date !== 'string') {
           return {
             email,
@@ -465,20 +568,35 @@ export function summarizeEmailParseResults(
   return lines.join('\n').trim();
 }
 
-function parseDate(input: {
-  line: string;
-  dow: string;
-  month: string;
-  day: string;
-}):
+function parseDate(
+  input: {
+    line: string;
+    dow: string;
+    month: string;
+    day: string;
+  },
+  body: string,
+):
   | IsoDate
   | {
       kind: 'error';
       message: string;
     } {
-  let year = new Date().getFullYear();
+  // Extract "today" from email body: Sent: Monday, September 23, 2024 1:19:17 PM (UTC-08:00) Pacific Time (US & Canada)
+  const todayRegex =
+    /Sent: (Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), ([A-Za-z ]+ [0-9]+, [0-9]+)/;
+  const todayMatch = body.match(todayRegex);
+  if (!todayMatch) {
+    return {
+      kind: 'error',
+      message: `Could not find today in email body: ${body}`,
+    };
+  }
+  const todayStr = todayMatch[2];
+  const today = new Date(todayStr);
+  let year = 2024;
   let date = new Date(`${input.month} ${input.day}, ${year}`);
-  if (date.getTime() < Date.now()) {
+  if (date.getTime() < today.getTime()) {
     year++;
     date = new Date(`${input.month} ${input.day}, ${year}`);
   }
@@ -496,13 +614,19 @@ function parseDate(input: {
 function parsePerson(
   input: { line: string; person: string },
   data: CallSchedule,
+  config?: {
+    allowMiddleName?: boolean;
+  },
 ):
   | string
   | {
       kind: 'error';
       message: string;
     } {
-  const parts = input.person.split(' ');
+  let parts = input.person.split(' ');
+  if (config?.allowMiddleName && parts.length === 3) {
+    parts = [parts[0], parts[2]];
+  }
   if (parts.length !== 2) {
     return {
       kind: 'error',
