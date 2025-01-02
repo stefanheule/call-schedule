@@ -23,6 +23,7 @@ import {
   SERVER_PUBLIC_PORT,
 } from './shared/ports';
 import {
+  Action,
   ListCallSchedulesResponse,
   LoadCallScheduleResponse,
   SaveCallScheduleResponse,
@@ -265,7 +266,7 @@ async function main() {
                   return;
                 } else {
                   let nextSchedule = last;
-                  let madeChanges = false;
+                  const actions: Action[] = [];
                   for (const item of parsed) {
                     switch (item.kind) {
                       case 'error':
@@ -278,10 +279,7 @@ async function main() {
                               case 'error':
                                 throw new Error(`Should not have errors here`);
                               case 'action':
-                                nextSchedule = applyActions(nextSchedule, [
-                                  change.action,
-                                ]);
-                                madeChanges = true;
+                                actions.push(change.action);
                                 break;
                               case 'ignored':
                                 break;
@@ -296,7 +294,8 @@ async function main() {
                         break;
                     }
                   }
-                  if (madeChanges) {
+                  if (actions.length > 0) {
+                    nextSchedule = applyActions(nextSchedule, actions);
                     const nextVersion = scheduleToStoredSchedule(
                       nextSchedule,
                       `Amion auto-applied change`,
