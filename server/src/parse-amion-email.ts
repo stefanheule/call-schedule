@@ -328,7 +328,7 @@ function extractDataFromAmionEmail(
       email.subject.startsWith(`FW: Cover Chief Back-Up on `) ||
       email.subject.startsWith(`FW: Coverage for Chief Back-Up on `)
     ) {
-      // We know support this
+      // We now support this
       // console.log(`Manual changes requires: ${email.subject}`);
       // // this is because trades between chiefs don't always generate emails.
       // return { email, kind: 'manual' };
@@ -377,7 +377,7 @@ function extractDataFromAmionEmail(
       }
       // Extract data from this kind of line: "You're no longer scheduled for Chief Back-Up from 1-31-25 to 2-2-25."
       const regex2 =
-        /(You're no longer|You've been) scheduled for ([A-Za-z\- ]+) from ([0-9]+)-([0-9]+)-([0-9]+) to ([0-9]+)-([0-9]+)-([0-9]+)./g;
+        /(You're no longer|You've been) scheduled for ([A-Za-z\- ]+) (on|from) ([0-9]+)-([0-9]+)-([0-9]+)( to ([0-9]+)-([0-9]+)-([0-9]+))?./g;
       const matches2 = Array.from(email.body.matchAll(regex2));
       for (const match of matches2) {
         const oldIsChief = match[1] === `You're no longer`;
@@ -393,17 +393,26 @@ function extractDataFromAmionEmail(
           };
         }
         const start = new Date(
-          Number.parseInt(`20${match[5]}`),
-          Number.parseInt(match[3]) - 1,
-          Number.parseInt(match[4]),
+          Number.parseInt(`20${match[6]}`),
+          Number.parseInt(match[4]) - 1,
+          Number.parseInt(match[5]),
         );
-        const end = new Date(
-          Number.parseInt(`20${match[8]}`),
-          Number.parseInt(match[6]) - 1,
-          Number.parseInt(match[7]),
-        );
+        let end: Date | undefined = undefined;
+        if (match[3] == 'from') {
+          end = new Date(
+            Number.parseInt(`20${match[10]}`),
+            Number.parseInt(match[8]) - 1,
+            Number.parseInt(match[9]),
+          );
+        } else {
+          end = new Date(start);
+        }
         // For every day in the range, add a change
-        for (let date = start; date <= end; date.setDate(date.getDate() + 1)) {
+        for (
+          let date = new Date(start);
+          date <= end;
+          date.setDate(date.getDate() + 1)
+        ) {
           changes.push({
             line: `${match[0]} (email of ${chief})`,
             date: dateToIsoDate(date),

@@ -922,3 +922,50 @@ it('2025-01-01', () => {
     Ignored (not relevant)"
   `);
 });
+
+it('2025-01-08', () => {
+  const emails: TinyEmail[] = [
+    {
+      subject: 'FW: Changes to your Amion schedule',
+      body:
+        '\r\n' +
+        '________________________________\r\n' +
+        'From: Amion schedule update <noreply@amion.com>\r\n' +
+        'Sent: Tuesday, January 7, 2025 9:23:59 PM (UTC-08:00) Pacific Time (US & Canada)\r\n' +
+        'To: Lisa Xinyuan Zhang <zxinyuan@uw.edu>\r\n' +
+        'Subject: Changes to your Amion schedule\r\n' +
+        '\r\n' +
+        'Changes to your Amion work schedule<https://urldefense.com/v3/__http://www.amion.com/cgi-bin/ocs?Lo=urology&Ps=!1h7msa50Q170R__;!!K-Hz7m0Vt54!n-IMRTcfBigp5z0nvXf8esrTV0Y7dM8wyE6gSYzv_mvl-rPv0NkBsqnhEMy1OS68znXXiNv3lprzN9w$>:\r\n' +
+        '\r\n' +
+        "You've been scheduled for Chief Back-Up on 1-13-25.\r\n",
+    },
+    {
+      subject: 'FW: Changes to your Amion schedule',
+      body:
+        '\r\n' +
+        '________________________________\r\n' +
+        'From: Amion schedule update <noreply@amion.com>\r\n' +
+        'Sent: Tuesday, January 7, 2025 9:23:59 PM (UTC-08:00) Pacific Time (US & Canada)\r\n' +
+        'To: Tova Weiss <tovaw@uw.edu>\r\n' +
+        'Subject: Changes to your Amion schedule\r\n' +
+        '\r\n' +
+        'Changes to your Amion work schedule<https://urldefense.com/v3/__http://www.amion.com/cgi-bin/ocs?Lo=urology&Ps=!1h7mva19Q172R__;!!K-Hz7m0Vt54!jHI_BsmcoSgcHhKbifm53InWHtbWvfZhnaUMjGtN2MADNIrah8x11SZrnPlveMazZT2nscs5O9fa$>:\r\n' +
+        '\r\n' +
+        "You're no longer scheduled for Chief Back-Up on 1-13-25.\r\n",
+    },
+  ];
+  expect(parseAmionEmailsTest(emails)).toMatchInlineSnapshot(`
+    "Email: FW: Changes to your Amion schedule
+    Found 1 items: 1 actions, 0 ignored [approved]
+     1. 'You've been scheduled for Chief Back-Up on 1-13-25. (email of LZ)'
+        -> 'LZ' is replacing '?' for 'Chief Back-Up' on '2025-01-13' (mon)'
+        -> Action: 2025-01-13 backup_weekday: ? -> LZ
+
+
+    Email: FW: Changes to your Amion schedule
+    Found 1 items: 1 actions, 0 ignored [approved]
+     1. 'You're no longer scheduled for Chief Back-Up on 1-13-25. (email of TW)'
+        -> '?' is replacing 'TW' for 'Chief Back-Up' on '2025-01-13' (mon)'
+        -> Action: 2025-01-13 backup_weekday: TW -> ?"
+  `);
+});
