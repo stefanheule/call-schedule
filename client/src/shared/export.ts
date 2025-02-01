@@ -399,7 +399,7 @@ function simpleCellToCell(cell: SimpleCellType): CellType {
 }
 
 import * as ExcelJS from 'exceljs';
-import { dedup } from './common/language';
+import { dedup } from 'check-type';
 function cssColorToExcel(color: string): {
   argb: string;
 } {

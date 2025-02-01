@@ -21,6 +21,7 @@
     "@types/jest": "^29.5.13",
     "axios": "^1.6.2",
     "chai": "^4.3.10",
+    "email-validator": "^2.0.4",
     "chrono-node": "^2.7.3",
     "cmd-ts": "^0.13.0",
     "concurrently": "^8.2.2",

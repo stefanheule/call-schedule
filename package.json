@@ -10,6 +10,7 @@
     "sync": "yarn server tsx ./src/common/scripts/sync.ts ..",
     "get-server-version": "yarn server tsx ./src/common/scripts/get-server-version.ts ..",
     "playground": "yarn server tsx src/playground.ts",
+    "generate-schema": "yarn tsx server/src/common/check-type/cli.ts",
     "codegen-version": "yarn server tsx ./src/common/scripts/generate-version-main.ts ..",
     "codegen": "yarn generate-schema --config '[{\"root\":\"client/src\"}, {\"root\": \"client/src/shared\"}]' && yarn generate-schema --config '[{\"root\":\"server/src\"}, {\"root\": \"server/src/shared\", \"noGen\": true}]'",
     "codegen-prod": "yarn generate-schema --config '[{\"root\":\"client/src\"}, {\"root\": \"client/src/shared\"}]' && yarn generate-schema --config '[{\"root\":\"server/src\"}, {\"root\": \"server/src/shared\"}]'",
