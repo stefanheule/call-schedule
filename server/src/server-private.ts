@@ -1,5 +1,6 @@
 import * as dotenv from 'dotenv';
 dotenv.config({ path: __dirname + '/../.env' });
+import 'tsconfig-paths/register';
 
 import { assertNonNull, exceptionToString } from 'check-type';
 import express, { Request, Response } from 'express';
