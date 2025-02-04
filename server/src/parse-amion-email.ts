@@ -4,7 +4,7 @@ import {
   exceptionToString,
   IsoDate,
   objectToJson,
-} from 'check-type';
+} from './shared/common/check-type';
 import { Action, CallSchedule, Day, DayId } from './shared/types';
 import { dateToDayOfWeek, findDay, nextDay } from './shared/compute';
 

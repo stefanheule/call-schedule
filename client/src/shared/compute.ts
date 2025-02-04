@@ -5,7 +5,7 @@ import {
   deepCopy,
   lexicalCompare,
   mapEnumWithDefault,
-} from 'check-type';
+} from './common/check-type';
 import {
   Action,
   CallPoolPerson,

@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -18,10 +17,5 @@ export default defineConfig({
   server: {
     port: 5003,
     host: '0.0.0.0',
-  },
-  resolve: {
-    alias: {
-      'check-type': path.resolve(__dirname, "src/shared/common/check-type/index"),
-    }
   }
 })

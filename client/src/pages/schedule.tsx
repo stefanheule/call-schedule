@@ -5,7 +5,7 @@ import {
   isoDateToDate,
   mapEnum,
   sleep,
-} from 'check-type';
+} from '../shared/common/check-type';
 import { Children, Column, ElementSpacer, Row, Spaced } from '../common/flex';
 import { DefaultTextSize, Heading, Text } from '../common/text';
 import {

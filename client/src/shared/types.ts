@@ -1,4 +1,4 @@
-import { IsoDate, IsoDatetime, mapEnum } from 'check-type';
+import { IsoDate, IsoDatetime, mapEnum } from './common/check-type';
 
 // @check-type:entire-file
 

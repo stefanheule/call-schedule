@@ -1,6 +1,6 @@
 import { CallSchedule, Person, SingleCallTarget, YEAR_ORDER } from './types';
 import { dateToDayOfWeek, nextDay } from './compute';
-import { IsoDate } from 'check-type';
+import { IsoDate } from './common/check-type';
 
 export function validateData(data: CallSchedule): void {
   function validateDate(date: string, location: string): void {

@@ -43,7 +43,6 @@
     "pushover-notifications": "^1.2.2",
     "rrule": "^2.8.1",
     "ts-jest": "^29.2.5",
-    "tsconfig-paths": "^4.2.0",
     "tsx": "^4.7.0",
     "uuid": "^9.0.1"
   },

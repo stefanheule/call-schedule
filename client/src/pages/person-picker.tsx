@@ -1,4 +1,4 @@
-import { assertNonNull, IsoDate } from 'check-type';
+import { assertNonNull, IsoDate } from '../shared/common/check-type';
 import { createContext, useContext, useState } from 'react';
 import { Children, Column, Row } from '../common/flex';
 import {

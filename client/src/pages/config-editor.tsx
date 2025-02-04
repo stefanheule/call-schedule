@@ -1,4 +1,4 @@
-import { assertNonNull, IsoDate, mapEnum } from 'check-type';
+import { assertNonNull, IsoDate, mapEnum } from '../shared/common/check-type';
 import { createContext, useContext, useState } from 'react';
 import { Children, Column, ElementSpacer, Row } from '../common/flex';
 import {

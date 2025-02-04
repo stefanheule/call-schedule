@@ -15,7 +15,7 @@ import { LoadingIndicator } from './common/loading';
 import { useAsync } from './common/hooks';
 import { rpcLoadCallSchedules } from './pages/rpc';
 import { Text } from './common/text';
-import { deepCopy } from 'check-type';
+import { deepCopy } from './shared/common/check-type';
 
 export const ROUTES: (RouteObject & {
   navigationTitle?: string;

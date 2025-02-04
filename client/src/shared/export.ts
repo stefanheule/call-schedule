@@ -7,7 +7,7 @@ import {
 } from './types';
 
 import * as datefns from 'date-fns';
-import { IsoDate, assertNonNull, isoDateToDate } from 'check-type';
+import { IsoDate, assertNonNull, isoDateToDate } from './common/check-type';
 import {
   collectHolidayCall,
   countHolidayShifts,
@@ -399,7 +399,7 @@ function simpleCellToCell(cell: SimpleCellType): CellType {
 }
 
 import * as ExcelJS from 'exceljs';
-import { dedup } from 'check-type';
+import { dedup } from './common/check-type';
 function cssColorToExcel(color: string): {
   argb: string;
 } {

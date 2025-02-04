@@ -1,8 +1,7 @@
 import * as dotenv from 'dotenv';
 dotenv.config({ path: __dirname + '/../.env' });
-import 'tsconfig-paths/register';
 
-import { assertNonNull, exceptionToString } from 'check-type';
+import { assertNonNull, exceptionToString } from './shared/common/check-type';
 import express, { Request, Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import path from 'path';

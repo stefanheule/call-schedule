@@ -23,7 +23,7 @@ import {
   deepCopy,
   isoDateToDate,
   mapEnum,
-} from 'check-type';
+} from './shared/common/check-type';
 import {
   compareData,
   dateToDayOfWeek,

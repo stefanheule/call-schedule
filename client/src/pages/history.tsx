@@ -6,7 +6,10 @@ import { StoredCallScheduleMetaData } from '../shared/types';
 import { MainLayout } from './layout';
 import { rpcListCallSchedules, rpcLoadCallSchedules } from './rpc';
 import { LoadingIndicator } from '../common/loading';
-import { deparseUserIsoDatetime, isoDatetimeToDate } from 'check-type';
+import {
+  deparseUserIsoDatetime,
+  isoDatetimeToDate,
+} from '../shared/common/check-type';
 import { formatRelative } from '../shared/common/formatting';
 import { Button, IconButton, Snackbar } from '@mui/material';
 import { useNavigate } from 'react-router-dom';

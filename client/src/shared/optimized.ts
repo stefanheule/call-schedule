@@ -1,4 +1,4 @@
-import { ISO_DATE_DATEFNS_FORMAT, IsoDate } from 'check-type';
+import { ISO_DATE_DATEFNS_FORMAT, IsoDate } from './common/check-type';
 import * as datefns from 'date-fns';
 
 const _dateToIsoDateCache: Record<number, IsoDate> = {};
