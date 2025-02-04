@@ -1,3 +1,5 @@
+const path = require('path');
+
 module.exports = {
   apps: [
     {
@@ -7,7 +9,7 @@ module.exports = {
       cwd: './server',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
       env: {
-        TS_NODE_PROJECT: './tsconfig.json',
+        TS_NODE_PROJECT: path.resolve(__dirname, 'server/tsconfig.json'),
       },
     },
     {
@@ -17,7 +19,7 @@ module.exports = {
       cwd: './server',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
       env: {
-        TS_NODE_PROJECT: './tsconfig.json',
+        TS_NODE_PROJECT: path.resolve(__dirname, 'server/tsconfig.json'),
       },
     },
   ],
