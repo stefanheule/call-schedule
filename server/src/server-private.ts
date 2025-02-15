@@ -31,7 +31,7 @@ import {
   StoredCallSchedules,
 } from './shared/types';
 import { loadStorage, storeStorage } from './storage';
-import cookie from 'cookie';
+import * as cookie from 'cookie';
 import { validateData } from './shared/validate';
 import { assertApplyAmionChangeRequest } from './check-type.generated';
 import {
