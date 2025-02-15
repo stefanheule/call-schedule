@@ -230,7 +230,7 @@ export function rate(
     const personConfig = data.people[person];
     {
       let field: 'weekend' | 'weekendOutsideMaternity' = 'weekend';
-      if (person == 'LX') {
+      if (person == 'LL') {
         field = 'weekendOutsideMaternity';
       }
       const currentWeekend = processed.callCounts[person].weekend;
@@ -242,7 +242,7 @@ export function rate(
     }
     {
       let field: 'weekday' | 'weekdayOutsideMaternity' = 'weekday';
-      if (person == 'LX') {
+      if (person == 'LL') {
         field = 'weekdayOutsideMaternity';
       }
       const currentWeekday = processed.callCounts[person].weekday;
@@ -659,7 +659,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       DC: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
       AJ: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
       // Research
-      LX: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
+      LL: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
       CC: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
       // Year 3
       MB: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
