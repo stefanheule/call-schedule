@@ -1242,7 +1242,7 @@ function RuleViolation({
 }: {
   id: string;
   issue: Issue;
-  weekListRef?: React.RefObject<VListHandle>;
+  weekListRef?: React.RefObject<VListHandle | null>;
 }) {
   const processed = useProcessedData();
   const weekIndex = processed.day2weekAndDay[issue.startDay].weekIndex;
@@ -2003,7 +2003,7 @@ export const ColorPill = forwardRef(function ColorPillImp(
     highlighted?: boolean;
   } & Children,
   ref: React.Ref<HTMLDivElement>,
-): JSX.Element {
+): React.ReactNode {
   const { color, children, more, style, onClick, highlighted } = props;
   return (
     <div

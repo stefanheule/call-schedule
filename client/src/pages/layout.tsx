@@ -7,13 +7,14 @@ export function MainLayout({
 }: {
   title?: string;
   children?: React.ReactNode;
-}): JSX.Element {
+}): React.ReactNode {
   const margin = 15;
   return (
     <>
       {title !== undefined && (
+        // @ts-expect-error react-helmet seems deprecated
         <Helmet>
-          <title>{`${title} | Metro`}</title>
+          <title>{`${title} | Call Schedule`}</title>
         </Helmet>
       )}
       <div
@@ -27,7 +28,7 @@ export function MainLayout({
     </>
   );
 }
-export function LoadingPage(): JSX.Element {
+export function LoadingPage(): React.ReactNode {
   return (
     <MainLayout>
       <LoadingIndicator />

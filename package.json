@@ -25,18 +25,18 @@
     "server": "yarn --cwd server"
   },
   "dependencies": {
-    "@typescript-eslint/eslint-plugin": "^6.15.0",
-    "@typescript-eslint/parser": "^6.15.0",
-    "cloc": "^2.0.0-cloc",
-    "concurrently": "^8.2.2",
-    "cspell": "^8.2.1",
-    "eslint": "^8.56.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-prettier": "^5.1.0",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-unused-imports": "^3.0.0",
-    "prettier": "^3.1.1",
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "@typescript-eslint/eslint-plugin": "^8.24.0",
+    "@typescript-eslint/parser": "^8.24.0",
+    "cloc": "^2.4.0-cloc",
+    "concurrently": "^9.1.2",
+    "cspell": "^8.17.3",
+    "eslint": "^9.20.1",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.3",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-unused-imports": "^4.1.4",
+    "prettier": "^3.5.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
   }
 }

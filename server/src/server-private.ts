@@ -350,7 +350,7 @@ async function main() {
         });
       } else {
         app.use(
-          '/*',
+          '/',
           createProxyMiddleware({
             // 127.0.0.1 instead of localhost is important,
             // because expo only listens on the IPv4 port.
