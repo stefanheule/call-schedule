@@ -45,8 +45,8 @@ export function HistoryPage() {
           <Button
             size="small"
             variant="outlined"
-            onClick={() => {
-              navigate('/');
+            onClick={async () => {
+              await navigate('/');
             }}
             disabled={isLoading}
           >
@@ -113,7 +113,7 @@ function RenderSchedules({
                     ts: schedule.ts,
                   });
                   setData(result);
-                  navigate('/');
+                  await navigate('/');
                 } catch (e) {
                   console.log(e);
                   setIsLoading(false);

@@ -1022,7 +1022,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         if (person == '') continue;
         const field = result.day2isR2EarlyCall[day.date] ? 'r2' : 'regular';
         switch (shift) {
-          case 'backup_holiday':
+          case 'backup_holiday': {
             result.backupCallCounts[person][field].holiday += 1;
             let days = 1;
             for (let i = 1; i < 7; i++) {
@@ -1034,12 +1034,15 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
             result.backupCallCounts[person][field].holiday_hours +=
               (days - 1) * 24 + 14;
             break;
-          case 'backup_weekend':
+          }
+          case 'backup_weekend': {
             result.backupCallCounts[person][field].weekend += 1;
             break;
-          case 'backup_weekday':
+          }
+          case 'backup_weekday': {
             result.backupCallCounts[person][field].weekday += 1;
             break;
+          }
         }
       }
     }
@@ -1441,7 +1444,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   // soft 3. no MAD call during AUA
   forEveryDay(data, (day, _) => {
     if (data.specialDays[day] != 'AUA') return;
-    const person = 'MAD' as const;
+    const person = 'MAD';
     const today = assertNonNull(result.day2person2info[day][person]);
     if (!today.shift) return;
     addIssue(result, {
@@ -1666,6 +1669,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   }
 
+  // eslint-disable-next-line no-constant-condition
   if (1 == 2 + 1) {
     console.log('Processing took', Date.now() - start, 'ms');
   }

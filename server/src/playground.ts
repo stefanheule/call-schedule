@@ -203,14 +203,15 @@ async function main() {
   }
 
   switch (run) {
-    case 'delete-previous':
+    case 'delete-previous': {
       const x = storage.versions.pop();
       console.log(`Dropped ${x?.name}`);
       break;
+    }
     case 'clear-weekends':
     case 'infer-weekends':
     case 'infer-weekdays':
-    case 'clear-weekdays':
+    case 'clear-weekdays': {
       const text = mapEnum(run, {
         'clear-weekends': 'Cleared weekends to start over',
         'clear-weekdays': 'Cleared weekday calls to start over',
@@ -238,6 +239,7 @@ async function main() {
       storage.versions.push(scheduleToStoredSchedule(data, text, '<admin>'));
       console.log(`Saving as: '${text}'`);
       break;
+    }
   }
   storeStorage(storage);
 

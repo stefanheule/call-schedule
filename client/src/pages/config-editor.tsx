@@ -71,7 +71,7 @@ function findRequiredTypes(type: string): string[] {
   return (
     noComments
       // Split by type boundaries
-      .split(/[ >;:,<\[\]]/)
+      .split(/[ >;:,<[\]]/)
       // Only keep types (i.e. alphabetic strings starting with an uppercase letter)
       .filter(t => /^[A-Z][A-Za-z]+$/.test(t))
       // Remove built-in types
@@ -254,6 +254,7 @@ function objectToCode(obj: unknown, level: number = 0): string {
   if (typeof obj === 'boolean') {
     return obj ? 'true' : 'false';
   }
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string
   return String(obj);
 }
 

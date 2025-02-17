@@ -16,8 +16,9 @@
     "codegen-prod": "yarn generate-schema --config '[{\"root\":\"client/src\"}, {\"root\": \"client/src/shared\"}]' && yarn generate-schema --config '[{\"root\":\"server/src\"}, {\"root\": \"server/src/shared\"}]'",
     "codegen-watch": "concurrently \"yarn generate-schema --config '[{\\\"root\\\":\\\"client/src\\\"}, {\\\"root\\\": \\\"client/src/shared\\\"}]' --watch\" \"yarn generate-schema --config '[{\\\"root\\\":\\\"server/src\\\"}, {\\\"root\\\": \\\"server/src/shared\\\", \\\"noGen\\\": true}]' --watch\"",
     "build": "yarn all build",
-    "lint": "eslint --ext .js,.ts,.tsx --max-warnings 0 --report-unused-disable-directives ./ && cspell '**' && prettier --ignore-path .gitignore '**/*.html' --check",
-    "fix": "eslint --ext .js,.ts,.tsx --fix --report-unused-disable-directives ./ && prettier --ignore-path .gitignore '**/*.html' --write",
+    "lint": "eslint --max-warnings 0 --report-unused-disable-directives ./ --ignore-pattern '**/build/' && prettier --ignore-path .gitignore '**/*.html' --check",
+    "cspell": "cspell '**'",
+    "fix": "eslint --fix --report-unused-disable-directives ./ --ignore-pattern '**/build/' && prettier --ignore-path .gitignore '**/*.html' --write",
     "start": "pm2 start pm2.config.js && echo 'Open http://localhost:5056'",
     "stop": "pm2 stop pm2.config.js",
     "all": "wrap () { yarn server $*; status1=$?; yarn client $*; status2=$?; if [ $status1 -ne 0 ] || [ $status2 -ne 0 ]; then exit 1; fi; }; wrap",
@@ -25,6 +26,8 @@
     "server": "yarn --cwd server"
   },
   "dependencies": {
+    "@eslint/compat": "^1.2.6",
+    "@eslint/js": "^9.20.0",
     "@typescript-eslint/eslint-plugin": "^8.24.0",
     "@typescript-eslint/parser": "^8.24.0",
     "cloc": "^2.4.0-cloc",
@@ -37,6 +40,7 @@
     "eslint-plugin-unused-imports": "^4.1.4",
     "prettier": "^3.5.1",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.0"
   }
 }
