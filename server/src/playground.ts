@@ -35,6 +35,7 @@ import {
 } from './shared/compute';
 import {
   assertCallSchedule,
+  assertIsoDate,
   assertPerson,
 } from './shared/check-type.generated';
 import { assertRunType } from './check-type.generated';
@@ -42,6 +43,7 @@ import { loadStorage, storeStorage } from './storage';
 import fs from 'fs';
 import { exportSchedule } from './shared/export';
 import * as Diff from 'diff';
+import deepEqual from 'deep-equal';
 
 // @check-type
 export type RunType =
@@ -53,7 +55,8 @@ export type RunType =
   | 'clear-weekends'
   | 'clear-weekdays'
   | 'diff-previous'
-  | 'parse-email';
+  | 'parse-email'
+  | 'day-history';
 
 function runType(): RunType {
   if (process.argv.length < 3) return 'noop';
@@ -86,6 +89,26 @@ async function main() {
   const latest = storage.versions[storage.versions.length - 1];
   let data = deepCopy(latest.callSchedule);
   console.log(`Latest = ${latest.name}`);
+
+  if (run === 'day-history') {
+    if (process.argv.length < 4) {
+      console.log(`Usage: yarn playground day-history <date>`);
+      return;
+    }
+    const date = assertIsoDate(process.argv[3]);
+    let current = findDate(data, date);
+    console.log(current);
+    for (const version of [...storage.versions].reverse()) {
+      const day = findDate(version.callSchedule, date);
+      if (!deepEqual(current, day)) {
+        console.log(`${version.ts} - ${version.name} made changes:`);
+        console.log(day);
+        current = day;
+      }
+    }
+    // Actually, doing this for real in the frontend.
+    return;
+  }
 
   if (run == 'parse-email') {
     console.log(`not implemented`);

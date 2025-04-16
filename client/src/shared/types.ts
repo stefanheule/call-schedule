@@ -488,3 +488,17 @@ export type ListCallSchedulesRequest = {
 export type ListCallSchedulesResponse = {
   schedules: StoredCallScheduleMetaData[];
 };
+
+export type GetDayHistoryRequest = {
+  day: IsoDate;
+};
+
+export type GetDayHistoryResponse = {
+  items: Array<{
+    ts: IsoDatetime;
+    changeName: string;
+    day: Day;
+    isCurrent: boolean;
+    isInitial: boolean;
+  }>
+};

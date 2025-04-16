@@ -9,12 +9,14 @@ import { isLocal } from './common/error-reporting';
 import { setupExpressServer } from './common/express';
 import {
   assertCallSchedule,
+  assertGetDayHistoryRequest,
   assertLoadCallScheduleRequest,
   assertSaveCallScheduleRequest,
 } from './shared/check-type.generated';
 import {
   applyActions,
   compareData,
+  findDay,
   scheduleToStoredSchedule,
 } from './shared/compute';
 import {
@@ -24,6 +26,7 @@ import {
 } from './shared/ports';
 import {
   Action,
+  GetDayHistoryResponse,
   ListCallSchedulesResponse,
   LoadCallScheduleResponse,
   SaveCallScheduleResponse,
@@ -41,6 +44,7 @@ import {
   TERRA_AUTH_ENV_VARIABLE,
 } from './parse-amion-email';
 import { sendPushoverMessage } from './common/notifications';
+import deepEqual from 'deep-equal';
 
 export const AXIOS_PROPS = {
   isLocal: true,
@@ -209,6 +213,79 @@ async function main() {
                 ts: v.ts,
               })),
             });
+          } catch (e) {
+            console.log(e);
+            res.status(500).send(`exception: ${exceptionToString(e)}`);
+            return;
+          }
+        },
+      );
+
+      app.post(
+        '/api/get-day-history',
+        async (
+          req: Request,
+          res: Response<GetDayHistoryResponse | string>,
+        ) => {
+          try {
+            const request = assertGetDayHistoryRequest(req.body);
+            const storage = loadStorage({
+              noCheck: true,
+            });
+            const versions = [];
+            for (const version of storage.versions) {
+              let skip = false;
+              try {
+                assertCallSchedule(version.callSchedule);
+              } catch (e) {
+                skip = true;
+              }
+              if (skip) {
+                continue;
+              }
+              versions.push(version);
+            }
+            if (versions.length === 0) {
+              const result: GetDayHistoryResponse = { 
+                items: [],
+              };
+              res.send(result);
+              return;
+            }
+            const result: GetDayHistoryResponse = {
+              items: [{
+                ts: versions[0].ts,
+                changeName: versions[0].name,
+                day: assertNonNull(findDay(versions[0].callSchedule, request.day)),
+                isCurrent: versions.length === 1,
+                isInitial: true,
+              }],
+            };
+            for (const version of versions.slice(1)) {
+              let skip = false;
+              try {
+                assertCallSchedule(version.callSchedule);
+              } catch (e) {
+                skip = true;
+              }
+              if (skip) {
+                continue;
+              }
+              const day = assertNonNull(findDay(version.callSchedule, request.day));
+              if (deepEqual(day, result.items[result.items.length - 1].day)) {
+                continue;
+              }
+              result.items.push({
+                ts: version.ts,
+                changeName: version.name,
+                day,
+                isCurrent: false,
+                isInitial: false,
+              });
+            }
+            result.items[result.items.length - 1].isCurrent = true;
+            result.items.reverse();
+            res.send(result);
           } catch (e) {
             console.log(e);
             res.status(500).send(`exception: ${exceptionToString(e)}`);

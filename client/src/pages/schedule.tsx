@@ -2,6 +2,8 @@ import {
   assertNonNull,
   dateToIsoDatetime,
   deepCopy,
+  IsoDate,
+  isoDatetimeToDate,
   isoDateToDate,
   mapEnum,
   sleep,
@@ -31,6 +33,7 @@ import {
   allChiefs,
   callPoolPeople,
   HOSPITAL_ORDER,
+  GetDayHistoryResponse,
 } from '../shared/types';
 import {
   useData,
@@ -72,13 +75,14 @@ import {
   serializeActions,
   diffIssues,
   processCallSchedule,
+  findDay,
 } from '../shared/compute';
 import { useHotkeys } from 'react-hotkeys-hook';
 import Snackbar from '@mui/material/Snackbar';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
-import { rpcSaveCallSchedules } from './rpc';
+import { rpcGetDayHistory, rpcSaveCallSchedules } from './rpc';
 import { LoadingIndicator } from '../common/loading';
 import { VList, VListHandle } from 'virtua';
 
@@ -102,6 +106,8 @@ import {
   RegularConfigEditorKind,
   useConfigEditor,
 } from './config-editor';
+import { useAsync } from '../common/hooks';
+import { formatRelative } from '../shared/common/formatting';
 
 function canEditRawData(_data: CallSchedule, localData: LocalData): boolean {
   return localData.unsavedChanges == 0;
@@ -1468,6 +1474,83 @@ function RenderEditConfigButton({
   );
 }
 
+function HistoryModal({ day, onClose }: { day: IsoDate, onClose: () => void }) {
+  const [data] = useData();
+  const processed = useProcessedData();
+  const id = processed.day2weekAndDay[day];
+  const [history, setHistory] = useState<GetDayHistoryResponse | undefined>(undefined);
+  useAsync(async (isMounted) => {
+    setHistory(await rpcGetDayHistory({ day }));
+  }, [day]);
+  return <Column style={{ padding: '20px' }} spacing="10px">
+      <Row>
+        <Heading>History of {datefns.format(isoDateToDate(day), 'EEEE, MMMM d, yyyy')}</Heading>
+      </Row>
+      {!history && <LoadingIndicator />}
+      {history && history.items.map(item => {
+        const ts = isoDatetimeToDate(item.ts);
+
+        return (
+          <Row>
+            <Column style={{
+              width: '300px',
+            }}>
+              {item.isCurrent && <Text style={{
+                fontWeight: 'bold',
+              }}>Current version</Text>}
+              <Text>Edit on {datefns.format(ts, 'EEEE, MMMM d, yyyy')}</Text>
+              <Text>{formatRelative(ts, 'past')}</Text>
+              <Text style={{
+                fontStyle: 'italic',
+              }}>{item.changeName}</Text>
+            </Column>
+            <Column>
+              <Column style={{ borderBottom: DAY_BORDER }}></Column>
+              <Column
+                style={{
+                  ...DAY_BOX_STYLE,
+                  minHeight: DAY_BACKUP_HEIGHT,
+                  padding: '3px',
+                }}
+              >
+                {Object.entries(item.day.backupShifts).map(([shiftName]) => (
+                  <RenderBackupShift
+                    readOnly
+                    id={{ ...id, shiftName }}
+                    key={`${item.ts}-${day}-${shiftName}`}
+                  />
+                ))}
+              </Column>
+              <Column style={{ borderBottom: DAY_BORDER }}></Column>
+              <Column style={{ ...DAY_BOX_STYLE, padding: '3px' }}>
+                {Object.entries(item.day.shifts)
+                  .sort(
+                    (a, b) =>
+                      HOSPITAL_ORDER.indexOf(data.shiftConfigs[a[0]].hospitals[0]) -
+                      HOSPITAL_ORDER.indexOf(data.shiftConfigs[b[0]].hospitals[0]),
+                  )
+                  .map(([shiftName]) => (
+                    <RenderShift
+                      readOnly
+                      id={{ ...id, shiftName }}
+                      key={`${item.ts}-${day}-${shiftName}`}
+                    />
+                  ))}
+              </Column>
+              <Column style={{ borderBottom: DAY_BORDER }}></Column>
+            </Column>
+          </Row>
+        )
+      })}
+      
+      <Row mainAxisAlignment="end">
+        <Button variant="outlined" onClick={onClose} size='small'>
+          Close
+        </Button>
+      </Row>
+    </Column>;
+}
+
 function RenderDay({
   id,
   showRotations,
@@ -1481,6 +1564,7 @@ function RenderDay({
   const [localData] = useLocalData();
   const [today, setToday] = useState(dateToIsoDate(new Date()));
   const day = data.weeks[id.weekIndex].days[id.dayIndex];
+  const [showHistoryModal, setShowHistoryModal] = useState(false); // day.date === '2025-04-16'
   const date = isoDateToDate(day.date);
   const processed = useProcessedData();
   const isHoliday = data.holidays[day.date] !== undefined;
@@ -1519,149 +1603,170 @@ function RenderDay({
     : [];
   const showEditRaw = showEditRawData(data, localData);
   const canEditRaw = canEditRawData(data, localData);
-  return (
-    <Column
-      id={elementIdForDay(day.date)}
+  const showHistory = data.isPublic === false || data.currentUser !== undefined;
+
+  const title = <Text
       style={{
-        border: isToday ? DAY_BORDER_TODAY : DAY_BORDER,
-        boxSizing: 'border-box',
-        borderRadius: `5px`,
-        width: `${DAY_WIDTH}px`,
-        minHeight: `100px`,
-        opacity: day.date < data.firstDay || day.date > data.lastDay ? 0.5 : 1,
-        backgroundColor,
+        fontWeight: isHoliday || isSpecial ? 'bold' : 'normal',
+        cursor: showHistory ? 'pointer' : undefined,
       }}
+      onClick={() => showHistory && setShowHistoryModal(true)}
     >
+      {datefns.format(date, 'EEE, M/d')}
+    </Text>;
+
+  return (
+    <>
+      <Dialog
+        open={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <HistoryModal day={day.date} onClose={() => setShowHistoryModal(false)} />
+      </Dialog>
       <Column
+        id={elementIdForDay(day.date)}
         style={{
-          color: isHoliday ? 'red' : isSpecial ? 'blue' : 'black',
-          ...DAY_BOX_STYLE,
+          border: isToday ? DAY_BORDER_TODAY : DAY_BORDER,
+          boxSizing: 'border-box',
+          borderRadius: `5px`,
+          width: `${DAY_WIDTH}px`,
+          minHeight: `100px`,
+          opacity: day.date < data.firstDay || day.date > data.lastDay ? 0.5 : 1,
+          backgroundColor,
         }}
       >
-        <Row>
-          <Text
-            style={{
-              fontWeight: isHoliday || isSpecial ? 'bold' : 'normal',
-            }}
-          >
-            {datefns.format(date, 'EEE, M/d')}
-          </Text>
-          <ElementSpacer space={2} />
-          {showEditRaw && (
-            <>
-              <RenderEditConfigButton
-                showEditRaw={showEditRaw}
-                canEditRaw={canEditRaw}
-                config={{
-                  kind: 'shifts',
-                  day: day.date,
-                }}
-                tiny
-              />
-              <ElementSpacer space={2} />
-              <RenderEditConfigButton
-                showEditRaw={showEditRaw}
-                canEditRaw={canEditRaw}
-                config={{
-                  kind: 'backup-shifts',
-                  day: day.date,
-                }}
-                tiny
-              />
-            </>
-          )}
-        </Row>
-        <Text
-          color={isHoliday || isSpecial ? undefined : 'white'}
+        <Column
           style={{
-            fontWeight: isHoliday || isSpecial ? 'bold' : 'normal',
-            textOverflow: 'ellipsis',
-            textWrap: 'nowrap',
-            overflow: 'hidden',
-            whiteSpace: 'nowrap',
+            color: isHoliday ? 'red' : isSpecial ? 'blue' : 'black',
+            ...DAY_BOX_STYLE,
           }}
         >
-          {data.holidays[day.date] ?? data.specialDays[day.date] ?? '.'}
-        </Text>
-      </Column>
-      {showRotations && (
-        <>
-          <Column style={{ borderBottom: DAY_BORDER }}></Column>
-          {showRotationsToday && (
-            <Column
-              style={{
-                ...DAY_BOX_STYLE,
-                minHeight: DAY_HOSPITALS_HEIGHT,
-                position: 'relative',
-                width: id.dayIndex == 0 ? '750px' : '600px',
-                background: 'white',
-                zIndex: 100,
-              }}
-            >
-              <RenderHospitals
-                info={processed.day2hospital2people[nextDay(day.date)]}
-              />
-            </Column>
-          )}
-          {!showRotationsToday && (
-            <Column
-              style={{
-                ...DAY_BOX_STYLE,
-                minHeight: DAY_HOSPITALS_HEIGHT,
-                background: 'white',
-              }}
-            ></Column>
-          )}
-        </>
-      )}
-      <Column style={{ borderBottom: DAY_BORDER }}></Column>
-      <Column style={{ ...DAY_BOX_STYLE, minHeight: DAY_VACATION_HEIGHT }}>
-        <Row style={{ opacity: secondaryInfoOpacity, flexWrap: 'wrap' }}>
-          {vacation.map(([person]) => (
-            <RenderPerson key={person} person={person} />
-          ))}
-          {priorityWeekend.length + vacation.length > 0 && (
-            <ElementSpacer space="2px" />
-          )}
-          {priorityWeekend.length > 0 && <Text>(</Text>}
-          {priorityWeekend.map(([person]) => (
-            <RenderPerson key={person} person={person} />
-          ))}
-          {priorityWeekend.length > 0 && <Text>)</Text>}
-        </Row>
-      </Column>
-      <Column style={{ borderBottom: DAY_BORDER }}></Column>
-      <Column
-        style={{
-          ...DAY_BOX_STYLE,
-          minHeight: DAY_BACKUP_HEIGHT,
-          padding: '3px',
-        }}
-      >
-        {Object.entries(day.backupShifts).map(([shiftName]) => (
-          <RenderBackupShift
-            id={{ ...id, shiftName }}
-            key={`${day.date}-${shiftName}`}
-          />
-        ))}
-      </Column>
-      <Column style={{ borderBottom: DAY_BORDER }}></Column>
-      <Column style={{ ...DAY_BOX_STYLE, padding: '3px' }}>
-        {Object.entries(day.shifts)
-          .sort(
-            (a, b) =>
-              HOSPITAL_ORDER.indexOf(data.shiftConfigs[a[0]].hospitals[0]) -
-              HOSPITAL_ORDER.indexOf(data.shiftConfigs[b[0]].hospitals[0]),
-          )
-          .map(([shiftName]) => (
-            <RenderShift
+          <Row>
+            {showHistory && <>
+              <Tooltip title="Show history of changes">
+                {title}
+              </Tooltip>
+            </>}
+            {!showHistory && title}
+            <ElementSpacer space={2} />
+            {showEditRaw && (
+              <>
+                <RenderEditConfigButton
+                  showEditRaw={showEditRaw}
+                  canEditRaw={canEditRaw}
+                  config={{
+                    kind: 'shifts',
+                    day: day.date,
+                  }}
+                  tiny
+                />
+                <ElementSpacer space={2} />
+                <RenderEditConfigButton
+                  showEditRaw={showEditRaw}
+                  canEditRaw={canEditRaw}
+                  config={{
+                    kind: 'backup-shifts',
+                    day: day.date,
+                  }}
+                  tiny
+                />
+              </>
+            )}
+          </Row>
+          <Text
+            color={isHoliday || isSpecial ? undefined : 'white'}
+            style={{
+              fontWeight: isHoliday || isSpecial ? 'bold' : 'normal',
+              textOverflow: 'ellipsis',
+              textWrap: 'nowrap',
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {data.holidays[day.date] ?? data.specialDays[day.date] ?? '.'}
+          </Text>
+        </Column>
+        {showRotations && (
+          <>
+            <Column style={{ borderBottom: DAY_BORDER }}></Column>
+            {showRotationsToday && (
+              <Column
+                style={{
+                  ...DAY_BOX_STYLE,
+                  minHeight: DAY_HOSPITALS_HEIGHT,
+                  position: 'relative',
+                  width: id.dayIndex == 0 ? '750px' : '600px',
+                  background: 'white',
+                  zIndex: 100,
+                }}
+              >
+                <RenderHospitals
+                  info={processed.day2hospital2people[nextDay(day.date)]}
+                />
+              </Column>
+            )}
+            {!showRotationsToday && (
+              <Column
+                style={{
+                  ...DAY_BOX_STYLE,
+                  minHeight: DAY_HOSPITALS_HEIGHT,
+                  background: 'white',
+                }}
+              ></Column>
+            )}
+          </>
+        )}
+        <Column style={{ borderBottom: DAY_BORDER }}></Column>
+        <Column style={{ ...DAY_BOX_STYLE, minHeight: DAY_VACATION_HEIGHT }}>
+          <Row style={{ opacity: secondaryInfoOpacity, flexWrap: 'wrap' }}>
+            {vacation.map(([person]) => (
+              <RenderPerson key={person} person={person} />
+            ))}
+            {priorityWeekend.length + vacation.length > 0 && (
+              <ElementSpacer space="2px" />
+            )}
+            {priorityWeekend.length > 0 && <Text>(</Text>}
+            {priorityWeekend.map(([person]) => (
+              <RenderPerson key={person} person={person} />
+            ))}
+            {priorityWeekend.length > 0 && <Text>)</Text>}
+          </Row>
+        </Column>
+        <Column style={{ borderBottom: DAY_BORDER }}></Column>
+        <Column
+          style={{
+            ...DAY_BOX_STYLE,
+            minHeight: DAY_BACKUP_HEIGHT,
+            padding: '3px',
+          }}
+        >
+          {Object.entries(day.backupShifts).map(([shiftName]) => (
+            <RenderBackupShift
               id={{ ...id, shiftName }}
-              setWarningSnackbar={setWarningSnackbar}
               key={`${day.date}-${shiftName}`}
             />
           ))}
+        </Column>
+        <Column style={{ borderBottom: DAY_BORDER }}></Column>
+        <Column style={{ ...DAY_BOX_STYLE, padding: '3px' }}>
+          {Object.entries(day.shifts)
+            .sort(
+              (a, b) =>
+                HOSPITAL_ORDER.indexOf(data.shiftConfigs[a[0]].hospitals[0]) -
+                HOSPITAL_ORDER.indexOf(data.shiftConfigs[b[0]].hospitals[0]),
+            )
+            .map(([shiftName]) => (
+              <RenderShift
+                id={{ ...id, shiftName }}
+                setWarningSnackbar={setWarningSnackbar}
+                key={`${day.date}-${shiftName}`}
+              />
+            ))}
+        </Column>
       </Column>
-    </Column>
+    </>
   );
 }
 
@@ -1717,7 +1822,7 @@ function RenderHospital({
   );
 }
 
-function RenderBackupShift({ id }: { id: ChiefShiftId }) {
+function RenderBackupShift({ id, readOnly }: { id: ChiefShiftId, readOnly?: boolean }) {
   const [data, setData] = useData();
   const [, setLocalData] = useLocalData();
   const processed = useProcessedData();
@@ -1749,6 +1854,7 @@ function RenderBackupShift({ id }: { id: ChiefShiftId }) {
       shiftId={id.shiftName}
       dashedBorder={processed.day2isR2EarlyCall[day.date]}
       onClick={() => {
+        if (readOnly) return;
         personPicker.requestDialog(
           (p, assignWholeWeek) => {
             const person = assertMaybeChief(p);
@@ -1802,9 +1908,11 @@ function RenderBackupShift({ id }: { id: ChiefShiftId }) {
 function RenderShift({
   id,
   setWarningSnackbar,
+  readOnly,
 }: {
   id: ShiftId;
-  setWarningSnackbar: (v: string) => void;
+  setWarningSnackbar?: (v: string) => void;
+  readOnly?: boolean;
 }) {
   const [data, setData] = useData();
   const [, setLocalData] = useLocalData();
@@ -1833,10 +1941,11 @@ function RenderShift({
         processed.day2shift2isHoliday?.[day.date]?.[id.shiftName],
       )}
       onClick={() => {
+        if (readOnly) return;
         personPicker.requestDialog(
           p => {
             const person = assertMaybeCallPoolPerson(p);
-            if (data.isPublic) {
+            if (data.isPublic && setWarningSnackbar) {
               setWarningSnackbar(
                 `You won't be able to save your changes, this is a read-only version of the call schedule application`,
               );

@@ -1,4 +1,5 @@
 import {
+  assertGetDayHistoryResponse,
   assertListCallSchedulesResponse,
   assertLoadCallScheduleResponse,
   assertSaveCallScheduleResponse,
@@ -6,6 +7,8 @@ import {
 } from '../shared/check-type.generated';
 import { axiosPost } from '../shared/common/axios';
 import {
+  GetDayHistoryRequest,
+  GetDayHistoryResponse,
   ListCallSchedulesRequest,
   ListCallSchedulesResponse,
   LoadCallScheduleRequest,
@@ -54,4 +57,11 @@ export async function rpcListCallSchedules(
     await axiosPost('/api/list-call-schedules', request, AXIOS_PROPS)
   ).data;
   return assertListCallSchedulesResponse(data);
+}
+
+export async function rpcGetDayHistory(
+  request: GetDayHistoryRequest,
+): Promise<GetDayHistoryResponse> {
+  const data = (await axiosPost('/api/get-day-history', request, AXIOS_PROPS)).data;
+  return assertGetDayHistoryResponse(data);
 }
