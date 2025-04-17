@@ -1603,7 +1603,7 @@ function RenderDay({
     : [];
   const showEditRaw = showEditRawData(data, localData);
   const canEditRaw = canEditRawData(data, localData);
-  const showHistory = data.isPublic === false || data.currentUser !== undefined;
+  const showHistory = data.isPublic === false || (data.currentUser !== undefined && data.currentUser !== 'undefined');
 
   const title = <Text
       style={{
