@@ -228,6 +228,10 @@ async function main() {
           res: Response<GetDayHistoryResponse | string>,
         ) => {
           try {
+            if (IS_PUBLIC) {
+              res.status(500).send(`Cannot get history on public server`);
+              return;
+            }
             const request = assertGetDayHistoryRequest(req.body);
             const storage = loadStorage({
               noCheck: true,
