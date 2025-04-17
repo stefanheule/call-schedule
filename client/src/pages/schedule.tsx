@@ -34,6 +34,7 @@ import {
   callPoolPeople,
   HOSPITAL_ORDER,
   GetDayHistoryResponse,
+  Day,
 } from '../shared/types';
 import {
   useData,
@@ -1480,7 +1481,8 @@ function HistoryModal({ day, onClose }: { day: IsoDate, onClose: () => void }) {
   const id = processed.day2weekAndDay[day];
   const [history, setHistory] = useState<GetDayHistoryResponse | undefined>(undefined);
   useAsync(async (isMounted) => {
-    setHistory(await rpcGetDayHistory({ day }));
+    const h = await rpcGetDayHistory({ day });
+    setHistory(h);
   }, [day]);
   return <Column style={{ padding: '20px' }} spacing="10px">
       <Row>
@@ -1491,7 +1493,7 @@ function HistoryModal({ day, onClose }: { day: IsoDate, onClose: () => void }) {
         const ts = isoDatetimeToDate(item.ts);
 
         return (
-          <Row>
+          <Row key={item.ts}>
             <Column style={{
               width: '300px',
             }}>
@@ -1516,6 +1518,7 @@ function HistoryModal({ day, onClose }: { day: IsoDate, onClose: () => void }) {
                 {Object.entries(item.day.backupShifts).map(([shiftName]) => (
                   <RenderBackupShift
                     readOnly
+                    day={item.day}
                     id={{ ...id, shiftName }}
                     key={`${item.ts}-${day}-${shiftName}`}
                   />
@@ -1532,6 +1535,7 @@ function HistoryModal({ day, onClose }: { day: IsoDate, onClose: () => void }) {
                   .map(([shiftName]) => (
                     <RenderShift
                       readOnly
+                      day={item.day}
                       id={{ ...id, shiftName }}
                       key={`${item.ts}-${day}-${shiftName}`}
                     />
@@ -1822,11 +1826,11 @@ function RenderHospital({
   );
 }
 
-function RenderBackupShift({ id, readOnly }: { id: ChiefShiftId, readOnly?: boolean }) {
+function RenderBackupShift({ id, readOnly, day }: { id: ChiefShiftId, readOnly?: boolean, day?: Day }) {
   const [data, setData] = useData();
   const [, setLocalData] = useLocalData();
   const processed = useProcessedData();
-  const day = data.weeks[id.weekIndex].days[id.dayIndex];
+  day = day ?? data.weeks[id.weekIndex].days[id.dayIndex];
   const personPicker = usePersonPicker();
   const personId = day.backupShifts[id.shiftName] ?? '';
   const backupShiftName = mapEnum(id.shiftName, {
@@ -1909,15 +1913,17 @@ function RenderShift({
   id,
   setWarningSnackbar,
   readOnly,
+  day,
 }: {
   id: ShiftId;
   setWarningSnackbar?: (v: string) => void;
   readOnly?: boolean;
+  day?: Day;
 }) {
   const [data, setData] = useData();
   const [, setLocalData] = useLocalData();
   const processed = useProcessedData();
-  const day = data.weeks[id.weekIndex].days[id.dayIndex];
+  day = day ?? data.weeks[id.weekIndex].days[id.dayIndex];
   const personPicker = usePersonPicker();
   const personId = day.shifts[id.shiftName] ?? '';
   // useEffect(() => {
