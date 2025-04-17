@@ -19,8 +19,8 @@
     "lint": "eslint --max-warnings 0 --report-unused-disable-directives ./ --ignore-pattern '**/build/' && prettier --ignore-path .gitignore '**/*.html' --check",
     "cspell": "cspell '**'",
     "fix": "eslint --fix --report-unused-disable-directives ./ --ignore-pattern '**/build/' && prettier --ignore-path .gitignore '**/*.html' --write",
-    "start": "pm2 start pm2.config.js && echo 'Open http://localhost:5056'",
-    "stop": "pm2 stop pm2.config.js",
+    "start": "pm2 start pm2.config.cjs && echo 'Open http://localhost:5056'",
+    "stop": "pm2 stop pm2.config.cjs",
     "all": "wrap () { yarn server $*; status1=$?; yarn client $*; status2=$?; if [ $status1 -ne 0 ] || [ $status2 -ne 0 ]; then exit 1; fi; }; wrap",
     "client": "yarn --cwd client",
     "server": "yarn --cwd server"
