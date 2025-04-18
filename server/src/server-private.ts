@@ -45,6 +45,7 @@ import {
 } from './parse-amion-email';
 import { sendPushoverMessage } from './common/notifications';
 import deepEqual from 'deep-equal';
+import { sendEmail } from 'common/email-rpc';
 
 export const AXIOS_PROPS = {
   isLocal: true,
@@ -394,13 +395,20 @@ async function main() {
                   const shouldNotify = hasChanges || hasManual;
                   if (shouldNotify) {
                     const prefix = hasManual ? `[manual action required] ` : '';
+                    const title = prefix +
+                    (actions.length > 0
+                      ? `Amion email changes successfully applied`
+                      : `Amion email parsed successfully; no action required`);
                     await sendPushoverMessage({
-                      title:
-                        prefix +
-                        (actions.length > 0
-                          ? `Amion email changes successfully applied`
-                          : `Amion email parsed successfully; no action required`),
+                      title,
                       message: summary,
+                    });
+                    await sendEmail({
+                      options: {
+                        to: 'stefanheule@gmail.com',
+                        subject: title,
+                        text: summary,
+                      }
                     });
                   }
                   res.send({ kind: 'ok' });
