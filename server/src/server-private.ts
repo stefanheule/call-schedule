@@ -45,7 +45,7 @@ import {
 } from './parse-amion-email';
 import { sendPushoverMessage } from './common/notifications';
 import deepEqual from 'deep-equal';
-import { sendEmail } from 'common/email-rpc';
+import { sendEmail } from './common/email-rpc';
 
 export const AXIOS_PROPS = {
   isLocal: true,
