@@ -331,6 +331,7 @@ async function main() {
               }
 
               try {
+                const emailNotifications = ['stefanheule@gmail.com', ...(dateToIsoDate(new Date()) <= '2025-06-30' ? ['tovalweiss@gmail.com'] : [])]
                 const storage = loadStorage({
                   noCheck: true,
                   academicYear: getAcademicYearFromIsoDate(dateToIsoDate(new Date())),
@@ -354,6 +355,25 @@ async function main() {
                     kind: 'error',
                     message: `Parsing failed with at least 1 error.\n\n${summary}`,
                   });
+                  if (request.initialTry && parsed.filter(x => x.kind !== 'ignored' && !x.isPending).length > 0) {
+                    const title = `[Manual action required] Approved trades from Amion could not be applied automatically`;
+                    const message = `Below are some technical details of how exactly what trades were approved and what errors occurred. Feel free to ignore.
+
+---
+
+${summary}`;
+                    await sendPushoverMessage({
+                      title,
+                      message,
+                    });
+                    await sendEmail({
+                      options: {
+                        to: emailNotifications,
+                        subject: title,
+                        text: message,
+                      }
+                    });
+                  }
                   return;
                 } else {
                   let nextSchedule = last;
@@ -374,14 +394,11 @@ async function main() {
                                 break;
                               case 'ignored':
                                 break;
-                              case 'manual':
-                                break;
                             }
                           }
                         }
                         break;
                       case 'ignored':
-                      case 'manual':
                         break;
                     }
                   }
@@ -398,25 +415,24 @@ async function main() {
                     storeStorage(newStorage);
                   }
                   const hasChanges =
-                    parsed.filter(x => x.kind == 'changes').length > 0;
-                  const hasManual =
-                    parsed.filter(x => x.kind == 'manual').length > 0;
-                  const shouldNotify = hasChanges || hasManual;
+                    parsed.filter(x => x.kind == 'changes' && !x.isPending).length > 0;
+                  const shouldNotify = hasChanges;
                   if (shouldNotify) {
-                    const prefix = hasManual ? `[manual action required] ` : '';
-                    const title = prefix +
-                    (actions.length > 0
-                      ? `Amion email changes successfully applied`
-                      : `Amion email parsed successfully; no action required`);
+                    const title = `Approved trades from Amion were applied successfully`;
+                    const message = `Below are some technical details of how exactly what changes were applied. Feel free to ignore.
+
+---
+
+${summary}`;
                     await sendPushoverMessage({
                       title,
-                      message: summary,
+                      message,
                     });
                     await sendEmail({
                       options: {
-                        to: 'stefanheule@gmail.com',
+                        to: emailNotifications,
                         subject: title,
-                        text: summary,
+                        text: message,
                       }
                     });
                   }

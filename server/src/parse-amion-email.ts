@@ -65,11 +65,6 @@ type ExtractedAction =
       message: string;
     }
   | {
-      email: TinyEmail;
-      extracted: ExtractedData;
-      kind: 'manual';
-    }
-  | {
       kind: 'error';
       extracted: ExtractedData;
       message: string;
@@ -81,11 +76,6 @@ type EmailParseResult<T> =
     }
   | {
       email: TinyEmail;
-      // For things that need manual intervention.
-      kind: 'manual';
-    }
-  | {
-      email: TinyEmail;
       kind: 'changes';
       isPending: boolean;
       changes: T[];
@@ -94,6 +84,7 @@ type EmailParseResult<T> =
       email: TinyEmail;
       kind: 'error';
       message: string;
+      isPending: boolean;
     };
 
 function interpretData(
@@ -362,6 +353,7 @@ function extractDataFromAmionEmail(
           email,
           kind: 'error',
           message: `Expected 1 match for chief email, but got ${matches.length}.`,
+          isPending: false,
         };
       }
       const name = matches[0][1];
@@ -373,6 +365,7 @@ function extractDataFromAmionEmail(
           kind: 'error',
           message: `Could not parse chief name from ${name}`,
           email,
+          isPending: false,
         };
       }
       // Extract data from this kind of line: "You're no longer scheduled for Chief Back-Up from 1-31-25 to 2-2-25."
@@ -390,6 +383,7 @@ function extractDataFromAmionEmail(
             kind: 'error',
             email,
             message: `Unexpected shift name: ${amionShift}`,
+            isPending: false,
           };
         }
         const start = new Date(
@@ -444,6 +438,7 @@ function extractDataFromAmionEmail(
             email,
             kind: 'error',
             message: date.message,
+            isPending: false,
           };
         }
         const newPerson = parsePerson(
@@ -459,6 +454,7 @@ function extractDataFromAmionEmail(
             email,
             kind: 'error',
             message: newPerson.message,
+            isPending: false,
           };
         }
         if (typeof oldPerson !== 'string') {
@@ -466,6 +462,7 @@ function extractDataFromAmionEmail(
             email,
             kind: 'error',
             message: oldPerson.message,
+            isPending: false,
           };
         }
         const amionShift = match[4];
@@ -484,6 +481,7 @@ function extractDataFromAmionEmail(
         email,
         kind: 'error',
         message: `No changes found in email.`,
+        isPending,
       };
     }
     return {
@@ -499,6 +497,7 @@ function extractDataFromAmionEmail(
       message: `Failed to extract uninterpreted changes from email: ${exceptionToString(
         e,
       )}.`,
+      isPending: false,
     };
   }
 }

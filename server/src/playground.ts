@@ -7,12 +7,16 @@ import {
   CallSchedule,
   Day,
   PeopleConfig,
+  Person,
+  PersonConfig,
   ROTATIONS,
   Rotation,
+  RotationConfig,
   RotationSchedule,
   ShiftKind,
   VacationSchedule,
   Week,
+  Year,
   isHolidayShift,
 } from './shared/types';
 
@@ -34,16 +38,17 @@ import {
   serializeActions,
 } from './shared/compute';
 import {
+  assertAcademicYear,
   assertCallSchedule,
   assertIsoDate,
   assertPerson,
 } from './shared/check-type.generated';
 import { assertRunType } from './check-type.generated';
-import { loadStorage, storeStorage } from './storage';
+import { getStorageLocation, loadStorage, storeStorage } from './storage';
 import fs from 'fs';
 import { exportSchedule } from './shared/export';
 import * as Diff from 'diff';
-import deepEqual from 'deep-equal';
+import { validateData } from 'shared/validate';
 
 // @check-type
 export type RunType =
@@ -56,7 +61,7 @@ export type RunType =
   | 'clear-weekdays'
   | 'diff-previous'
   | 'parse-email'
-  | 'day-history';
+  | 'generate-new-year';
 
 function runType(): RunType {
   if (process.argv.length < 3) return 'noop';
@@ -65,7 +70,7 @@ function runType(): RunType {
   return assertRunType(arg);
 }
 
-function findDate(data: CallSchedule, date: string): Day {
+function findDate(data: { weeks: Week[] }, date: string): Day {
   for (const week of data.weeks) {
     for (let idx = 0; idx < week.days.length; idx++) {
       const day = week.days[idx];
@@ -75,6 +80,36 @@ function findDate(data: CallSchedule, date: string): Day {
     }
   }
   throw new Error(`Tried to find ${date}, but doesn't exist.`);
+}
+
+function guessPeople({previousPeople, newInterns, override}: {previousPeople: PeopleConfig, newInterns: [string, PersonConfig][], override: (p: Person) => Year | undefined}): PeopleConfig {
+  const result: PeopleConfig = {};
+  for (const p in previousPeople) {
+    const personConfig = previousPeople[p];
+    
+    if (personConfig.year === 'C') {
+      // skip chiefs
+      continue;
+    }
+
+    result[p] = {
+      ...personConfig,
+      year: override(p) ?? mapEnum(personConfig.year, {
+        '1': '2',
+        '2': '3',
+        '3': 'S',
+        R: 'S',
+        S: 'C',
+        M: 'M',
+      }),
+    };
+    delete result[p].maternity;
+    delete result[p].priorityWeekendSaturday;
+  }
+  for (const [p, c] of newInterns) {
+    result[p] = c;
+  }
+  return result;
 }
 
 async function main() {
@@ -91,24 +126,257 @@ async function main() {
   let data = deepCopy(latest.callSchedule);
   console.log(`Latest = ${latest.name}`);
 
-  if (run === 'day-history') {
+  if (run === 'generate-new-year') {
     if (process.argv.length < 4) {
-      console.log(`Usage: yarn playground day-history <date>`);
+      console.log(`Usage: yarn playground generate-new-year <academic-year, e.g., '25'>`);
       return;
     }
-    const date = assertIsoDate(process.argv[3]);
-    let current = findDate(data, date);
-    console.log(current);
-    for (const version of [...storage.versions].reverse()) {
-      const day = findDate(version.callSchedule, date);
-      if (!deepEqual(current, day)) {
-        console.log(`${version.ts} - ${version.name} made changes:`);
-        console.log(day);
-        current = day;
+    const academicYear = assertAcademicYear(process.argv[3]);
+    const fullYear = [`20${academicYear}`, `20${parseInt(academicYear) + 1}`];
+    const prevFullYear = [`20${parseInt(academicYear) - 1}`, `20${academicYear}`];
+
+    const holidays = academicYear === '25' ? {
+      [assertIsoDate(`2025-07-04`)]: "Indep. Day",
+      [assertIsoDate(`2025-09-01`)]: "Labor Day",
+      [assertIsoDate(`2025-10-13`)]: "Indigenous Ppl",
+      [assertIsoDate(`2025-11-11`)]: "Veterans Day",
+      [assertIsoDate(`2025-11-27`)]: "Thanksgiving",
+      [assertIsoDate(`2025-11-28`)]: "Thanksgiving",
+      [assertIsoDate(`2025-12-25`)]: "Christmas",
+      [assertIsoDate(`2026-01-01`)]: "New Year",
+      [assertIsoDate(`2026-01-19`)]: "MLK Day",
+      [assertIsoDate(`2026-02-16`)]: "President's Day",
+      [assertIsoDate(`2026-05-25`)]: "Memorial Day",
+      [assertIsoDate(`2026-06-19`)]: "Juneteenth"
+    } : academicYear as string === '26' ? {
+      [assertIsoDate(`2026-07-04`)]: "Indep. Day",
+      [assertIsoDate(`2026-09-07`)]: "Labor Day",
+      [assertIsoDate(`2026-10-12`)]: "Indigenous Ppl",
+      [assertIsoDate(`2026-11-11`)]: "Veterans Day",
+      [assertIsoDate(`2026-11-26`)]: "Thanksgiving",
+      [assertIsoDate(`2026-11-27`)]: "Thanksgiving",
+      [assertIsoDate(`2026-12-25`)]: "Christmas",
+      [assertIsoDate(`2027-01-01`)]: "New Year",
+      [assertIsoDate(`2027-01-18`)]: "MLK Day",
+      [assertIsoDate(`2027-02-15`)]: "President's Day",
+      [assertIsoDate(`2027-05-31`)]: "Memorial Day",
+      [assertIsoDate(`2027-06-19`)]: "Juneteenth"
+    } : undefined;
+    if (!holidays) {
+      throw new Error(`Unknown academic year: ${academicYear}`);
+    }
+    
+    // Compute new year data
+    const firstDay = assertIsoDate(`20${academicYear}-06-30`);    
+    const lastDay = assertIsoDate(`20${parseInt(academicYear) + 1}-06-30`);
+    const weeks: Week[] = [];
+    let i = 0;
+    const day0 = nextDay(firstDay, -mapEnum(dateToDayOfWeek(firstDay), {
+      'mon': 1,
+      'tue': 2,
+      'wed': 3,
+      'thu': 4,
+      'fri': 5,
+      'sat': 6,
+      'sun': 7,
+    }));
+    while (nextDay(day0, i * 7) <= lastDay) {
+      const week: Week = {
+        sundayDate: nextDay(day0, i * 7),
+        days: []
+      };
+      for (let j = 0; j < 7; j++) {
+        const date = nextDay(week.sundayDate, j);
+        const dow = dateToDayOfWeek(date);
+        const isWeekday = dow !== 'fri' && dow !== 'sat';
+        const day: Day = {
+          date,
+          shifts: isWeekday ?
+          // Weekday regular shifts
+          {
+            weekday_south: '',
+          } : dow === 'sat' ?
+          // Saturday: no shifts
+          {} :
+          // Weekend regular shifts
+          {
+            weekend_south: '',
+            weekend_uw: '',
+            weekend_nwhsch: '',
+          },
+          backupShifts: isWeekday ?
+          // Weekday backup shifts
+          {
+            backup_weekday: '',
+          } : dow === 'sat' ?
+          // Saturday: no backup shifts
+          {} :
+          // Weekend backup shifts
+          {
+            backup_weekend: '',
+          },
+        };
+        week.days.push(day);
+      }
+      weeks.push(week);
+      i++;
+    }
+
+    // Override shifts for holidays
+    for (const [date, name] of Object.entries(holidays)) {
+      const dow = dateToDayOfWeek(date);
+
+      if (name == 'Indigenous Ppl') {
+        const monday = findDate({ weeks}, date);
+        monday.shifts.day_va = '';
+        continue;
+      }
+
+      // Monday holidays
+      if (dow === 'mon') {
+        const friday = findDate({ weeks}, nextDay(date, -3));
+        const sunday = findDate({ weeks}, nextDay(date, -1));
+        const monday = findDate({ weeks}, date);
+        sunday.shifts = {};
+        friday.shifts = {
+          weekend_nwhsch: '',
+          weekend_uw: '',
+          south_power: '',
+        };
+        monday.shifts = {
+          day_nwhsch: '',
+          day_uw: '',
+          south_24: '',
+        };
+      }
+
+      // Handled below
+      else if (name === 'Thanksgiving') {
+        continue;
+      }
+
+      // Wednesday/Thursday holidays
+      else if (dow === 'tue' || dow === 'wed' || dow === 'thu') {
+        const weekday = findDate({ weeks}, date);
+        weekday.shifts = {
+          day_nwhsch: '',
+          day_uw: '',
+          south_24: '',
+        };
+      }
+
+      else if (dow == 'fri') {
+        const friday = findDate({ weeks}, date);
+        friday.shifts = {
+          day_nwhsch: '',
+          day_uw: '',
+          south_power2: '',
+          weekend_nwhsch: '',
+          weekend_uw: '',
+        };
+      }
+      
+      // Not handled yet
+      else {
+        throw new Error(
+          `Don't know how to handle call for holiday ${name} on ${date} (dow = ${dow})`,
+        );
       }
     }
-    // Actually, doing this for real in the frontend.
-    return;
+
+    // Thanksgiving
+    {
+      const date = Object.entries(holidays).find(([date, name]) => name === 'Thanksgiving')![0];
+      const thursday = findDate({ weeks}, date);
+      // const friday = findDate(datePlusN(date, 1));
+      // const wednesday = findDate(datePlusN(date, -1));
+      // wednesday.shifts = {
+      //   thanksgiving_south: '',
+      // };
+      thursday.shifts = {
+        day_2x_nwhsch: '',
+        day_2x_uw: '',
+        south_34: '',
+      };
+      // friday.shifts = {
+      //   power_south: '',
+      //   power_nwhsch: '',
+      //   power_uw: '',
+      // };
+    }
+
+    const people = guessPeople({
+      previousPeople: data.people,
+      newInterns: [
+        ['SR', { name: { first: 'Shannon', last: 'Richardson' }, year: '1' }],
+        ['GV', { name: { first: 'Gabriela', last: 'Valentin' }, year: '1' }],
+        ['FM', { name: { first: 'Farshad', last: 'Moghaddam' }, year: '1' }],
+        ['KY', { name: { first: 'Karissa', last: 'Yamaguchi' }, year: '1' }],
+      ],
+      override: (p: Person) => {
+        if (p === 'MJ' || p === 'MB') return 'R';
+        return undefined;
+      }
+    });
+
+    const callTargetForYear = (year: Year) => Object.fromEntries(Object.keys(people).filter(p => people[p].year === year).map(p => [p, 0]));
+    const callTargetObj = {
+      1: {},
+      2: callTargetForYear('2'),
+      3: callTargetForYear('3'),
+      S: callTargetForYear('S'),
+      C: {},
+      R: callTargetForYear('R'),
+      M: callTargetForYear('M'),
+    }
+
+    // Copy over special days (will need adjustments)
+    const specialDays = Object.fromEntries(Object.keys(data.specialDays).map(k => [
+      k.replace(prevFullYear[1], fullYear[1]).replace(prevFullYear[0], fullYear[0]),
+      data.specialDays[k as IsoDate],
+    ]));
+
+    const newData: CallSchedule = {
+      // New data
+      firstDay,
+      lastDay,
+      weeks,
+      
+      // Copy over shift configs
+      shiftConfigs: data.shiftConfigs,
+      chiefShiftConfigs: data.chiefShiftConfigs,
+      callTargets: {
+        weekday: { ...callTargetObj },
+        weekend: { ...callTargetObj },
+      },
+
+      people,
+      holidays,
+      specialDays,
+      
+      vacations: {},
+      rotations: Object.fromEntries(Object.keys(people).map<[Person, RotationConfig[]]>(p => [p, [{
+        start: firstDay,
+        rotation: 'OFF',
+        chief: false,
+      }]])),
+    };
+
+    validateData(newData);
+    processCallSchedule(newData);
+
+    if (loadStorage({ noCheck: true, academicYear }).versions.length > 0) {
+      console.log(`'${getStorageLocation(academicYear)}' already exists. Aborting.`);
+      return;
+    }
+
+    storeStorage({
+      academicYear,
+      versions: [
+        scheduleToStoredSchedule(newData, `Created empty schedule for year ${academicYear}`, '<admin>'),
+      ],
+    });
+    return
   }
 
   if (run == 'parse-email') {

@@ -35,6 +35,7 @@ import {
 } from './check-type.generated';
 import { dateToIsoDate, isoDateToDate } from './optimized';
 import * as datefns from 'date-fns';
+import { validateData } from './validate';
 
 export function clearSchedule(data: CallSchedule): CallSchedule {
   for (const week of data.weeks) {
@@ -282,6 +283,7 @@ export function scheduleToStoredSchedule(
   name: string,
   lastEditedBy: string,
 ): StoredCallSchedule {
+  validateData(data);
   const processed = processCallSchedule(data);
   data.lastEditedBy = lastEditedBy;
   data.lastEditedAt = dateToIsoDatetime(new Date());
@@ -652,26 +654,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       softCrossCoverage: 0,
     },
     day2isR2EarlyCall: {},
-    callCounts: {
-      MAD: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
-      // Seniors
-      AA: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
-      DC: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
-      AJ: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
-      // Research
-      LL: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
-      CC: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
-      // Year 3
-      MB: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
-      RB: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
-      MJ: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
-      TM: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
-      // Year 2
-      GN: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
-      KO: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
-      CPu: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
-      NR: { weekday: 0, weekend: 0, sunday: 0, nf: 0 },
-    },
+    callCounts: Object.fromEntries(PEOPLE.filter(p => data.people[p].year !== '1').map(p => [p, { weekday: 0, weekend: 0, sunday: 0, nf: 0 }])),
     backupCallCounts: {
       LZ: deepCopy(emptyBackupCallCount),
       CP: deepCopy(emptyBackupCallCount),
@@ -947,6 +930,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
             ),
           );
           break;
+        case 'tue':
         case 'wed':
         case 'thu':
           if (holiday == 'Christmas' || holiday == 'New Year') {
@@ -954,8 +938,11 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           }
           shifts.push(...shiftsOfDay(nextDay(date, 0)));
           break;
+        case 'fri':
+          shifts.push(...shiftsOfDay(nextDay(date, 0)));
+          break;
         default:
-          throw new Error(`Didn't expect a holiday on ${dow}`);
+          throw new Error(`Didn't expect a holiday on ${dow} (${holiday}; ${date})`);
       }
     }
 
@@ -983,7 +970,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     for (const week of data.weeks) {
       for (const day of week.days) {
         if (exit) break;
-        const isNf = result.day2person2info[day.date][r2]?.rotation == 'NF';
+        const isNf = result.day2person2info[day.date]?.[r2]?.rotation === 'NF';
         if (isNf) {
           foundFirstNf = true;
           result.day2isR2EarlyCall[day.date] = true;

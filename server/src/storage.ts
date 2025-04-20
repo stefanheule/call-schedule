@@ -3,7 +3,7 @@ import { isLocal } from './common/error-reporting';
 import { AcademicYear, DEFAULT_ACADEMIC_YEAR, getAcademicYear, StoredCallSchedules } from './shared/types';
 import { assertStoredCallSchedules } from './shared/check-type.generated';
 
-function getStorageLocation(academicYear?: AcademicYear): string {
+export function getStorageLocation(academicYear?: AcademicYear): string {
   academicYear = getAcademicYear(academicYear);
   const suffix = academicYear === DEFAULT_ACADEMIC_YEAR ? '' : `-${academicYear}`;
   return isLocal()
