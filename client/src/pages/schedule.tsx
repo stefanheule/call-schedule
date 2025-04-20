@@ -478,7 +478,7 @@ function RenderCallScheduleImpl({
                     <Button
                       variant="outlined"
                       size="small"
-                      onClick={() => navigate(`${getAcademicYear(data.academicYear)}/history`)}
+                      onClick={() => navigate(`/${getAcademicYear(data.academicYear)}/history`)}
                     >
                       History
                     </Button>
@@ -745,12 +745,17 @@ function RenderCallScheduleImpl({
   );
 }
 
+const smallButtonStyle: React.CSSProperties = {
+  fontSize: '12px',
+  lineHeight: '12px',
+};
+
 function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) => void }) {
   const [data, setData] = useData();
   const [_2, setLocalData] = useLocalData();
 
-  const [detailDialogOpen, setDetailDialogOpen] = useState<'weekend' | 'weekday' | false>('weekday');
-  const [detailLog, setDetailLog] = useState('Ready');
+  const [detailDialogOpen, setDetailDialogOpen] = useState<'weekend' | 'weekday' | false>(false);
+  const [detailLog, setDetailLog] = useState('');
   const [progress, setProgress] = useState(0);
   const logRef = useRef<HTMLPreElement>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -996,11 +1001,12 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
         </Row>
       </Column>
     </Dialog>
-    <Row spacing="10px">
+    <Row spacing="5px">
       <ButtonWithConfirm
         variant="outlined"
         size="small"
         onClick={() => clearData('weekend')}
+        style={smallButtonStyle}
       >
         Clear weekends
       </ButtonWithConfirm>
@@ -1008,6 +1014,7 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
         variant="outlined"
         size="small"
         onClick={() => clearData('weekday')}
+        style={smallButtonStyle}
       >
         Clear weekdays
       </ButtonWithConfirm>
@@ -1015,19 +1022,21 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
         variant="outlined"
         size="small"
         onClick={() => clearData('holiday')}
+        style={smallButtonStyle}
       >
         Clear holidays
       </ButtonWithConfirm>
     </Row>
-    <Row spacing="10px">
+    <Row spacing="5px">
       <Button
         variant="outlined"
         size="small"
         onClick={() => {
           setDetailDialogOpen('weekend');
           setProgress(0);
-          setDetailLog('');
+          setDetailLog('Ready');
         }}
+        style={smallButtonStyle}
       >
         Auto-assign weekends
       </Button>
@@ -1037,8 +1046,9 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
         onClick={() => {
           setDetailDialogOpen('weekday');
           setProgress(0);
-          setDetailLog('');
+          setDetailLog('Ready');
         }}
+        style={smallButtonStyle}
       >
         Auto-assign weekdays
       </Button>

@@ -220,6 +220,7 @@ async function main() {
             );
             const newStorage: StoredCallSchedules = {
               versions: [...storage.versions, nextVersion],
+              academicYear: request.callSchedule.academicYear,
             };
             storeStorage(newStorage);
             res.send({ ts: nextVersion.ts });
@@ -279,6 +280,7 @@ async function main() {
             );
             const newStorage: StoredCallSchedules = {
               versions: [...storage.versions, nextVersion],
+              academicYear: request.callSchedule.academicYear,
             };
             storeStorage(newStorage);
             res.send({ kind: 'ok', newData: nextVersion.callSchedule });
@@ -516,6 +518,7 @@ ${summary}`;
                     );
                     const newStorage: StoredCallSchedules = {
                       versions: [...storage.versions, nextVersion],
+                      academicYear: nextVersion.callSchedule.academicYear,
                     };
                     storeStorage(newStorage);
                   }
