@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Column, Row } from '../common/flex';
 import { useAsync } from '../common/hooks';
 import { Heading, Text } from '../common/text';
-import { StoredCallScheduleMetaData } from '../shared/types';
+import { getAcademicYear, StoredCallScheduleMetaData } from '../shared/types';
 import { MainLayout } from './layout';
 import { rpcListCallSchedules, rpcLoadCallSchedules } from './rpc';
 import { LoadingIndicator } from '../common/loading';
@@ -29,10 +29,11 @@ export function HistoryPage() {
     if (schedules === undefined && data.isPublic !== true) {
       const result = await rpcListCallSchedules({
         kind: 'list',
+        academicYear: getAcademicYear(data.academicYear),
       });
       setSchedules(result.schedules);
     }
-  }, [schedules, data.isPublic]);
+  }, [schedules, data.isPublic, data.academicYear]);
 
   if (data.isPublic === true) {
     return <Ui />;
@@ -76,7 +77,7 @@ function RenderSchedules({
   isLoading: boolean;
   setIsLoading: (v: boolean) => void;
 }) {
-  const [, setData] = useData();
+  const [originalData, setData] = useData();
   const [errorSnackbar, setErrorSnackbar] = useState('');
   const navigate = useNavigate();
   return (
@@ -111,6 +112,7 @@ function RenderSchedules({
                 try {
                   const result = await rpcLoadCallSchedules({
                     ts: schedule.ts,
+                    academicYear: getAcademicYear(originalData.academicYear),
                   });
                   setData(result);
                   await navigate('/');

@@ -84,6 +84,7 @@ async function main() {
 
   const storage = loadStorage({
     noCheck: true,
+    academicYear: '24',
   });
 
   const latest = storage.versions[storage.versions.length - 1];

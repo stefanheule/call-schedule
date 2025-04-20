@@ -10,6 +10,7 @@ import { setupExpressServer } from './common/express';
 import {
   assertCallSchedule,
   assertGetDayHistoryRequest,
+  assertListCallSchedulesRequest,
   assertLoadCallScheduleRequest,
   assertSaveCallScheduleRequest,
 } from './shared/check-type.generated';
@@ -26,6 +27,7 @@ import {
 } from './shared/ports';
 import {
   Action,
+  getAcademicYearFromIsoDate,
   GetDayHistoryResponse,
   ListCallSchedulesResponse,
   LoadCallScheduleResponse,
@@ -46,6 +48,7 @@ import {
 import { sendPushoverMessage } from './common/notifications';
 import deepEqual from 'deep-equal';
 import { sendEmail } from './common/email-rpc';
+import { dateToIsoDate } from 'shared/optimized';
 
 export const AXIOS_PROPS = {
   isLocal: true,
@@ -68,7 +71,7 @@ async function main() {
         ) => {
           try {
             const request = assertLoadCallScheduleRequest(req.body);
-            const storage = loadStorage({ noCheck: true });
+            const storage = loadStorage({ noCheck: true, academicYear: request.academicYear });
             let result;
             if (request.ts) {
               result = storage.versions.find(v => v.ts === request.ts);
@@ -109,6 +112,7 @@ async function main() {
             const request = assertSaveCallScheduleRequest(req.body);
             const storage = loadStorage({
               noCheck: true,
+              academicYear: request.callSchedule.academicYear,
             });
             const last =
               storage.versions[storage.versions.length - 1]?.callSchedule;
@@ -157,6 +161,7 @@ async function main() {
             const request = assertSaveCallScheduleRequest(req.body);
             const storage = loadStorage({
               noCheck: true,
+              academicYear: request.callSchedule.academicYear,
             });
             const last =
               storage.versions[storage.versions.length - 1]?.callSchedule;
@@ -201,8 +206,10 @@ async function main() {
           res: Response<ListCallSchedulesResponse | string>,
         ) => {
           try {
+            const request = assertListCallSchedulesRequest(req.body);
             const storage = loadStorage({
               noCheck: true,
+              academicYear: request.academicYear,
             });
             res.send({
               schedules: storage.versions.map(v => ({
@@ -236,6 +243,7 @@ async function main() {
             const request = assertGetDayHistoryRequest(req.body);
             const storage = loadStorage({
               noCheck: true,
+              academicYear: request.academicYear,
             });
             const versions = [];
             for (const version of storage.versions) {
@@ -325,6 +333,7 @@ async function main() {
               try {
                 const storage = loadStorage({
                   noCheck: true,
+                  academicYear: getAcademicYearFromIsoDate(dateToIsoDate(new Date())),
                 });
                 const last = assertNonNull(
                   storage.versions[storage.versions.length - 1]?.callSchedule,

@@ -35,6 +35,7 @@ import {
   HOSPITAL_ORDER,
   GetDayHistoryResponse,
   Day,
+  getAcademicYear,
 } from '../shared/types';
 import {
   useData,
@@ -76,7 +77,6 @@ import {
   serializeActions,
   diffIssues,
   processCallSchedule,
-  findDay,
 } from '../shared/compute';
 import { useHotkeys } from 'react-hotkeys-hook';
 import Snackbar from '@mui/material/Snackbar';
@@ -428,7 +428,7 @@ function RenderCallScheduleImpl({
                     <Button
                       variant="outlined"
                       size="small"
-                      onClick={() => navigate('/history')}
+                      onClick={() => navigate(`${getAcademicYear(data.academicYear)}/history`)}
                     >
                       History
                     </Button>
@@ -1481,9 +1481,9 @@ function HistoryModal({ day, onClose }: { day: IsoDate, onClose: () => void }) {
   const id = processed.day2weekAndDay[day];
   const [history, setHistory] = useState<GetDayHistoryResponse | undefined>(undefined);
   useAsync(async (isMounted) => {
-    const h = await rpcGetDayHistory({ day });
+    const h = await rpcGetDayHistory({ day, academicYear: getAcademicYear(data.academicYear) });
     setHistory(h);
-  }, [day]);
+  }, [day, data.academicYear]);
   return <Column style={{ padding: '20px' }} spacing="10px">
       <Row>
         <Heading>History of {datefns.format(isoDateToDate(day), 'EEEE, MMMM d, yyyy')}</Heading>

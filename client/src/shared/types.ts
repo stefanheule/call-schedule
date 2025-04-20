@@ -1,3 +1,4 @@
+import { assertAcademicYear } from './check-type.generated';
 import { IsoDate, IsoDatetime, mapEnum } from './common/check-type';
 
 // @check-type:entire-file
@@ -209,7 +210,33 @@ export const EDITOR_TYPES = {
   'backup-shifts': `Partial<Record<ShiftKind, '' | Chief>>;`,
 } as const;
 
+export const ACADEMIC_YEARS = ['24', '25'] as const;
+export type AcademicYear = (typeof ACADEMIC_YEARS)[number];
+export const DEFAULT_ACADEMIC_YEAR = '24';
+
+export function getAcademicYear(data: {academicYear?: AcademicYear} | AcademicYear | undefined): AcademicYear {
+  if (data === undefined) {
+    return DEFAULT_ACADEMIC_YEAR;
+  }
+  if (typeof data === 'string') {
+    return data;
+  }
+  if (data.academicYear) {
+    return data.academicYear;
+  }
+  return DEFAULT_ACADEMIC_YEAR;
+}
+export function getAcademicYearFromIsoDate(isoDate: IsoDate): AcademicYear {
+  const year = parseInt(isoDate.split('-')[0]);
+  const month = parseInt(isoDate.split('-')[1]);
+  if (month >= 7) {
+    return assertAcademicYear(`${year}/${year + 1}`);
+  }
+  return assertAcademicYear(`${year - 1}/${year}`);
+}
+
 export type CallSchedule = {
+  academicYear?: AcademicYear;
   lastEditedBy?: string;
   lastEditedAt?: IsoDatetime;
 
@@ -229,6 +256,8 @@ export type CallSchedule = {
 
   isPublic?: boolean;
   currentUser?: string;
+
+  isPubliclyVisible?: boolean;
 };
 
 export type RotationConfig = RotationDetails & {
@@ -454,10 +483,12 @@ export type StoredCallSchedule = StoredCallScheduleMetaData & {
 
 export type StoredCallSchedules = {
   versions: StoredCallSchedule[];
+  academicYear?: AcademicYear;
 };
 
 export type LoadCallScheduleRequest = {
   ts?: IsoDatetime;
+  academicYear: AcademicYear;
 };
 
 export type LoadCallScheduleResponse = CallSchedule;
@@ -483,6 +514,7 @@ export type SaveFullCallScheduleResponse =
 
 export type ListCallSchedulesRequest = {
   kind: 'list';
+  academicYear: AcademicYear;
 };
 
 export type ListCallSchedulesResponse = {
@@ -491,6 +523,7 @@ export type ListCallSchedulesResponse = {
 
 export type GetDayHistoryRequest = {
   day: IsoDate;
+  academicYear: AcademicYear;
 };
 
 export type GetDayHistoryResponse = {

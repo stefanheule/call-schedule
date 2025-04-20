@@ -2,13 +2,14 @@ import React, { useEffect } from 'react';
 import { MainLayout } from './pages/layout';
 import { DataContext, LocalDataContext, useData } from './pages/data-context';
 import { RenderCallSchedule } from './pages/schedule';
-import { CallSchedule, LocalData } from './shared/types';
+import { AcademicYear, CallSchedule, LocalData } from './shared/types';
 import { DndContext } from '@dnd-kit/core';
 import { processCallSchedule } from './shared/compute';
 import {
   RouteObject,
   RouterProvider,
   createBrowserRouter,
+  useNavigate,
 } from 'react-router-dom';
 import { HistoryPage } from './pages/history';
 import { LoadingIndicator } from './common/loading';
@@ -25,14 +26,43 @@ export const ROUTES: (RouteObject & {
   {
     path: '/',
     navigationTitle: 'Call Schedule',
-    element: <Ui />,
+    element: <Redirect to="/24" />,
   },
   {
-    path: '/history',
+    path: '/24',
+    navigationTitle: 'Call Schedule',
+    element: <App academicYear={'24'} path='schedule' />,
+  },
+  {
+    path: '/25',
+    navigationTitle: 'Call Schedule',
+    element: <App academicYear={'25'} path='schedule' />,
+  },
+  {
+    path: '/24/history',
     navigationTitle: 'History',
-    element: <HistoryPage />,
+    element: <App academicYear={'24'} path='history' />,
+  },
+  {
+    path: '/25/history',
+    navigationTitle: 'History',
+    element: <App academicYear={'25'} path='history' />,
   },
 ];
+
+
+export function Redirect(props: { to: string }): React.ReactNode {
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (props.to.startsWith('http://') || props.to.startsWith('https://')) {
+      window.location.href = props.to;
+      return;
+    }
+    void navigate(props.to, { replace: true });
+  }, [navigate, props.to]);
+  return <></>;
+}
+
 
 const router = createBrowserRouter(ROUTES);
 
@@ -63,7 +93,7 @@ export function Ui() {
   );
 }
 
-function App() {
+function App({ academicYear, path }: { academicYear: AcademicYear, path: 'history' | 'schedule' }) {
   const [data, setData] = React.useState<CallSchedule | undefined>(undefined);
   const [initialData, setInitialData] = React.useState<
     CallSchedule | undefined
@@ -71,20 +101,20 @@ function App() {
   const [error, setError] = React.useState('');
 
   useAsync(async () => {
-    if (data === undefined) {
-      try {
-        const d = await rpcLoadCallSchedules({});
-        setData(d);
-        setInitialData(deepCopy(d));
-      } catch (e) {
-        console.log(e);
-        setError(`Failed to fetch latest schedule. Please reload the page.`);
-      }
+    try {
+      const d = await rpcLoadCallSchedules({ academicYear });
+      setData(d);
+      setInitialData(prev => {
+        if (prev === undefined || prev.academicYear !== academicYear) {
+          return deepCopy(d);
+        }
+        return prev;
+      });
+    } catch (e) {
+      console.log(e);
+      setError(`Failed to fetch latest schedule. Please reload the page.`);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  console.log('render');
+  }, [academicYear]);
 
   if (error !== '') {
     return (
@@ -115,9 +145,14 @@ function App() {
         processed,
       }}
     >
-      <RouterProvider router={router} />
+      {path === 'history' && <HistoryPage />}
+      {path === 'schedule' && <Ui />}
     </DataContext.Provider>
   );
 }
 
-export default App;
+function AppRouter() {
+  return <RouterProvider router={router} />;
+}
+
+export default AppRouter;
