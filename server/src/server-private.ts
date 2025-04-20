@@ -48,7 +48,7 @@ import {
 import { sendPushoverMessage } from './common/notifications';
 import deepEqual from 'deep-equal';
 import { sendEmail } from './common/email-rpc';
-import { dateToIsoDate } from 'shared/optimized';
+import { dateToIsoDate } from './shared/optimized';
 
 export const AXIOS_PROPS = {
   isLocal: true,

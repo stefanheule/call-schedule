@@ -193,7 +193,10 @@ export const EDITOR_TYPES = {
   Rotation: `'UW' | 'VA' | 'HMC' | 'SCH' | 'NWH' | 'Alaska' | 'Research' | 'NF' | 'Andro' | 'OFF';`,
   BackupShiftConfig: `{ kind: BackupShiftKind; name: string; nameLong: string; amionName?: string; };`,
   RotationConfig: `{ rotation: Rotation; start: IsoDate; chief: boolean; };`,
-  Vacation: `IsoDate | { start: IsoDate; length: number; };`,
+  Vacation: `// Example: '2024-10-07' or { start: '2024-11-25', length: 3 }
+// The date should be the Monday of the week of the vacation.
+// Split weeks use the { start, length } format, and should only consider weekdays. E.g. above is Mon (2024-11-25) through Wed (3 days)
+IsoDate | { start: IsoDate; length: number; };`,
   SingleCallTarget: `Record<Year, Partial<Record<Person, number>>>;`,
   CallPoolPerson: `string;`,
   Chief: `string;`,
