@@ -58,6 +58,9 @@ const CHIEF_EMAILS: Record<AcademicYear, string[]> = {
   '24': [STEFAN, "lisazhang0928@hotmail.com", "dibo900@gmail.com", "tovalweiss@gmail.com", "chloe92@gmail.com"],
   '25': [STEFAN],
 }
+const MAIN_PUBLIC_VERSION: AcademicYear = '24';
+const PUBLICLY_VISIBLE_YEARS: AcademicYear[] = ['24'];
+
 
 function getAcademicYearsForUser(user: string): readonly AcademicYear[] {
   if (user === STEFAN || user === 'local') {
@@ -79,6 +82,26 @@ async function main() {
     name: IS_PUBLIC ? 'call-schedule-public' : 'call-schedule-private',
     port: IS_PUBLIC ? SERVER_PUBLIC_PORT : SERVER_PRIVATE_PORT,
     routeSetup: async app => {
+      app.get('/', async (req, res) => {
+
+        if (!IS_PUBLIC) {
+          const user = extractAuthedUser(req);
+          if (user === STEFAN || user === 'local') {
+            res.redirect('/25');
+            return;
+          }
+          const years = getAcademicYearsForUser(user);
+          if (years.length === 0) {
+            res.status(403).send(`Forbidden`);
+            return;
+          }
+          res.redirect(`/${years[years.length - 1]}`);
+        } else {
+          res.redirect(`/${MAIN_PUBLIC_VERSION}`);
+        }
+        return;
+      });
+
       app.post(
         '/api/load-call-schedule',
         async (
@@ -88,6 +111,15 @@ async function main() {
           try {
             const request = assertLoadCallScheduleRequest(req.body);
             const storage = loadStorage({ noCheck: true, academicYear: request.academicYear });
+
+            if (IS_PUBLIC && !PUBLICLY_VISIBLE_YEARS.includes(request.academicYear)) {
+              const result: LoadCallScheduleResponse = {
+                kind: 'not-available',
+              }
+              res.status(200).send(result);
+              return;
+            }
+
             let result;
             if (request.ts) {
               result = storage.versions.find(v => v.ts === request.ts);
@@ -112,11 +144,8 @@ async function main() {
 
             result.callSchedule.currentUser = user;
 
-            // TODO: update this to whatever you want to display at any given time.
-            result.callSchedule.isPubliclyVisible = request.academicYear <= '24';
-            result.callSchedule.menuItems = IS_PUBLIC ? [
-              { year: '24', },
-            ] : getAcademicYearsForUser(user).map(year => ({ year }));
+            result.callSchedule.isPubliclyVisible = PUBLICLY_VISIBLE_YEARS.includes(request.academicYear);
+            result.callSchedule.menuItems = IS_PUBLIC ? PUBLICLY_VISIBLE_YEARS.map(year => ({ year })) : getAcademicYearsForUser(user).map(year => ({ year }));
 
             result.callSchedule.academicYear = request.academicYear;
 
@@ -515,23 +544,6 @@ ${summary}`;
             }
           },
         );
-      }
-
-      if (!IS_PUBLIC) {
-        app.get('/', async (req, res) => {
-          const user = extractAuthedUser(req);
-          if (user === STEFAN || user === 'local') {
-            res.redirect('/25');
-            return;
-          }
-          const years = getAcademicYearsForUser(user);
-          if (years.length === 0) {
-            res.status(403).send(`Forbidden`);
-            return;
-          }
-          res.redirect(`/${years[years.length - 1]}`);
-          return;
-        });
       }
 
       if (!isLocal()) {

@@ -239,6 +239,7 @@ export function getAcademicYearFromIsoDate(isoDate: IsoDate): AcademicYear {
 }
 
 export type CallSchedule = {
+  kind?: 'call-schedule';
   academicYear?: AcademicYear;
   lastEditedBy?: string;
   lastEditedAt?: IsoDatetime;
@@ -495,7 +496,9 @@ export type LoadCallScheduleRequest = {
   academicYear: AcademicYear;
 };
 
-export type LoadCallScheduleResponse = CallSchedule;
+export type LoadCallScheduleResponse = CallSchedule | {
+  kind: 'not-available';
+};
 
 export type SaveCallScheduleRequest = {
   callSchedule: CallSchedule;

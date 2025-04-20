@@ -105,8 +105,13 @@ function App({ academicYear, path }: { academicYear: AcademicYear, path: 'histor
       if (data !== undefined && data.academicYear === academicYear) {
         setData(undefined);
         setInitialData(undefined);
+        setError('');
       }
       const d = await rpcLoadCallSchedules({ academicYear });
+      if (d.kind === 'not-available') {
+        setError(`This schedule is not available.`);
+        return;
+      }
       setData(d);
       setInitialData(prev => {
         if (prev === undefined || prev.academicYear !== academicYear) {
