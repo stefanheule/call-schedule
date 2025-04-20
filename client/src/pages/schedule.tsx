@@ -82,7 +82,7 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import Snackbar from '@mui/material/Snackbar';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
-import { useNavigate } from 'react-router-dom';
+import { data, useNavigate } from 'react-router-dom';
 import { rpcGetDayHistory, rpcSaveCallSchedules } from './rpc';
 import { LoadingIndicator } from '../common/loading';
 import { VList, VListHandle } from 'virtua';
@@ -126,6 +126,8 @@ function showEditRawData(data: CallSchedule, _localData: LocalData): boolean {
 
 export function RenderCallSchedule() {
   const [copyPasteSnackbar, setCopyPasteSnackbar] = useState('');
+  const [data] = useData();
+  const navigate = useNavigate();
   return (
     <PersonPickerProvider>
       <ConfigEditorProvider setCopyPasteSnackbar={setCopyPasteSnackbar}>
@@ -135,9 +137,38 @@ export function RenderCallSchedule() {
               height: '24px',
               borderBottom: '1px solid #ccc',
               width: '100%',
+              display: 'flex',
+              alignItems: 'center',
             }}
           >
-            <Text>Hello</Text>
+            <Row
+              style={{
+                marginLeft: '15px',
+                height: '100%',
+              }}
+            >
+              {data.menuItems?.map(item => (
+                <div
+                  key={item.year}
+                  style={{
+                    padding: '0 15px',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    borderBottom: item.year === getAcademicYear(data.academicYear) ? '2px solid #1976d2' : undefined,
+                  }}
+                  onClick={async () => {
+                    if (item.year === getAcademicYear(data.academicYear)) {
+                      return;
+                    }
+                    await navigate(`/${item.year}`);
+                  }}
+                >
+                  <Text style={{ fontSize: '13px', lineHeight: '11px' }}>AY20{item.year}</Text>
+                </div>
+              ))}
+            </Row>
           </Row>
           <Row style={{ height: '100%', overflowY: 'hidden', margin: '15px', marginTop: '8px' }}>
             <RenderCallScheduleImpl

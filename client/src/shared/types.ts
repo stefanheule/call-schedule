@@ -261,6 +261,7 @@ export type CallSchedule = {
   currentUser?: string;
 
   isPubliclyVisible?: boolean;
+  menuItems?: { year: AcademicYear }[];
 };
 
 export type RotationConfig = RotationDetails & {

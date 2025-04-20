@@ -360,6 +360,8 @@ async function main() {
         rotation: 'OFF',
         chief: false,
       }]])),
+
+      academicYear,
     };
 
     validateData(newData);

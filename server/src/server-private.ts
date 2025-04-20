@@ -86,7 +86,14 @@ async function main() {
 
             result.callSchedule.isPublic = IS_PUBLIC;
             result.callSchedule.currentUser = extractAuthedUser(req);
+
+            // TODO: update this to whatever you want to display at any given time.
             result.callSchedule.isPubliclyVisible = request.academicYear <= '24';
+            result.callSchedule.menuItems = IS_PUBLIC ? [
+              { year: '24', },
+            ] : [{ year: '24', },{ year: '25', }];
+
+            result.callSchedule.academicYear = request.academicYear;
 
             const checkedSchedule = assertCallSchedule(result.callSchedule);
             validateData(checkedSchedule);

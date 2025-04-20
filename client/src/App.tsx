@@ -102,6 +102,10 @@ function App({ academicYear, path }: { academicYear: AcademicYear, path: 'histor
 
   useAsync(async () => {
     try {
+      if (data !== undefined && data.academicYear !== academicYear) {
+        setData(undefined);
+        setInitialData(undefined);
+      }
       const d = await rpcLoadCallSchedules({ academicYear });
       setData(d);
       setInitialData(prev => {
