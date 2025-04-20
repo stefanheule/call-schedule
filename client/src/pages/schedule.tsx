@@ -753,6 +753,8 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
   const [detailLog, setDetailLog] = useState('Ready');
   const [progress, setProgress] = useState(0);
   const logRef = useRef<HTMLPreElement>(null);
+  const [isRunning, setIsRunning] = useState(false);
+  const cancelRef = useRef(false);
 
   // Add effect to auto-scroll when detailLog changes
   useEffect(() => {
@@ -806,6 +808,8 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
   }
   
   async function autoAssignData(type: 'weekend' | 'weekday') {
+    cancelRef.current = false;
+    setIsRunning(true);
     const processed = processCallSchedule(data);
     const newData = deepCopy(data);
     setProgress(0);
@@ -813,91 +817,121 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
     function addLog(s: string) {
       setDetailLog(prev => prev === '' ? s : `${prev}\n${s}`);
     }
-    switch (type) {
-      case 'weekend': {
-        let total = 0;
-        for (const week of data.weeks) {
-          const friday = week.days[5];
-          if (dateToDayOfWeek(friday.date) !== 'fri')
-            throw new Error(`Should be friday: ${dateToDayOfWeek(friday.date)}`);
-          if (friday.date < data.firstDay || friday.date > data.lastDay) continue;
-          for (const [shift, assigned] of Object.entries(friday.shifts)) {
-            if (assigned) continue;
-            if (isHolidayShift(processed, friday.date, shift)) continue;
-            total += 1;
-          }
-        }
-        let done = 0;
-        for (const week of data.weeks) {
-          const friday = week.days[5];
-          if (dateToDayOfWeek(friday.date) !== 'fri')
-            throw new Error(`Should be friday: ${dateToDayOfWeek(friday.date)}`);
-    
-          if (friday.date < data.firstDay || friday.date > data.lastDay) continue;
-          for (const [shift, assigned] of Object.entries(friday.shifts)) {
-            if (assigned) continue;
-
-            if (isHolidayShift(processed, friday.date, shift)) continue;
-    
-            const inference = inferShift(data, processed, friday.date, shift, {
-              enableLog: true,
-              log: (s: string) => addLog(s),
-              skipUnavailablePeople: true,
-            });
-            done += 1;
-            setProgress(done / total);
-    
-            if (inference.best) {
-              friday.shifts[shift] = inference.best.person;
+    try {
+      switch (type) {
+        case 'weekend': {
+          let total = 0;
+          for (const week of data.weeks) {
+            const friday = week.days[5];
+            if (dateToDayOfWeek(friday.date) !== 'fri')
+              throw new Error(`Should be friday: ${dateToDayOfWeek(friday.date)}`);
+            if (friday.date < data.firstDay || friday.date > data.lastDay) continue;
+            for (const [shift, assigned] of Object.entries(friday.shifts)) {
+              if (assigned) continue;
+              if (isHolidayShift(processed, friday.date, shift)) continue;
+              total += 1;
             }
           }
-        }
-        break;
-      }
-      case 'weekday':{
-        let total = 0;
-        for (const week of newData.weeks) {
-          for (const day of week.days) {
-            if (day.date < newData.firstDay || day.date > newData.lastDay) continue;
-            const shift: ShiftKind = 'weekday_south';
-            if (!(shift in day.shifts)) continue;
-            if (day.shifts[shift]) continue;
-            if (isHolidayShift(processed, day.date, shift)) continue;
-            total += 1;
-          }
-        }
-        let done = 0;
-        for (const week of newData.weeks) {
-          for (const day of week.days) {
-            if (day.date < newData.firstDay || day.date > newData.lastDay) continue;
-            const shift: ShiftKind = 'weekday_south';
-            if (!(shift in day.shifts)) continue;
-            if (day.shifts[shift]) continue;
-            if (isHolidayShift(processed, day.date, shift)) continue;
-
-            const inference = inferShift(newData, processed, day.date, shift, {
-              enableLog: true,
-              log: (s: string) => addLog(s),
-              skipUnavailablePeople: true,
-            });
-            await sleep(100);
-            done += 1;
-            setProgress(done / total);
-
-            if (inference.best) {
-              day.shifts[shift] = inference.best.person;
+          let done = 0;
+          for (const week of data.weeks) {
+            if (cancelRef.current) {
+              addLog('\n\nOperation cancelled by user.');
+              return;
+            }
+            
+            const friday = week.days[5];
+            if (dateToDayOfWeek(friday.date) !== 'fri')
+              throw new Error(`Should be friday: ${dateToDayOfWeek(friday.date)}`);
+      
+            if (friday.date < data.firstDay || friday.date > data.lastDay) continue;
+            for (const [shift, assigned] of Object.entries(friday.shifts)) {
+              if (cancelRef.current) {
+                addLog('\n\nOperation cancelled by user.');
+                return;
+              }
+              
+              if (assigned) continue;
+              if (isHolidayShift(processed, friday.date, shift)) continue;
+      
+              const inference = inferShift(data, processed, friday.date, shift, {
+                enableLog: true,
+                log: (s: string) => addLog(s),
+                skipUnavailablePeople: true,
+              });
+              done += 1;
+              setProgress(done / total);
+      
+              if (inference.best) {
+                friday.shifts[shift] = inference.best.person;
+              }
             }
           }
+          break;
         }
-        break;
+        case 'weekday':{
+          let total = 0;
+          for (const week of newData.weeks) {
+            for (const day of week.days) {
+              if (day.date < newData.firstDay || day.date > newData.lastDay) continue;
+              const shift: ShiftKind = 'weekday_south';
+              if (!(shift in day.shifts)) continue;
+              if (day.shifts[shift]) continue;
+              if (isHolidayShift(processed, day.date, shift)) continue;
+              total += 1;
+            }
+          }
+          let done = 0;
+          for (const week of newData.weeks) {
+            if (cancelRef.current) {
+              addLog('\n\nOperation cancelled by user.');
+              return;
+            }
+            
+            for (const day of week.days) {
+              if (cancelRef.current) {
+                addLog('\n\nOperation cancelled by user.');
+                return;
+              }
+              
+              if (day.date < newData.firstDay || day.date > newData.lastDay) continue;
+              const shift: ShiftKind = 'weekday_south';
+              if (!(shift in day.shifts)) continue;
+              if (day.shifts[shift]) continue;
+              if (isHolidayShift(processed, day.date, shift)) continue;
+
+              const inference = inferShift(newData, processed, day.date, shift, {
+                enableLog: true,
+                log: (s: string) => addLog(s),
+                skipUnavailablePeople: true,
+              });
+              done += 1;
+              setProgress(done / total);
+
+              if (inference.best) {
+                day.shifts[shift] = inference.best.person;
+              }
+            }
+          }
+          break;
+        }
       }
+      addLog('\n\nDone!');
+      updateState(newData);
+    } finally {
+      setIsRunning(false);
     }
-    addLog('\n\nDone!');
-    updateState(newData);
   }
   
   return <Column spacing={5} style={{ marginTop: '5px'}}>
-    <Dialog open={detailDialogOpen !== false} onClose={() => setDetailDialogOpen(false)}>
+    <Dialog open={detailDialogOpen !== false} onClose={() => {
+      if (isRunning) {
+        // If running, set cancel flag but don't close immediately
+        cancelRef.current = true;
+      } else {
+        // If not running, close the dialog
+        setDetailDialogOpen(false);
+      }
+    }}>
       <Column style={{
         padding: '20px',
         minWidth: '450px',
@@ -939,18 +973,26 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
           {detailLog}
         </pre>
         <Row spacing="10px">
-        <Button variant="outlined" onClick={() => setDetailDialogOpen(false)}>
-            Close
+        <Button variant="outlined" onClick={() => {
+          if (isRunning) {
+            cancelRef.current = true;
+          } else {
+            setDetailDialogOpen(false);
+          }
+        }}>
+            {isRunning ? "Cancel" : "Close"}
           </Button>
-          <Button variant="contained" onClick={async () => {
-            if (detailDialogOpen === 'weekend') {
-              await autoAssignData('weekend');
-            } else if (detailDialogOpen === 'weekday') {
-              await autoAssignData('weekday');
-            }
-          }}>
-            Start
-          </Button>
+          {!isRunning && (
+            <Button variant="contained" onClick={async () => {
+              if (detailDialogOpen === 'weekend') {
+                await autoAssignData('weekend');
+              } else if (detailDialogOpen === 'weekday') {
+                await autoAssignData('weekday');
+              }
+            }}>
+              Start
+            </Button>
+          )}
         </Row>
       </Column>
     </Dialog>
