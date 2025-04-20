@@ -4,9 +4,11 @@ import { LoadingIndicator } from '../common/loading';
 export function MainLayout({
   children,
   title,
+  noMargin,
 }: {
   title?: string;
   children?: React.ReactNode;
+  noMargin?: boolean;
 }): React.ReactNode {
   const margin = 15;
   return (
@@ -19,8 +21,8 @@ export function MainLayout({
       )}
       <div
         style={{
-          margin: `${margin}px`,
-          height: `calc(100vh - ${2 * margin}px)`,
+          margin: noMargin ? '0px' : `${margin}px`,
+          height: noMargin ? '100vh' : `calc(100vh - ${2 * margin}px)`,
         }}
       >
         {children}

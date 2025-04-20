@@ -129,10 +129,23 @@ export function RenderCallSchedule() {
   return (
     <PersonPickerProvider>
       <ConfigEditorProvider setCopyPasteSnackbar={setCopyPasteSnackbar}>
-        <RenderCallScheduleImpl
-          copyPasteSnackbar={copyPasteSnackbar}
-          setCopyPasteSnackbar={setCopyPasteSnackbar}
-        />
+        <Column style={{ height: '100%' }}>
+          <Row
+            style={{
+              height: '24px',
+              borderBottom: '1px solid #ccc',
+              width: '100%',
+            }}
+          >
+            <Text>Hello</Text>
+          </Row>
+          <Row style={{ height: '100%', overflowY: 'hidden', margin: '15px', marginTop: '8px' }}>
+            <RenderCallScheduleImpl
+              copyPasteSnackbar={copyPasteSnackbar}
+              setCopyPasteSnackbar={setCopyPasteSnackbar}
+            />
+          </Row>
+        </Column>
       </ConfigEditorProvider>
     </PersonPickerProvider>
   );

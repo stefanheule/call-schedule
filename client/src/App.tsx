@@ -85,7 +85,7 @@ export function Ui() {
   return (
     <LocalDataContext.Provider value={{ localData, setLocalData }}>
       <DndContext>
-        <MainLayout>
+        <MainLayout noMargin>
           <RenderCallSchedule />
         </MainLayout>
       </DndContext>
