@@ -26,7 +26,9 @@ import {
   SERVER_PUBLIC_PORT,
 } from './shared/ports';
 import {
+  AcademicYear,
   Action,
+  ALL_ACADEMIC_YEARS,
   getAcademicYearFromIsoDate,
   GetDayHistoryResponse,
   ListCallSchedulesResponse,
@@ -49,6 +51,20 @@ import { sendPushoverMessage } from './common/notifications';
 import deepEqual from 'deep-equal';
 import { sendEmail } from './common/email-rpc';
 import { dateToIsoDate } from './shared/optimized';
+
+// NEWYEAR: add chiefs here
+const STEFAN = 'stefanheule@gmail.com';
+const CHIEF_EMAILS: Record<AcademicYear, string[]> = {
+  '24': [STEFAN, "lisazhang0928@hotmail.com", "dibo900@gmail.com", "tovalweiss@gmail.com", "chloe92@gmail.com"],
+  '25': [STEFAN],
+}
+
+function getAcademicYearsForUser(user: string): readonly AcademicYear[] {
+  if (user === STEFAN || user === 'local') {
+    return ALL_ACADEMIC_YEARS;
+  }
+  return ALL_ACADEMIC_YEARS.filter(year => CHIEF_EMAILS[year].includes(user));
+}
 
 export const AXIOS_PROPS = {
   isLocal: true,
@@ -85,13 +101,22 @@ async function main() {
             }
 
             result.callSchedule.isPublic = IS_PUBLIC;
-            result.callSchedule.currentUser = extractAuthedUser(req);
+            
+            const user = extractAuthedUser(req);
+            if (!IS_PUBLIC) {
+              if (!getAcademicYearsForUser(user).includes(request.academicYear)) {
+                res.status(403).send(`Forbidden`);
+                return;
+              }
+            }
+
+            result.callSchedule.currentUser = user;
 
             // TODO: update this to whatever you want to display at any given time.
             result.callSchedule.isPubliclyVisible = request.academicYear <= '24';
             result.callSchedule.menuItems = IS_PUBLIC ? [
               { year: '24', },
-            ] : [{ year: '24', },{ year: '25', }];
+            ] : getAcademicYearsForUser(user).map(year => ({ year }));
 
             result.callSchedule.academicYear = request.academicYear;
 
@@ -119,6 +144,13 @@ async function main() {
               return;
             }
             const request = assertSaveCallScheduleRequest(req.body);
+
+            const user = extractAuthedUser(req);
+            if (!getAcademicYearsForUser(user).includes(request.callSchedule.academicYear ?? 'foo' as unknown as AcademicYear)) {
+              res.status(403).send(`Forbidden`);
+              return;
+            }
+
             const storage = loadStorage({
               noCheck: true,
               academicYear: request.callSchedule.academicYear,
@@ -168,6 +200,13 @@ async function main() {
               return;
             }
             const request = assertSaveCallScheduleRequest(req.body);
+
+            const user = extractAuthedUser(req);
+            if (!getAcademicYearsForUser(user).includes(request.callSchedule.academicYear ?? 'foo' as unknown as AcademicYear)) {
+              res.status(403).send(`Forbidden`);
+              return;
+            }
+
             const storage = loadStorage({
               noCheck: true,
               academicYear: request.callSchedule.academicYear,
@@ -216,6 +255,13 @@ async function main() {
         ) => {
           try {
             const request = assertListCallSchedulesRequest(req.body);
+
+            const user = extractAuthedUser(req);
+            if (!getAcademicYearsForUser(user).includes(request.academicYear)) {
+              res.status(403).send(`Forbidden`);
+              return;
+            }
+
             const storage = loadStorage({
               noCheck: true,
               academicYear: request.academicYear,
@@ -250,6 +296,13 @@ async function main() {
               return;
             }
             const request = assertGetDayHistoryRequest(req.body);
+
+            const user = extractAuthedUser(req);
+            if (!getAcademicYearsForUser(user).includes(request.academicYear)) {
+              res.status(403).send(`Forbidden`);
+              return;
+            }
+
             const storage = loadStorage({
               noCheck: true,
               academicYear: request.academicYear,
@@ -462,6 +515,23 @@ ${summary}`;
             }
           },
         );
+      }
+
+      if (!IS_PUBLIC) {
+        app.get('/', async (req, res) => {
+          const user = extractAuthedUser(req);
+          if (user === STEFAN || user === 'local') {
+            res.redirect('/25');
+            return;
+          }
+          const years = getAcademicYearsForUser(user);
+          if (years.length === 0) {
+            res.status(403).send(`Forbidden`);
+            return;
+          }
+          res.redirect(`/${years[years.length - 1]}`);
+          return;
+        });
       }
 
       if (!isLocal()) {

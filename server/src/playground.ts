@@ -14,6 +14,7 @@ import {
   RotationConfig,
   RotationSchedule,
   ShiftKind,
+  SpecialDays,
   VacationSchedule,
   Week,
   Year,
@@ -126,16 +127,17 @@ async function main() {
   let data = deepCopy(latest.callSchedule);
   console.log(`Latest = ${latest.name}`);
 
+  // NEWYEAR: update this section as necessary
   if (run === 'generate-new-year') {
     if (process.argv.length < 4) {
       console.log(`Usage: yarn playground generate-new-year <academic-year, e.g., '25'>`);
       return;
     }
     const academicYear = assertAcademicYear(process.argv[3]);
-    const fullYear = [`20${academicYear}`, `20${parseInt(academicYear) + 1}`];
-    const prevFullYear = [`20${parseInt(academicYear) - 1}`, `20${academicYear}`];
 
-    const holidays = academicYear === '25' ? {
+    const isAY25 = academicYear === '25';
+    const isAY26 = (academicYear as string) === '26';
+    const holidays = isAY25 ? {
       [assertIsoDate(`2025-07-04`)]: "Indep. Day",
       [assertIsoDate(`2025-09-01`)]: "Labor Day",
       [assertIsoDate(`2025-10-13`)]: "Indigenous Ppl",
@@ -148,7 +150,7 @@ async function main() {
       [assertIsoDate(`2026-02-16`)]: "President's Day",
       [assertIsoDate(`2026-05-25`)]: "Memorial Day",
       [assertIsoDate(`2026-06-19`)]: "Juneteenth"
-    } : academicYear as string === '26' ? {
+    } : isAY26 ? {
       [assertIsoDate(`2026-07-04`)]: "Indep. Day",
       [assertIsoDate(`2026-09-07`)]: "Labor Day",
       [assertIsoDate(`2026-10-12`)]: "Indigenous Ppl",
@@ -331,10 +333,41 @@ async function main() {
     }
 
     // Copy over special days (will need adjustments)
-    const specialDays = Object.fromEntries(Object.keys(data.specialDays).map(k => [
-      k.replace(prevFullYear[1], fullYear[1]).replace(prevFullYear[0], fullYear[0]),
-      data.specialDays[k as IsoDate],
-    ]));
+    const specialDays: SpecialDays | undefined = isAY25 ? {
+      [assertIsoDate(`2025-11-02`)]: "Western AUA",
+      [assertIsoDate(`2025-11-03`)]: "Western AUA",
+      [assertIsoDate(`2025-11-04`)]: "Western AUA",
+      [assertIsoDate(`2025-11-05`)]: "Western AUA",
+      [assertIsoDate(`2025-11-06`)]: "Western AUA",
+      [assertIsoDate(`2025-11-15`)]: "In-Service Exam",
+      [assertIsoDate(`2026-04-26`)]: "AUA",
+      [assertIsoDate(`2026-04-27`)]: "AUA",
+      [assertIsoDate(`2026-04-28`)]: "AUA",
+      [assertIsoDate(`2026-04-29`)]: "AUA",
+      [assertIsoDate(`2026-06-05`)]: "Chief Board Review",
+      [assertIsoDate(`2026-06-06`)]: "Chief Board Review",
+      [assertIsoDate(`2026-06-07`)]: "Chief Board Review",
+      [assertIsoDate(`2026-06-13`)]: "Graduation"
+    } : isAY26 ? {
+      [assertIsoDate(`2026-10-25`)]: "Western AUA",
+      [assertIsoDate(`2026-10-26`)]: "Western AUA",
+      [assertIsoDate(`2026-10-27`)]: "Western AUA",
+      [assertIsoDate(`2026-10-28`)]: "Western AUA",
+      [assertIsoDate(`2026-10-29`)]: "Western AUA",
+      [assertIsoDate(`2026-10-30`)]: "Western AUA",
+      [assertIsoDate(`2026-11-14`)]: "In-Service Exam",
+      [assertIsoDate(`2027-04-26`)]: "AUA",
+      [assertIsoDate(`2027-04-27`)]: "AUA",
+      [assertIsoDate(`2027-04-28`)]: "AUA",
+      [assertIsoDate(`2027-04-29`)]: "AUA",
+      [assertIsoDate(`2027-06-04`)]: "Chief Board Review",
+      [assertIsoDate(`2027-06-05`)]: "Chief Board Review",
+      [assertIsoDate(`2027-06-06`)]: "Chief Board Review",
+      [assertIsoDate(`2027-06-12`)]: "Graduation"
+    } : undefined;
+    if (!specialDays) {
+      throw new Error(`Unknown academic year for special days: ${academicYear}`);
+    }
 
     const newData: CallSchedule = {
       // New data
@@ -367,17 +400,10 @@ async function main() {
     validateData(newData);
     processCallSchedule(newData);
 
-    if (loadStorage({ noCheck: true, academicYear }).versions.length > 0) {
-      console.log(`'${getStorageLocation(academicYear)}' already exists. Aborting.`);
-      return;
-    }
-
-    storeStorage({
-      academicYear,
-      versions: [
-        scheduleToStoredSchedule(newData, `Created empty schedule for year ${academicYear}`, '<admin>'),
-      ],
-    });
+    const storage =loadStorage({ noCheck: true, academicYear });
+    storage.versions.push(scheduleToStoredSchedule(newData, `Created empty schedule for year ${academicYear}`, '<admin>'));
+    storeStorage(storage);
+    console.log(`Created new version for ${academicYear}`);
     return
   }
 

@@ -213,8 +213,8 @@ IsoDate | { start: IsoDate; length: number; };`,
   'backup-shifts': `Partial<Record<ShiftKind, '' | Chief>>;`,
 } as const;
 
-export const ACADEMIC_YEARS = ['24', '25'] as const;
-export type AcademicYear = (typeof ACADEMIC_YEARS)[number];
+export const ALL_ACADEMIC_YEARS = ['24', '25'] as const;
+export type AcademicYear = (typeof ALL_ACADEMIC_YEARS)[number];
 export const DEFAULT_ACADEMIC_YEAR = '24';
 
 export function getAcademicYear(data: {academicYear?: AcademicYear} | AcademicYear | undefined): AcademicYear {

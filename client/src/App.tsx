@@ -102,7 +102,7 @@ function App({ academicYear, path }: { academicYear: AcademicYear, path: 'histor
 
   useAsync(async () => {
     try {
-      if (data !== undefined && data.academicYear !== academicYear) {
+      if (data !== undefined && data.academicYear === academicYear) {
         setData(undefined);
         setInitialData(undefined);
       }
@@ -118,6 +118,7 @@ function App({ academicYear, path }: { academicYear: AcademicYear, path: 'histor
       console.log(e);
       setError(`Failed to fetch latest schedule. Please reload the page.`);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [academicYear]);
 
   if (error !== '') {
