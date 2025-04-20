@@ -58,6 +58,18 @@ const CHIEF_EMAILS: Record<AcademicYear, string[]> = {
   '24': [STEFAN, "lisazhang0928@hotmail.com", "dibo900@gmail.com", "tovalweiss@gmail.com", "chloe92@gmail.com"],
   '25': [STEFAN, "dcarson16@gmail.com", "arashamighi@gmail.com"],
 }
+const HAS_EDIT_CONFIG_ACCESS = [
+  'local',
+  STEFAN,
+  "lisazhang0928@hotmail.com",
+  // "dcarson16@gmail.com",
+]
+const HAS_CREATE_SCHEDULE_ACCESS = [
+  'local',
+  STEFAN,
+  "lisazhang0928@hotmail.com",
+  // "dcarson16@gmail.com",
+]
 const MAIN_PUBLIC_VERSION: AcademicYear = '24';
 const PUBLICLY_VISIBLE_YEARS: AcademicYear[] = ['24'];
 
@@ -148,6 +160,8 @@ async function main() {
             result.callSchedule.menuItems = IS_PUBLIC ? PUBLICLY_VISIBLE_YEARS.map(year => ({ year })) : getAcademicYearsForUser(user).map(year => ({ year }));
 
             result.callSchedule.academicYear = request.academicYear;
+            result.callSchedule.hasEditConfigAccess = HAS_EDIT_CONFIG_ACCESS.includes(user);
+            result.callSchedule.hasCreateScheduleAccess = HAS_CREATE_SCHEDULE_ACCESS.includes(user);
 
             const checkedSchedule = assertCallSchedule(result.callSchedule);
             validateData(checkedSchedule);

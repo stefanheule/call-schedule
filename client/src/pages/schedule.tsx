@@ -36,9 +36,9 @@ import {
   GetDayHistoryResponse,
   Day,
   getAcademicYear,
-  ChiefShiftConfigs,
   BackupShiftConfig,
   ShiftConfig,
+  isHolidayShift,
 } from '../shared/types';
 import {
   useData,
@@ -80,6 +80,8 @@ import {
   serializeActions,
   diffIssues,
   processCallSchedule,
+  inferShift,
+  dateToDayOfWeek,
 } from '../shared/compute';
 import { useHotkeys } from 'react-hotkeys-hook';
 import Snackbar from '@mui/material/Snackbar';
@@ -89,7 +91,7 @@ import { useNavigate } from 'react-router-dom';
 import { rpcGetDayHistory, rpcSaveCallSchedules } from './rpc';
 import { LoadingIndicator } from '../common/loading';
 import { VList, VListHandle } from 'virtua';
-
+import { ButtonWithConfirm } from '../common/button';
 import { saveAs } from 'file-saver';
 import { exportSchedule } from '../shared/export';
 import {
@@ -119,12 +121,13 @@ function canEditRawData(_data: CallSchedule, localData: LocalData): boolean {
 function showEditRawData(data: CallSchedule, _localData: LocalData): boolean {
   if (data.isPublic) return false;
   if (data.currentUser === undefined) return false;
+  return data.hasEditConfigAccess === true;
+}
 
-  return [
-    'local',
-    'stefanheule@gmail.com',
-    'lisazhang0829@hotmail.com',
-  ].includes(data.currentUser);
+function canCreateSchedule(data: CallSchedule, _localData: LocalData): boolean {
+  if (data.isPublic) return false;
+  if (data.currentUser === undefined) return false;
+  return data.hasCreateScheduleAccess === true;
 }
 
 export function RenderCallSchedule() {
@@ -466,7 +469,7 @@ function RenderCallScheduleImpl({
                         // cspell:disable-next-line
                         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                       });
-                      saveAs(blob, 'Call-Schedule-AY2025.xlsx');
+                      saveAs(blob, `Call-Schedule-AY20${getAcademicYear(data.academicYear)}.xlsx`);
                     }}
                   >
                     Download
@@ -666,6 +669,7 @@ function RenderCallScheduleImpl({
                     </Column>
                   </Dialog>
                 </Row>
+                {canCreateSchedule(data, localData) && <GenerateCallScheduleTools setSnackbar={setCopyPasteSnackbar} />}
               </Column>
               <ElementSpacer />
               {showEditRaw && (
@@ -739,6 +743,265 @@ function RenderCallScheduleImpl({
       <ConfigEditorDialog />
     </>
   );
+}
+
+function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) => void }) {
+  const [data, setData] = useData();
+  const [_2, setLocalData] = useLocalData();
+
+  const [detailDialogOpen, setDetailDialogOpen] = useState<'weekend' | 'weekday' | false>('weekday');
+  const [detailLog, setDetailLog] = useState('Ready');
+  const [progress, setProgress] = useState(0);
+  const logRef = useRef<HTMLPreElement>(null);
+
+  // Add effect to auto-scroll when detailLog changes
+  useEffect(() => {
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [detailLog]);
+
+  function updateState(newData: CallSchedule) {
+    setData(oldData => {
+      const diff = compareData(oldData, newData);
+      if (diff.kind == 'error') {
+        setSnackbar(`Something went wrong, talk to Stefan. Details: ${diff.message}`);
+        return oldData;
+      }
+      if (diff.changes.length == 0) {
+        setSnackbar(`No changes were made.`);
+        return oldData;
+      }
+      setLocalData((d: LocalData) => {
+        for (const change of diff.changes) {
+          d.history.push(change);
+        }
+        d.undoHistory = [];
+        if (d.unsavedChanges === 0) {
+          d.firstUnsavedChange = dateToIsoDatetime(new Date());
+        }
+        d.unsavedChanges += diff.changes.length;
+        return { ...d };
+      });
+
+      return {...newData};
+    })
+  }
+
+  function clearData(type: 'weekend' | 'weekday' | 'holiday') {
+    const processed = processCallSchedule(data);
+    const newData = deepCopy(data);
+    for (const week of newData.weeks) {
+      for (const day of week.days) {
+        for (const shift of Object.keys(day.shifts)) {
+          if (isHolidayShift(processed, day.date, shift)) continue;
+          const shiftConfig = newData.shiftConfigs[shift];
+          if (shiftConfig && shiftConfig.type === type) {
+            day.shifts[shift] = '';
+          }
+        }
+      }
+    }
+    updateState(newData);
+  }
+  
+  async function autoAssignData(type: 'weekend' | 'weekday') {
+    const processed = processCallSchedule(data);
+    const newData = deepCopy(data);
+    setProgress(0);
+    setDetailLog('');
+    function addLog(s: string) {
+      setDetailLog(prev => prev === '' ? s : `${prev}\n${s}`);
+    }
+    switch (type) {
+      case 'weekend': {
+        let total = 0;
+        for (const week of data.weeks) {
+          const friday = week.days[5];
+          if (dateToDayOfWeek(friday.date) !== 'fri')
+            throw new Error(`Should be friday: ${dateToDayOfWeek(friday.date)}`);
+          if (friday.date < data.firstDay || friday.date > data.lastDay) continue;
+          for (const [shift, assigned] of Object.entries(friday.shifts)) {
+            if (assigned) continue;
+            if (isHolidayShift(processed, friday.date, shift)) continue;
+            total += 1;
+          }
+        }
+        let done = 0;
+        for (const week of data.weeks) {
+          const friday = week.days[5];
+          if (dateToDayOfWeek(friday.date) !== 'fri')
+            throw new Error(`Should be friday: ${dateToDayOfWeek(friday.date)}`);
+    
+          if (friday.date < data.firstDay || friday.date > data.lastDay) continue;
+          for (const [shift, assigned] of Object.entries(friday.shifts)) {
+            if (assigned) continue;
+
+            if (isHolidayShift(processed, friday.date, shift)) continue;
+    
+            const inference = inferShift(data, processed, friday.date, shift, {
+              enableLog: true,
+              log: (s: string) => addLog(s),
+              skipUnavailablePeople: true,
+            });
+            done += 1;
+            setProgress(done / total);
+    
+            if (inference.best) {
+              friday.shifts[shift] = inference.best.person;
+            }
+          }
+        }
+        break;
+      }
+      case 'weekday':{
+        let total = 0;
+        for (const week of newData.weeks) {
+          for (const day of week.days) {
+            if (day.date < newData.firstDay || day.date > newData.lastDay) continue;
+            const shift: ShiftKind = 'weekday_south';
+            if (!(shift in day.shifts)) continue;
+            if (day.shifts[shift]) continue;
+            if (isHolidayShift(processed, day.date, shift)) continue;
+            total += 1;
+          }
+        }
+        let done = 0;
+        for (const week of newData.weeks) {
+          for (const day of week.days) {
+            if (day.date < newData.firstDay || day.date > newData.lastDay) continue;
+            const shift: ShiftKind = 'weekday_south';
+            if (!(shift in day.shifts)) continue;
+            if (day.shifts[shift]) continue;
+            if (isHolidayShift(processed, day.date, shift)) continue;
+
+            const inference = inferShift(newData, processed, day.date, shift, {
+              enableLog: true,
+              log: (s: string) => addLog(s),
+              skipUnavailablePeople: true,
+            });
+            await sleep(100);
+            done += 1;
+            setProgress(done / total);
+
+            if (inference.best) {
+              day.shifts[shift] = inference.best.person;
+            }
+          }
+        }
+        break;
+      }
+    }
+    addLog('\n\nDone!');
+    updateState(newData);
+  }
+  
+  return <Column spacing={5} style={{ marginTop: '5px'}}>
+    <Dialog open={detailDialogOpen !== false} onClose={() => setDetailDialogOpen(false)}>
+      <Column style={{
+        padding: '20px',
+        minWidth: '450px',
+      }}>
+        <Row>
+          <Heading>Auto-assignment of call schedule</Heading>
+        </Row>
+        <Row>
+          <div style={{
+            width: '100%',
+            height: '5px',
+            backgroundColor: '#f5f5f5',
+            borderRadius: '4px',
+            marginTop: '5px',
+          }}>
+            <div style={{
+              width: `${progress * 100}%`,
+              height: '100%',
+              backgroundColor: '#007bff',
+              borderRadius: '4px',
+            }}>
+            </div>
+          </div>
+        </Row>
+        <pre 
+          ref={logRef}
+          style={{
+          height: '300px',
+          overflow: 'auto',
+          backgroundColor: '#f5f5f5',
+          padding: '10px',
+          border: '1px solid #ddd',
+          borderRadius: '4px',
+          fontFamily: 'monospace',
+          fontSize: '12px',
+          whiteSpace: 'pre-wrap',
+          margin: '10px 0'
+        }}>
+          {detailLog}
+        </pre>
+        <Row spacing="10px">
+        <Button variant="outlined" onClick={() => setDetailDialogOpen(false)}>
+            Close
+          </Button>
+          <Button variant="contained" onClick={async () => {
+            if (detailDialogOpen === 'weekend') {
+              await autoAssignData('weekend');
+            } else if (detailDialogOpen === 'weekday') {
+              await autoAssignData('weekday');
+            }
+          }}>
+            Start
+          </Button>
+        </Row>
+      </Column>
+    </Dialog>
+    <Row spacing="10px">
+      <ButtonWithConfirm
+        variant="outlined"
+        size="small"
+        onClick={() => clearData('weekend')}
+      >
+        Clear weekends
+      </ButtonWithConfirm>
+      <ButtonWithConfirm
+        variant="outlined"
+        size="small"
+        onClick={() => clearData('weekday')}
+      >
+        Clear weekdays
+      </ButtonWithConfirm>
+      <ButtonWithConfirm
+        variant="outlined"
+        size="small"
+        onClick={() => clearData('holiday')}
+      >
+        Clear holidays
+      </ButtonWithConfirm>
+    </Row>
+    <Row spacing="10px">
+      <Button
+        variant="outlined"
+        size="small"
+        onClick={() => {
+          setDetailDialogOpen('weekend');
+          setProgress(0);
+          setDetailLog('');
+        }}
+      >
+        Auto-assign weekends
+      </Button>
+      <Button
+        variant="outlined"
+        size="small"
+        onClick={() => {
+          setDetailDialogOpen('weekday');
+          setProgress(0);
+          setDetailLog('');
+        }}
+      >
+        Auto-assign weekdays
+      </Button>
+    </Row>
+  </Column>
 }
 
 function RenderImportCallSwitchDialog({

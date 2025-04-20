@@ -90,7 +90,7 @@ export function inferShift(
   processed: CallScheduleProcessed,
   date: IsoDate,
   shift: ShiftKind,
-  config?: { enableLog?: boolean; skipUnavailablePeople?: boolean },
+  config?: { enableLog?: boolean; skipUnavailablePeople?: boolean, log?: (s: string) => void },
 ): InferenceResult {
   const dayAndWeek = processed.day2weekAndDay[date];
   const unavailablePeople =
@@ -107,6 +107,9 @@ export function inferShift(
   if (people.length == 0) {
     if (config?.enableLog) {
       console.log(`No candidates left for ${date}.`);
+    }
+    if (config?.log) {
+      config.log(`No candidates left for ${date}.`);
     }
     return empty;
   }
@@ -174,12 +177,14 @@ export function inferShift(
     ratingCompare(assertNonNull(v).rating, min),
   );
   const randomWinner = best[Math.floor(Math.random() * best.length)];
+  const logMessage = `For ${date} picking a rating=${ratingToString(
+    assertNonNull(randomWinner[1]).rating,
+  )}: ${randomWinner[0]}`;
   if (config?.enableLog) {
-    console.log(
-      `For ${date} picking a rating=${ratingToString(
-        assertNonNull(randomWinner[1]).rating,
-      )}: ${randomWinner[0]}`,
-    );
+    console.log(logMessage);
+  }
+  if (config?.log) {
+    config.log(logMessage);
   }
   return {
     best: {

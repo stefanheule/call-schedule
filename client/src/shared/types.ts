@@ -260,6 +260,8 @@ export type CallSchedule = {
 
   isPublic?: boolean;
   currentUser?: string;
+  hasEditConfigAccess?: boolean;
+  hasCreateScheduleAccess?: boolean;
 
   isPubliclyVisible?: boolean;
   menuItems?: { year: AcademicYear }[];
