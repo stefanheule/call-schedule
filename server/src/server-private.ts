@@ -56,7 +56,7 @@ import { dateToIsoDate } from './shared/optimized';
 const STEFAN = 'stefanheule@gmail.com';
 const CHIEF_EMAILS: Record<AcademicYear, string[]> = {
   '24': [STEFAN, "lisazhang0928@hotmail.com", "dibo900@gmail.com", "tovalweiss@gmail.com", "chloe92@gmail.com"],
-  '25': [STEFAN],
+  '25': [STEFAN, "dcarson16@gmail.com", "arashamighi@gmail.com"],
 }
 const MAIN_PUBLIC_VERSION: AcademicYear = '24';
 const PUBLICLY_VISIBLE_YEARS: AcademicYear[] = ['24'];
