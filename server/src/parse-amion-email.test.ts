@@ -11,6 +11,7 @@ import { loadStorage } from './storage';
 function readData(): CallSchedule {
   const storage = loadStorage({
     noCheck: true,
+    academicYear: '24',
   });
   return storage.versions[storage.versions.length - 1].callSchedule;
 }
