@@ -159,7 +159,7 @@ function RenderCallScheduleImpl({
   const [isSaving, setIsSaving] = useState(false);
   const weekListRef = useRef<VListHandle>(null);
   const initialData = useInitialData();
-  const [onlyNew, setOnlyNew] = useState<'yes' | null>('yes');
+  const [onlyNew, setOnlyNew] = useState<'yes' | null>(data.firstDay < dateToIsoDate(new Date()) ? 'yes' : null);
 
   useMediaQuery(`(min-width:${SIDEBAR_WIDTH + WEEK_WIDTH}px)`);
 

@@ -86,6 +86,8 @@ async function main() {
 
             result.callSchedule.isPublic = IS_PUBLIC;
             result.callSchedule.currentUser = extractAuthedUser(req);
+            result.callSchedule.isPubliclyVisible = request.academicYear <= '24';
+
             const checkedSchedule = assertCallSchedule(result.callSchedule);
             validateData(checkedSchedule);
             res.send(checkedSchedule);

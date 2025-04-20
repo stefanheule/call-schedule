@@ -132,6 +132,14 @@ function App({ academicYear, path }: { academicYear: AcademicYear, path: 'histor
     );
   }
 
+  if (data.isPublic === true && data.isPubliclyVisible === false) {
+    return (
+      <MainLayout>
+        <Text>This schedule is not available.</Text>
+      </MainLayout>
+    );
+  }
+
   const processed = processCallSchedule(data);
 
   return (
