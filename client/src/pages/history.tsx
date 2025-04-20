@@ -114,6 +114,10 @@ function RenderSchedules({
                     ts: schedule.ts,
                     academicYear: getAcademicYear(originalData.academicYear),
                   });
+                  if (result.kind === 'not-available') {
+                    setErrorSnackbar(`This schedule is not available.`);
+                    return;
+                  }
                   setData(result);
                   await navigate('/');
                 } catch (e) {

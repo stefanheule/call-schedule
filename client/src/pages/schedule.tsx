@@ -36,6 +36,9 @@ import {
   GetDayHistoryResponse,
   Day,
   getAcademicYear,
+  ChiefShiftConfigs,
+  BackupShiftConfig,
+  ShiftConfig,
 } from '../shared/types';
 import {
   useData,
@@ -668,7 +671,7 @@ function RenderCallScheduleImpl({
               {showEditRaw && (
                 <>
                   <Column spacing={4}>
-                    <Heading>Edit configuration</Heading>
+                    <Heading style={{ fontSize: '18px' }}>Edit configuration</Heading>
                     <EditorToggleRow>
                       <EditorToggleButton kind="people" />
                       <EditorToggleButton kind="holidays" />
@@ -1355,8 +1358,8 @@ function Highlight() {
     'C',
   ]);
   return (
-    <Column spacing="5px">
-      <Heading>Highlight</Heading>
+    <Column spacing="2px">
+      <Heading style={{ fontSize: '18px' }}>Highlight</Heading>
       {Object.entries(year2people)
         .sort(
           (a, b) =>
@@ -1683,6 +1686,8 @@ function RenderDay({
           minHeight: `100px`,
           opacity: day.date < data.firstDay || day.date > data.lastDay ? 0.5 : 1,
           backgroundColor,
+          top: isToday ? '-1px' : undefined,
+          position: 'relative',
         }}
       >
         <Column
@@ -1901,6 +1906,7 @@ function RenderBackupShift({ id, readOnly, day }: { id: ChiefShiftId, readOnly?:
       name={backupShiftName}
       shiftId={id.shiftName}
       dashedBorder={processed.day2isR2EarlyCall[day.date]}
+      tooltip={tooltipForBackupShift(data.chiefShiftConfigs[id.shiftName])}
       onClick={() => {
         if (readOnly) return;
         personPicker.requestDialog(
@@ -1953,6 +1959,13 @@ function RenderBackupShift({ id, readOnly, day }: { id: ChiefShiftId, readOnly?:
   );
 }
 
+function tooltipForBackupShift(shift: BackupShiftConfig): string {
+  return shift.nameLong;
+}
+function tooltipForShift(shift: ShiftConfig): string {
+  return shift.nameLong;
+}
+
 function RenderShift({
   id,
   setWarningSnackbar,
@@ -1990,6 +2003,7 @@ function RenderShift({
       dashedBorder={Boolean(
         processed.day2shift2isHoliday?.[day.date]?.[id.shiftName],
       )}
+      tooltip={tooltipForShift(data.shiftConfigs[id.shiftName])}
       onClick={() => {
         if (readOnly) return;
         personPicker.requestDialog(
@@ -2043,6 +2057,7 @@ function RenderShiftGeneric({
   shiftId,
   dashedBorder,
   onClick,
+  tooltip,
 }: {
   dayId: DayId;
   personId: MaybePerson;
@@ -2051,6 +2066,7 @@ function RenderShiftGeneric({
   shiftId: ShiftKind | BackupShiftKind;
   dashedBorder?: boolean;
   onClick?: () => void;
+  tooltip: string;
 }) {
   const [data] = useData();
   const day = data.weeks[dayId.weekIndex].days[dayId.dayIndex];
@@ -2058,29 +2074,31 @@ function RenderShiftGeneric({
   const elId = elementIdForShift(day.date, shiftId);
   const hasIssue = processed.element2issueKind[elId];
   return (
-    <Row
-      id={elId}
-      style={{
-        boxSizing: 'border-box',
-        border: `1px solid #aaa`,
-        borderStyle: dashedBorder ? 'dashed' : 'solid',
-        marginBottom: `1px`,
-        cursor: 'pointer',
-        padding: '1px 3px',
-        backgroundColor:
-          hasIssue === undefined
-            ? 'white'
-            : hasIssue === 'hard'
-              ? '#faa'
-              : 'rgb(255, 252, 170)',
-        borderRadius: '3px',
-      }}
-      onClick={onClick}
-    >
-      <Text>{name}</Text>
-      <ElementSpacer />
-      <RenderPerson person={personId} />
-    </Row>
+    <Tooltip title={tooltip} enterDelay={1000} key={elId} leaveDelay={0}>
+      <Row
+        id={elId}
+        style={{
+          boxSizing: 'border-box',
+          border: `1px solid #aaa`,
+          borderStyle: dashedBorder ? 'dashed' : 'solid',
+          marginBottom: `1px`,
+          cursor: 'pointer',
+          padding: '1px 3px',
+          backgroundColor:
+            hasIssue === undefined
+              ? 'white'
+              : hasIssue === 'hard'
+                ? '#faa'
+                : 'rgb(255, 252, 170)',
+          borderRadius: '3px',
+        }}
+        onClick={onClick}
+      >
+        <Text>{name}</Text>
+        <ElementSpacer />
+        <RenderPerson person={personId} />
+      </Row>
+    </Tooltip>
   );
 }
 
