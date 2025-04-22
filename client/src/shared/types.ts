@@ -233,9 +233,9 @@ export function getAcademicYearFromIsoDate(isoDate: IsoDate): AcademicYear {
   const year = parseInt(isoDate.split('-')[0]);
   const month = parseInt(isoDate.split('-')[1]);
   if (month >= 7) {
-    return assertAcademicYear(`${year}/${year + 1}`);
+    return assertAcademicYear(`${year.toFixed(0).substring(2)}`);
   }
-  return assertAcademicYear(`${year - 1}/${year}`);
+  return assertAcademicYear(`${(year - 1).toFixed(0).substring(2)}`);
 }
 
 export type CallSchedule = {
