@@ -404,6 +404,8 @@ export type CallScheduleProcessed = {
   >;
   day2shift2isHoliday: Record<IsoDate, Record<ShiftKind, string>>;
   day2isR2EarlyCall: Record<IsoDate, boolean>;
+
+  isBeforeStartOfAcademicYear: boolean;
 };
 
 export function isHolidayShift(

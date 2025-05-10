@@ -82,6 +82,7 @@ import {
   processCallSchedule,
   inferShift,
   dateToDayOfWeek,
+  inferShiftAsync,
 } from '../shared/compute';
 import { useHotkeys } from 'react-hotkeys-hook';
 import Snackbar from '@mui/material/Snackbar';
@@ -209,7 +210,7 @@ function RenderCallScheduleImpl({
   const [isSaving, setIsSaving] = useState(false);
   const weekListRef = useRef<VListHandle>(null);
   const initialData = useInitialData();
-  const [onlyNew, setOnlyNew] = useState<'yes' | null>(data.firstDay < dateToIsoDate(new Date()) ? 'yes' : null);
+  const [onlyNew, setOnlyNew] = useState<'yes' | null>(!processed.isBeforeStartOfAcademicYear ? 'yes' : null);
 
   useMediaQuery(`(min-width:${SIDEBAR_WIDTH + WEEK_WIDTH}px)`);
 
@@ -826,11 +827,11 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
       switch (type) {
         case 'weekend': {
           let total = 0;
-          for (const week of data.weeks) {
+          for (const week of newData.weeks) {
             const friday = week.days[5];
             if (dateToDayOfWeek(friday.date) !== 'fri')
               throw new Error(`Should be friday: ${dateToDayOfWeek(friday.date)}`);
-            if (friday.date < data.firstDay || friday.date > data.lastDay) continue;
+            if (friday.date < newData.firstDay || friday.date > newData.lastDay) continue;
             for (const [shift, assigned] of Object.entries(friday.shifts)) {
               if (assigned) continue;
               if (isHolidayShift(processed, friday.date, shift)) continue;
@@ -838,9 +839,10 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
             }
           }
           let done = 0;
-          for (const week of data.weeks) {
+          for (const week of newData.weeks) {
             if (cancelRef.current) {
-              addLog('\n\nOperation cancelled by user.');
+              addLog('\n\nOperation cancelled by user (saved state so far).');
+              updateState(newData);
               return;
             }
             
@@ -848,21 +850,23 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
             if (dateToDayOfWeek(friday.date) !== 'fri')
               throw new Error(`Should be friday: ${dateToDayOfWeek(friday.date)}`);
       
-            if (friday.date < data.firstDay || friday.date > data.lastDay) continue;
+            if (friday.date < newData.firstDay || friday.date > newData.lastDay) continue;
             for (const [shift, assigned] of Object.entries(friday.shifts)) {
               if (cancelRef.current) {
-                addLog('\n\nOperation cancelled by user.');
+                addLog('\n\nOperation cancelled by user (saved state so far).');
+                updateState(newData);
                 return;
               }
               
               if (assigned) continue;
               if (isHolidayShift(processed, friday.date, shift)) continue;
       
-              const inference = inferShift(data, processed, friday.date, shift, {
+              const inference = await inferShiftAsync(newData, processed, friday.date, shift, {
                 enableLog: true,
                 log: (s: string) => addLog(s),
                 skipUnavailablePeople: true,
               });
+              await sleep(1);
               done += 1;
               setProgress(done / total);
       
@@ -888,13 +892,15 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
           let done = 0;
           for (const week of newData.weeks) {
             if (cancelRef.current) {
-              addLog('\n\nOperation cancelled by user.');
+              addLog('\n\nOperation cancelled by user (saved state so far).');
+              updateState(newData);
               return;
             }
             
             for (const day of week.days) {
               if (cancelRef.current) {
-                addLog('\n\nOperation cancelled by user.');
+                addLog('\n\nOperation cancelled by user (saved state so far).');
+                updateState(newData);
                 return;
               }
               
@@ -909,6 +915,7 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
                 log: (s: string) => addLog(s),
                 skipUnavailablePeople: true,
               });
+              await sleep(1);
               done += 1;
               setProgress(done / total);
 
@@ -1412,7 +1419,7 @@ function RenderCallCounts() {
   const [holiday, setHoliday] = useState<
     'regular' | 'holiday' | 'backup' | 'backup_holiday'
   >('regular');
-  const [showTargets, setShowTargets] = useState<'yes' | null>(null); // null for no, 'yes' for yes
+  const [showTargets, setShowTargets] = useState<'yes' | null>(processed.isBeforeStartOfAcademicYear ? 'yes' : null); // null for no, 'yes' for yes
   return (
     <Column>
       <Row>

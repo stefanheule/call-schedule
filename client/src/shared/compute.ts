@@ -85,6 +85,18 @@ function addIssue(processed: CallScheduleProcessed, issue: Issue) {
   processed.issues[key] = issue;
 }
 
+export async function inferShiftAsync(
+  data: CallSchedule,
+  processed: CallScheduleProcessed,
+  date: IsoDate,
+  shift: ShiftKind,
+  config?: { enableLog?: boolean; skipUnavailablePeople?: boolean, log?: (s: string) => void },
+): Promise<InferenceResult> {
+  return new Promise(resolve => {
+    resolve(inferShift(data, processed, date, shift, config));
+  });
+}
+
 export function inferShift(
   data: CallSchedule,
   processed: CallScheduleProcessed,
@@ -659,13 +671,9 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       softCrossCoverage: 0,
     },
     day2isR2EarlyCall: {},
-    callCounts: Object.fromEntries(PEOPLE.filter(p => data.people[p].year !== '1').map(p => [p, { weekday: 0, weekend: 0, sunday: 0, nf: 0 }])),
-    backupCallCounts: {
-      LZ: deepCopy(emptyBackupCallCount),
-      CP: deepCopy(emptyBackupCallCount),
-      TW: deepCopy(emptyBackupCallCount),
-      DK: deepCopy(emptyBackupCallCount),
-    },
+    callCounts: Object.fromEntries(PEOPLE.filter(p => data.people[p].year !== '1' && data.people[p].year !== 'C').map(p => [p, { weekday: 0, weekend: 0, sunday: 0, nf: 0 }])),
+    backupCallCounts: 
+      Object.fromEntries(PEOPLE.filter(p => data.people[p].year === 'C').map(p => [p, deepCopy(emptyBackupCallCount)])),
     shiftCounts: {
       total: 0,
       assigned: 0,
@@ -690,6 +698,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       weekdayOutsideMaternity: 0,
     },
     day2shift2isHoliday: {},
+    isBeforeStartOfAcademicYear: data.firstDay > dateToIsoDate(new Date()),
   };
 
   // Initialize day2person2info with default info
@@ -1665,6 +1674,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   if (1 == 2 + 1) {
     console.log('Processing took', Date.now() - start, 'ms');
   }
+  console.log({ processed: result })
   return result;
 }
 

@@ -260,6 +260,7 @@ async function main() {
       if (name == 'Indigenous Ppl') {
         const monday = findDate({ weeks}, date);
         monday.shifts.day_va = '';
+        // No changes for backup
         continue;
       }
 
@@ -279,6 +280,10 @@ async function main() {
           day_uw: '',
           south_24: '',
         };
+        friday.backupShifts = {
+          backup_holiday: '',
+        };
+        monday.backupShifts = {};
       }
 
       // Handled below
@@ -286,14 +291,19 @@ async function main() {
         continue;
       }
 
-      // Wednesday/Thursday holidays
+      // Tuesday/Wednesday/Thursday holidays
       else if (dow === 'tue' || dow === 'wed' || dow === 'thu') {
         const weekday = findDate({ weeks}, date);
+        const dayBefore = findDate({ weeks}, nextDay(date, -1));
         weekday.shifts = {
           day_nwhsch: '',
           day_uw: '',
           south_24: '',
         };
+        dayBefore.backupShifts = {
+          backup_holiday: '',
+        };
+        weekday.backupShifts = {};
       }
 
       else if (dow == 'fri') {
@@ -304,6 +314,9 @@ async function main() {
           south_power2: '',
           weekend_nwhsch: '',
           weekend_uw: '',
+        };
+        friday.backupShifts = {
+          backup_holiday: '',
         };
       }
       
@@ -319,8 +332,8 @@ async function main() {
     {
       const date = Object.entries(holidays).find(([date, name]) => name === 'Thanksgiving')![0];
       const thursday = findDate({ weeks}, date);
-      // const friday = findDate(datePlusN(date, 1));
-      // const wednesday = findDate(datePlusN(date, -1));
+      const wednesday = findDate({ weeks}, nextDay(date, -1));
+      const friday = findDate({ weeks}, nextDay(date, 1));
       // wednesday.shifts = {
       //   thanksgiving_south: '',
       // };
@@ -334,6 +347,11 @@ async function main() {
       //   power_nwhsch: '',
       //   power_uw: '',
       // };
+      wednesday.backupShifts = {
+        backup_holiday: '',
+      };
+      thursday.backupShifts = {};
+      friday.backupShifts = {};
     }
 
     const people = guessPeople({
@@ -430,7 +448,19 @@ async function main() {
     processCallSchedule(newData);
 
     const storage =loadStorage({ noCheck: true, academicYear });
-    storage.versions.push(scheduleToStoredSchedule(newData, `Created empty schedule for year ${academicYear}`, '<admin>'));
+    // eslint-disable-next-line no-constant-condition
+    if (true) {
+      storage.versions.push(scheduleToStoredSchedule(newData, `Created empty schedule for year ${academicYear}`, '<admin>'));
+    } else {
+      const updatedData = storage.versions[storage.versions.length - 1].callSchedule;
+      for (const [weekIndex, week] of newData.weeks.entries()) {
+        for (const [dayIndex, day] of week.days.entries()) {
+          updatedData.weeks[weekIndex].days[dayIndex].backupShifts = day.backupShifts;
+        }
+      }
+      storage.versions.push(scheduleToStoredSchedule(updatedData, `Fixed backup holiday calls ${academicYear}`, '<admin>'));
+    }
+   
     storeStorage(storage);
     console.log(`Created new version for ${academicYear}`);
     return
