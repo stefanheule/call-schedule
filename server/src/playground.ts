@@ -740,6 +740,62 @@ async function _importRotationSchedule(
       }
     }
   }
+  // NEWYEAR: update this
+  // Research:
+  result['MB'] = [
+    {
+      start: assertIsoDate('2025-07-01'),
+      rotation: 'Research',
+      chief: false,
+    },
+    {
+      start: assertIsoDate('2025-10-27'),
+      rotation: 'NF',
+      chief: false,
+    },
+    {
+      start: assertIsoDate('2025-11-03'),
+      rotation: 'Research',
+      chief: false,
+    },
+    {
+      start: assertIsoDate('2026-05-25'),
+      rotation: 'NF',
+      chief: false,
+    },
+    {
+      start: assertIsoDate('2026-06-01'),
+      rotation: 'Research',
+      chief: false,
+    },
+  ];
+  result['MJ'] = [
+    {
+      start: assertIsoDate('2025-07-01'),
+      rotation: 'Research',
+      chief: false,
+    },
+    {
+      start: assertIsoDate('2025-10-20'),
+      rotation: 'NF',
+      chief: false,
+    },
+    {
+      start: assertIsoDate('2025-10-27'),
+      rotation: 'Research',
+      chief: false,
+    },
+    {
+      start: assertIsoDate('2026-02-23'),
+      rotation: 'NF',
+      chief: false,
+    },
+    {
+      start: assertIsoDate('2026-03-02'),
+      rotation: 'Research',
+      chief: false,
+    },
+  ];
   console.log(result);
   return result;
 }
