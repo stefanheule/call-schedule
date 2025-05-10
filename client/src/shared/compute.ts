@@ -694,6 +694,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     totalCalls: {
       weekend: 0,
       weekday: 0,
+      weekdayOnlySunday: 0,
       weekendOutsideMaternity: 0,
       weekdayOutsideMaternity: 0,
     },
@@ -1587,6 +1588,9 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
           if (!isMaternity) {
             result.totalCalls.weekdayOutsideMaternity += 1;
           }
+          if (dateToDayOfWeek(day.date) == 'sun') {
+            result.totalCalls.weekdayOnlySunday += 1;
+          }
         } else if (shiftConfig.type === 'weekend') {
           if (!person) {
             result.unassignedCalls.weekend += 1;
@@ -1616,20 +1620,6 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
         result.backupShiftCounts.total += 1;
         if (shift !== '' && shift !== undefined)
           result.backupShiftCounts.assigned += 1;
-      }
-    }
-  }
-
-  // process issues into map
-  for (const issue of Object.values(result.issues)) {
-    for (const id of issue.elements) {
-      const prev = result.element2issueKind[id];
-      const next = issue.isHard ? 'hard' : 'soft';
-
-      if (prev == 'hard' || next == 'hard') {
-        result.element2issueKind[id] = 'hard';
-      } else {
-        result.element2issueKind[id] = 'soft';
       }
     }
   }
@@ -1670,11 +1660,58 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   }
 
+  // process issues into map
+  for (const issue of Object.values(result.issues)) {
+    for (const id of issue.elements) {
+      const prev = result.element2issueKind[id];
+      const next = issue.isHard ? 'hard' : 'soft';
+
+      if (prev == 'hard' || next == 'hard') {
+        result.element2issueKind[id] = 'hard';
+      } else {
+        result.element2issueKind[id] = 'soft';
+      }
+    }
+  }
+
+  // check if call targets are correct
+  let weekdayCallTarget = 0;
+  let weekendCallTarget = 0;
+  for (const [_, person2callTarget] of Object.entries(data.callTargets.weekday)) {
+    for (const [_, callTarget] of Object.entries(person2callTarget)) {
+      weekdayCallTarget += callTarget;
+    }
+  }
+  for (const [_, person2callTarget] of Object.entries(data.callTargets.weekend)) {
+    for (const [_, callTarget] of Object.entries(person2callTarget)) {
+      weekendCallTarget += callTarget;
+    }
+  }
+  if (weekdayCallTarget != result.totalCalls.weekday) {
+    addIssue(result, {
+      kind: 'wrong-call-target',
+      startDay: data.firstDay,
+      elements: [],
+      message: `Weekday call target is incorrect. There are ${result.totalCalls.weekday} weekday shifts, but sum of all targets is ${weekdayCallTarget}`,
+      isHard: true,
+    });
+  }
+  if (weekendCallTarget != result.totalCalls.weekend) {
+    addIssue(result, {
+      kind: 'wrong-call-target',
+      startDay: data.firstDay,
+      elements: [],
+      message: `Weekend call target is incorrect. There are ${result.totalCalls.weekend} weekend shifts, but sum of all targets is ${weekendCallTarget}`,
+      isHard: true,
+    });
+  }
+  
+  
+
   // eslint-disable-next-line no-constant-condition
   if (1 == 2 + 1) {
     console.log('Processing took', Date.now() - start, 'ms');
   }
-  console.log({ processed: result })
   return result;
 }
 

@@ -89,7 +89,7 @@ import Snackbar from '@mui/material/Snackbar';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
-import { rpcGetDayHistory, rpcSaveCallSchedules } from './rpc';
+import { rpcGetDayHistory, rpcSaveCallSchedules, rpcSaveFullCallSchedules } from './rpc';
 import { LoadingIndicator } from '../common/loading';
 import { VList, VListHandle } from 'virtua';
 import { ButtonWithConfirm } from '../common/button';
@@ -753,6 +753,7 @@ const smallButtonStyle: React.CSSProperties = {
 
 function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) => void }) {
   const [data, setData] = useData();
+  const processed = useProcessedData();
   const [_2, setLocalData] = useLocalData();
 
   const [detailDialogOpen, setDetailDialogOpen] = useState<'weekend' | 'weekday' | false>(false);
@@ -1059,6 +1060,63 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
       >
         Auto-assign weekdays
       </Button>
+      <ButtonWithConfirm
+        variant="outlined"
+        size="small"
+        onClick={async () => {
+          const newData: CallSchedule = { ... data };
+          // Fixed MAD call targets
+          newData.callTargets.weekday.M.MAD = 2;
+          newData.callTargets.weekend.M.MAD = 4;
+          
+          for (const person in newData.callTargets.weekday['2']) {
+            newData.callTargets.weekday['2'][person] = 11;
+          }
+          for (const person in newData.callTargets.weekend['2']) {
+            newData.callTargets.weekend['2'][person] = 12;
+          }
+          for (const person in newData.callTargets.weekday['3']) {
+            newData.callTargets.weekday['3'][person] = 22;
+          }
+          for (const person in newData.callTargets.weekend['3']) {
+            newData.callTargets.weekend['3'][person] = 11;
+          }
+          for (const person in newData.callTargets.weekday['S']) {
+            newData.callTargets.weekday['S'][person] = 24;
+          }
+          for (const person in newData.callTargets.weekend['S']) {
+            newData.callTargets.weekend['S'][person] = 9;
+          }
+          for (const person in newData.callTargets.weekday['R']) {
+            newData.callTargets.weekday['R'][person] = 19;
+          }
+          for (const person in newData.callTargets.weekend['R']) {
+            newData.callTargets.weekend['R'][person] = 8;
+          }
+          
+          try {
+            const result = await rpcSaveFullCallSchedules({
+              callSchedule: newData,
+              name: 'Auto call targets',
+            });
+
+            switch (result.kind) {
+              case 'was-edited':
+                setSnackbar(`Website was edited by someone else, please refresh the page and try again.`);
+                return;
+              case 'ok':
+                setSnackbar(`Auto call targets set!`);
+                break;
+            }
+          } catch (e) {
+            console.log(e);
+            setSnackbar(`Something went wrong :(`);
+          }
+        }}
+        style={smallButtonStyle}
+      >
+        Auto call targets
+      </ButtonWithConfirm>
     </Row>
   </Column>
 }
@@ -1497,8 +1555,8 @@ function RenderCallCounts() {
         </Column>
       )}
       {holiday == 'holiday' && (
-        <Column spacing="5px">
-          {callPoolPeople(data).map(person => (
+        <Column>
+          {callPoolPeople(data).reverse().map(person => (
             <Row key={person} spacing={'3px'}>
               <RenderPerson
                 person={person}
@@ -1518,7 +1576,7 @@ function RenderCallCounts() {
       )}
       {holiday == 'regular' && (
         <Column>
-          {callPoolPeople(data).map(person => {
+          {callPoolPeople(data).reverse().map(person => {
             const personConfig = data.people[person];
             const counts = processed.callCounts[person];
             return (

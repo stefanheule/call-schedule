@@ -203,7 +203,7 @@ IsoDate | { start: IsoDate; length: number; };`,
   // types for the actual data
   holidays: `Record<IsoDate, string>;`,
   'special-days': `Record<IsoDate, string>;`,
-  vacations: `Record<Person, Vacation[]>;`,
+  vacations: `Partial<Record<Person, Vacation[]>>;`,
   rotations: `Record<Person, RotationConfig[]>;`,
   'call-targets': `{ weekday: SingleCallTarget; weekend: SingleCallTarget; };`,
   people: `Record<Person, PersonConfig>;`,
@@ -348,6 +348,11 @@ export function callPoolPeople(data: CallSchedule): CallPoolPerson[] {
   return allPeople(data).filter(person => {
     const year = data.people[person].year;
     return year !== 'C' && year !== '1';
+  }).sort((a, b) => {
+    const aYear = data.people[a].year;
+    const bYear = data.people[b].year;
+    const orderYears = ['1', '2', '3', 'S', 'R', 'M', 'C'];
+    return orderYears.indexOf(aYear) - orderYears.indexOf(bYear);
   });
 }
 
@@ -386,6 +391,7 @@ export type CallScheduleProcessed = {
   totalCalls: {
     weekend: number;
     weekday: number;
+    weekdayOnlySunday: number;
     weekendOutsideMaternity: number;
     weekdayOutsideMaternity: number;
   };
@@ -447,6 +453,7 @@ export const ISSUE_KINDS_HARD = [
   'maternity',
   'priority-weekend',
   'call-before-nf',
+  'wrong-call-target',
 ] as const;
 export const ISSUE_KINDS_SOFT = [
   'almost-consecutive-call',
