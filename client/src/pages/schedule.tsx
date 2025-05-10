@@ -171,7 +171,7 @@ export function RenderCallSchedule() {
                     await navigate(`/${item.year}`);
                   }}
                 >
-                  <Text style={{ fontSize: '13px', lineHeight: '11px' }}>AY20{item.year}</Text>
+                  <Text style={{ fontSize: '13px', lineHeight: '11px' }}>AY{item.year}/{parseInt(item.year) + 1}</Text>
                 </div>
               ))}
             </Row>
