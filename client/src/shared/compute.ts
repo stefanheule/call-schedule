@@ -247,10 +247,10 @@ export function rate(
   for (const person of callPoolPeople(data)) {
     const personConfig = data.people[person];
     {
-      let field: 'weekend' | 'weekendOutsideMaternity' = 'weekend';
-      if (person == 'LL') {
-        field = 'weekendOutsideMaternity';
-      }
+      const field: 'weekend' | 'weekendOutsideMaternity' = 'weekend';
+      // if (person == 'LL') {
+      //   field = 'weekendOutsideMaternity';
+      // }
       const currentWeekend = processed.callCounts[person].weekend;
       const correction =
         1 - processed.unassignedCalls[field] / processed.totalCalls[field];
@@ -259,10 +259,10 @@ export function rate(
       target += Math.abs(currentWeekend - targetWeekend);
     }
     {
-      let field: 'weekday' | 'weekdayOutsideMaternity' = 'weekday';
-      if (person == 'LL') {
-        field = 'weekdayOutsideMaternity';
-      }
+      const field: 'weekday' | 'weekdayOutsideMaternity' = 'weekday';
+      // if (person == 'LL') {
+      //   field = 'weekdayOutsideMaternity';
+      // }
       const currentWeekday = processed.callCounts[person].weekday;
       const correction =
         1 - processed.unassignedCalls[field] / processed.totalCalls[field];

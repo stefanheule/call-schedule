@@ -759,6 +759,8 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
   const [detailDialogOpen, setDetailDialogOpen] = useState<'weekend' | 'weekday' | false>(false);
   const [detailLog, setDetailLog] = useState('');
   const [progress, setProgress] = useState(0);
+  const startTimeRef = useRef<number>(0);
+  const [timeRemaining, setTimeRemaining] = useState<number | undefined>(undefined);
   const logRef = useRef<HTMLPreElement>(null);
   const [isRunning, setIsRunning] = useState(false);
   const cancelRef = useRef(false);
@@ -813,14 +815,28 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
     }
     updateState(newData);
   }
-  
+
+  function updateProgress(done: number, total: number) {
+    setProgress(done / total);
+    const timeElapsed = Date.now() - startTimeRef.current;
+    if (done / total >= 0.05 || (timeElapsed / 1000 > 2 && done >= 4) || done >= 4) {
+      const timePerShift = timeElapsed / done;
+      const timeRemaining = timePerShift * (total - done);
+      setTimeRemaining(timeRemaining);
+    } else {
+      setTimeRemaining(undefined);
+    }
+  }
+
   async function autoAssignData(type: 'weekend' | 'weekday') {
     cancelRef.current = false;
     setIsRunning(true);
     const processed = processCallSchedule(data);
     const newData = deepCopy(data);
     setProgress(0);
-    setDetailLog('');
+    startTimeRef.current = Date.now();
+    setTimeRemaining(undefined);
+    setDetailLog('Rating = (# hard issues, # soft issues, call target mismatch)');
     function addLog(s: string) {
       setDetailLog(prev => prev === '' ? s : `${prev}\n${s}`);
     }
@@ -869,7 +885,7 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
               });
               await sleep(1);
               done += 1;
-              setProgress(done / total);
+              updateProgress(done, total);
       
               if (inference.best) {
                 friday.shifts[shift] = inference.best.person;
@@ -918,7 +934,7 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
               });
               await sleep(1);
               done += 1;
-              setProgress(done / total);
+              updateProgress(done, total);
 
               if (inference.best) {
                 day.shifts[shift] = inference.best.person;
@@ -968,6 +984,9 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
             }}>
             </div>
           </div>
+        </Row>
+        <Row>
+          <Text>{timeRemaining ? `Estimated time remaining: ${formatRelative(new Date(Date.now() + timeRemaining), 'duration')}` : ' '}</Text>
         </Row>
         <pre 
           ref={logRef}
@@ -1042,6 +1061,7 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
         onClick={() => {
           setDetailDialogOpen('weekend');
           setProgress(0);
+          setTimeRemaining(undefined);
           setDetailLog('Ready');
         }}
         style={smallButtonStyle}
@@ -1054,6 +1074,7 @@ function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) =
         onClick={() => {
           setDetailDialogOpen('weekday');
           setProgress(0);
+          setTimeRemaining(undefined);
           setDetailLog('Ready');
         }}
         style={smallButtonStyle}
