@@ -50,6 +50,8 @@ import fs from 'fs';
 import { exportSchedule } from './shared/export';
 import * as Diff from 'diff';
 import { validateData } from 'shared/validate';
+import { assert } from 'console';
+import { exit } from 'process';
 
 // @check-type
 export type RunType =
@@ -62,6 +64,7 @@ export type RunType =
   | 'clear-weekdays'
   | 'diff-previous'
   | 'parse-email'
+  | 'import-rotation-schedule'
   | 'generate-new-year';
 
 function runType(): RunType {
@@ -126,6 +129,32 @@ async function main() {
   const latest = storage.versions[storage.versions.length - 1];
   let data = deepCopy(latest.callSchedule);
   console.log(`Latest = ${latest.name}`);
+
+  // NEWYEAR: update this section as necessary
+  if (run == 'import-rotation-schedule') {
+    const academicYear = '25';
+
+    const storage = loadStorage({
+      noCheck: true,
+      academicYear,
+    });
+  
+    const latest = storage.versions[storage.versions.length - 1];
+    const data = deepCopy(latest.callSchedule);
+
+    const rotationSchedule = await _importRotationSchedule(data);
+    data.rotations = rotationSchedule;
+
+    validateData(data);
+    processCallSchedule(data);
+
+    storage.versions.push(scheduleToStoredSchedule(data, `Added rotation schedule via import from xlsx`, '<admin>'));
+    storeStorage(storage);
+    console.log(`Imported rotation schedule`);
+    return
+
+    return;
+  }
 
   // NEWYEAR: update this section as necessary
   if (run === 'generate-new-year') {
@@ -590,127 +619,140 @@ async function main() {
   // );
 }
 
+function logWarning(message: string) {
+  console.log(`\x1b[31m${message}\x1b[0m`);
+}
+
+function logErrorAndExit(message: string): never {
+  console.log(`\x1b[31m${message}\x1b[0m`);
+  exit(1);
+}
+
 async function _importRotationSchedule(
-  people: PeopleConfig,
-): Promise<[RotationSchedule, VacationSchedule]> {
+  data: CallSchedule,
+): Promise<RotationSchedule> {
   const workSheetsFromFile = xlsx.parse(
-    `${__dirname}/../../input-files/vacation scheduling.xlsx`,
+    `${__dirname}/../../input-files/ay26.xlsx`,
   );
   const sheet = workSheetsFromFile[0];
 
   let rowIndex = 0;
 
-  const vacations: VacationSchedule = {
-    MAD: [],
-    DK: [],
-    LZ: [],
-    TW: [],
-    CP: [],
-    AA: [],
-    DC: [],
-    AJ: [],
-    KO: [],
-    RB: [],
-    MJ: [],
-    TM: [],
-    GN: [],
-    MB: [],
-    CPu: [],
-    NR: [],
-    LX: [],
-    CC: [],
-    CF: [],
-    HL: [],
-    TH: [],
-    SO: [],
-  };
   const result: RotationSchedule = {
-    MAD: [],
-    DK: [],
-    LZ: [],
-    TW: [],
-    CP: [],
-    AA: [],
-    DC: [],
-    AJ: [],
-    MB: [],
-    RB: [],
-    MJ: [],
-    TM: [],
-    GN: [],
-    KO: [],
-    CPu: [],
-    NR: [],
-    LX: [],
-    CC: [],
-    CF: [],
-    HL: [],
-    TH: [],
-    SO: [],
   };
-
-  // Import vacations
-  for (rowIndex = 0; rowIndex < 7; rowIndex += 1) {
-    for (let col = 3; col <= 3 + 52; col++) {
-      const startDay = nextDay('2024-07-01', (col - 3) * 7);
-      let per = sheet.data[rowIndex][col] as string;
-      if (per === undefined || per == '') continue;
-      if (per.includes('(S1)') || per.includes('(S2)')) continue;
-      per = per.replace(/[0-9]/, '').replace('*', '');
-      if (per == 'TB') per = 'MAD';
-      if (per == 'HS') per = 'MAD';
-      const person = assertPerson(per);
-      vacations[person].push(startDay);
-    }
+  for (const person of Object.keys(data.people)) {
+    result[person] = [];
   }
 
+  // Import vacations
+  // for (rowIndex = 0; rowIndex < 7; rowIndex += 1) {
+  //   for (let col = 3; col <= 3 + 52; col++) {
+  //     const startDay = nextDay('2024-07-01', (col - 3) * 7);
+  //     let per = sheet.data[rowIndex][col] as string;
+  //     if (per === undefined || per == '') continue;
+  //     if (per.includes('(S1)') || per.includes('(S2)')) continue;
+  //     per = per.replace(/[0-9]/, '').replace('*', '');
+  //     if (per == 'TB') per = 'MAD';
+  //     if (per == 'HS') per = 'MAD';
+  //     const person = assertPerson(per);
+  //     vacations[person].push(startDay);
+  //   }
+  // }
+
   // Import rotations
-  for (rowIndex = 3 + 7; rowIndex < sheet.data.length; rowIndex += 1) {
-    if (sheet.data[rowIndex][0] == 'Research') continue; // configured manually
-    if (sheet.data[rowIndex][0] == 'U1-Intern') break;
+  const startRowIndex = 2;
+  for (rowIndex = startRowIndex; rowIndex < sheet.data.length; rowIndex += 1) {
+    console.log(`Looking at row ${rowIndex+1}`);
+    if (sheet.data[rowIndex][0] == 'Research') {
+      console.log(`  -> Research`);
+      logWarning(`Add these manually`);
+      continue;
+    }
+    if (sheet.data[rowIndex][0] == 'U1-Intern') {
+      console.log(`  -> U1-Intern`);
+      logWarning(`Add these manually`);
+      break;
+    }
     const per = sheet.data[rowIndex][1] as string;
-    const person = Object.keys(people).find(
+    if (per === undefined) {
+      console.log(`  -> empty row`);
+      continue;
+    }
+    const person = Object.keys(data.people).find(
       p =>
         per &&
         (p.toLowerCase().endsWith(per.toLowerCase()) ||
           (per == 'Madigan' && p == 'MAD')),
     );
-    if (person) {
-      const personConfig = people[person];
-      for (let col = 3; col <= 3 + 52; col++) {
-        const startDay = nextDay('2024-07-01', (col - 3) * 7);
-        const rotationString = sheet.data[rowIndex][col] as string;
-        if (rotationString) {
-          const parts = rotationString.split(' ');
-          let rotation: Rotation | undefined = undefined;
-          let hospital = parts[0];
-          if (hospital == 'UWMC') hospital = 'UW';
-          if (ROTATIONS.includes(hospital as Rotation)) {
-            rotation = hospital as Rotation;
+    if (!person) {
+      logWarning(`Unknown person: ${per}`);
+      continue;
+    }
+
+    console.log(`  -> person: ${person}`);
+    const personConfig = data.people[person];
+    const startCol = 3;
+    for (let col = startCol; col <= startCol + 52; col++) {
+      const startDay = nextDay(data.firstDay, (col - startCol) * 7);
+      // On first row, check that all the dates are correct
+      {
+        if (rowIndex == startRowIndex) {
+          let dayInSheet: IsoDate;
+          try {
+            dayInSheet = _xlsxDateToIsoDate(sheet.data[0][col]);
+          } catch (e) {
+            return logErrorAndExit(`  -> error parsing date in ${cellToString({col, row: 0})}, which is ${sheet.data[0][col]}: ${e}`);
           }
-          if (hospital == 'VM') rotation = 'OFF';
-          if (hospital == 'NF4') rotation = 'NF';
-          if (hospital == 'Andro/URPS') rotation = 'Andro';
-          if (hospital == 'WWAMI') rotation = 'Alaska';
-          if (hospital == 'RESEARCH') rotation = 'Research';
-          if (!rotation) {
-            console.log(
-              `Couldn't understand rotation string: ${rotationString}. hospital: ${hospital}`,
-            );
-            continue;
+          if (col === startCol) {
+            assert(dayInSheet == data.firstDay);
+          } else {
+            assert(dayInSheet == startDay);
           }
-          result[person].push({
-            start: startDay,
-            rotation,
-            chief:
-              personConfig.year == 'C' ||
-              rotationString.toLocaleLowerCase().includes('chief'),
-          });
         }
+      }
+      const rotationString = sheet.data[rowIndex][col] as string;
+      if (rotationString) {
+        const parts = rotationString.split(' ');
+        let rotation: Rotation | undefined = undefined;
+        let hospital = parts[0];
+        if (hospital == 'UWMC') hospital = 'UW';
+        if (ROTATIONS.includes(hospital as Rotation)) {
+          rotation = hospital as Rotation;
+        }
+        if (hospital == 'VM') rotation = 'OFF';
+        if (hospital == 'NF4') rotation = 'NF';
+        if (hospital == 'Andro/URPS') rotation = 'Andro';
+        if (hospital == 'WWAMI') rotation = 'Alaska';
+        if (hospital == 'RESEARCH') rotation = 'Research';
+        if (!rotation) {
+          logWarning(
+            `Couldn't understand rotation string: ${rotationString}. hospital: ${hospital}`,
+          );
+          continue;
+        }
+        result[person].push({
+          start: startDay,
+          rotation,
+          chief:
+            personConfig.year == 'C' ||
+            rotationString.toLocaleLowerCase().includes('chief'),
+        });
       }
     }
   }
-  return [result, vacations];
+  console.log(result);
+  return result;
+}
+
+function cellToString({col, row}: {col: number, row: number}) {
+  let result = '';
+  let dividend = col + 1;
+  while (dividend > 0) {
+    const modulo = (dividend - 1) % 26;
+    result = String.fromCharCode(65 + modulo) + result;
+    dividend = Math.floor((dividend - 1) / 26);
+  }
+  return `${result}${row+1}`;
 }
 
 // async function importPreviousSchedule() {
@@ -1206,12 +1248,12 @@ async function _importRotationSchedule(
 //   return data;
 // }
 
-function _xlsxDateToIsoDate(xlsxDate: unknown) {
+function _xlsxDateToIsoDate(xlsxDate: unknown): IsoDate {
   if (typeof xlsxDate !== 'number') {
     throw new Error('Expected number');
   }
   const date = new Date(1900, 0, xlsxDate - 1);
-  return date.toISOString().split('T')[0];
+  return dateToIsoDate(date);
 }
 
 // 2024-09-14: good start, but probably doesn't fully work
