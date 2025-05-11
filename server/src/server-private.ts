@@ -148,7 +148,7 @@ function fullTextDiff(before: CallSchedule, after: CallSchedule): {
     // Compare schedule
     {
       const assignedStr = (assigned: string) => assigned !== '' ? `assigned to ${assigned}` : 'unassigned';
-      const shortAssignedStr = (assigned: string) => assigned !== '' ? `${assigned.slice(0, 1)}` : 'unassigned';
+      const shortAssignedStr = (assigned: string) => assigned !== '' ? `${assigned}` : 'unassigned';
       const changes: string[] = [];
       for (const [weekIndex, weekBefore] of before.weeks.entries()) {
         const weekAfter = after.weeks[weekIndex];

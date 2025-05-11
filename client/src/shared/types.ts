@@ -414,6 +414,11 @@ export type CallScheduleProcessed = {
   day2isR2EarlyCall: Record<IsoDate, boolean>;
 
   isBeforeStartOfAcademicYear: boolean;
+
+  rules: {
+    kind: 'hard' | 'soft';
+    description: string;
+  }[];
 };
 
 export function isHolidayShift(

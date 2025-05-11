@@ -700,6 +700,7 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     },
     day2shift2isHoliday: {},
     isBeforeStartOfAcademicYear: data.firstDay > dateToIsoDate(new Date()),
+    rules: [],
   };
 
   // Initialize day2person2info with default info
@@ -1050,7 +1051,16 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   }
 
+  const rules: {
+    kind: 'hard' | 'soft';
+    description: string;
+  }[] = [];
+
   // hard 0a. no call on vacation or non-call rotations
+  rules.push({
+    kind: 'hard',
+    description: 'No call on vacation or Alaska/NF/OFF rotations',
+  });
   forEveryDay(data, (day, _) => {
     for (const person of PEOPLE) {
       const today = assertNonNull(result.day2person2info[day][person]);
@@ -1091,6 +1101,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   });
 
   // hard 0b: not multiple calls on same day
+  rules.push({
+    kind: 'hard',
+    description: 'Not on call for multiple shifts on same day',
+  });
   forEveryDay(data, (day, _) => {
     for (const person of PEOPLE) {
       const today = assertNonNull(result.day2person2info[day][person]);
@@ -1110,6 +1124,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   });
 
   // hard 1. no consecutive call calls
+  rules.push({
+    kind: 'hard',
+    description: 'Not on call for consecutive days',
+  });
   // forEveryDay(
   //   data,
   //   (day, _) => {
@@ -1190,6 +1208,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   );
 
   // hard 2. no consecutive weekend calls
+  rules.push({
+    kind: 'hard',
+    description: 'Not on call for consecutive weekends',
+  });
   forEveryDay(
     data,
     (day, _) => {
@@ -1219,6 +1241,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   );
 
   // hard 3. r2's should not be on call for first 2 weeks of july
+  rules.push({
+    kind: 'hard',
+    description: 'R2s should not be on call for first 2 weeks of July',
+  });
   forEveryDay(data, (day, _) => {
     if (day > '2024-07-13') return;
     for (const person of PEOPLE) {
@@ -1239,6 +1265,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   });
 
   // hard 4. MAD shouldn't be on call for the first two weeks of their SCH/HMC rotations.
+  rules.push({
+    kind: 'hard',
+    description: 'MAD should not be on call for the first two weeks of their SCH/HMC rotations',
+  });
   for (const rotation of data.rotations.MAD) {
     if (rotation.rotation != 'HMC' && rotation.rotation != 'SCH') continue;
     for (let i = 0; i < 14; i++) {
@@ -1260,6 +1290,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   }
 
   // hard 5. 4 days off in a 28 day period
+  rules.push({
+    kind: 'hard',
+    description: 'At least 4 days off in every 28 day period',
+  });
   for (const person of PEOPLE) {
     let offCounter = 0;
     // Research residents can't violate this rule
@@ -1294,6 +1328,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   }
 
   // hard 6. priority weekend
+  rules.push({
+    kind: 'hard',
+    description: 'No call during priority weekend',
+  });
   forEveryDay(data, (day, _) => {
     for (const person of callPoolPeople(data)) {
       const info = result.day2person2info?.[day]?.[person];
@@ -1314,6 +1352,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   });
 
   // hard 7. no weekend call before NF
+  rules.push({
+    kind: 'hard',
+    description: 'No weekend call before NF',
+  });
   forEveryDay(data, (day, _) => {
     const dow = dateToDayOfWeek(day);
     if (dow != 'fri') return;
@@ -1339,6 +1381,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   });
 
   // soft 1. every other weeknight call
+  rules.push({
+    kind: 'soft',
+    description: 'Not on call for 2 weeknights separated by 1 day only',
+  });
   // forEveryDay(
   //   data,
   //   (day, _) => {
@@ -1406,6 +1452,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   );
 
   // soft 2. every other weekend call
+  rules.push({
+    kind: 'soft',
+    description: 'Not on call for 2 weekends with only 1 weekend off in between',
+  });
   forEveryDay(
     data,
     (day, _) => {
@@ -1444,6 +1494,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   );
 
   // soft 3. no MAD call during AUA
+  rules.push({
+    kind: 'soft',
+    description: 'MAD should not be on call during AUA',
+  });
   forEveryDay(data, (day, _) => {
     if (data.specialDays[day] != 'AUA') return;
     const person = 'MAD';
@@ -1458,6 +1512,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     });
   });
   // soft 3b. no AUA for seniors
+  rules.push({
+    kind: 'soft',
+    description: 'Seniors should not be on call during AUA',
+  });
   forEveryDay(data, (day, _) => {
     if (data.specialDays[day] != 'AUA') return;
     for (const person of PEOPLE) {
@@ -1475,6 +1533,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
     }
   });
   // hard 3c. no AUA for research
+  rules.push({
+    kind: 'hard',
+    description: 'Research residents should not be on call during AUA',
+  });
   forEveryDay(data, (day, _) => {
     if (data.specialDays[day] != 'AUA') return;
     for (const person of PEOPLE) {
@@ -1493,6 +1555,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   });
 
   // soft 4. no cross coverage
+  rules.push({
+    kind: 'soft',
+    description: 'No cross coverage (working at north hospital but on call for south, or vice versa)',
+  });
   forEveryDay(data, (day, _) => {
     for (const person of PEOPLE) {
       const today = assertNonNull(result.day2person2info[day][person]);
@@ -1531,6 +1597,10 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
   });
 
   // soft 5. no call in 3rd trimester
+  rules.push({
+    kind: 'hard',
+    description: 'No call during maternity/paternity leave',
+  });
   forEveryDay(data, (day, _) => {
     for (const person of PEOPLE) {
       const config = data.people[person];
@@ -1550,6 +1620,8 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       }
     }
   });
+
+  result.rules = rules;
 
   // Count issues
   for (const issue of Object.values(result.issues)) {

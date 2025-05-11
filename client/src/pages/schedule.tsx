@@ -264,6 +264,7 @@ function RenderCallScheduleImpl({
   const [isSaving, setIsSaving] = useState(false);
   const weekListRef = useRef<VListHandle>(null);
   const [onlyNew, setOnlyNew] = useState<'yes' | null>(!processed.isBeforeStartOfAcademicYear ? 'yes' : null);
+  const [showRules, setShowRules] = useState<'list' | null>(null);
 
   useMediaQuery(`(min-width:${SIDEBAR_WIDTH + WEEK_WIDTH}px)`);
 
@@ -451,6 +452,20 @@ function RenderCallScheduleImpl({
           height: '100%',
         }}
       >
+        <Dialog open={showRules === 'list'} onClose={() => setShowRules(null)}>
+          <Column style={{ padding: '20px', minWidth: '450px' }}>
+            <Row>
+              <Heading>Rules</Heading>
+            </Row>
+            {processed.rules.sort((a, b) => a.kind.localeCompare(b.kind)).map(({ kind, description }) => (
+              <Row key={description}><Text style={{
+                paddingLeft: '20px',
+                textIndent: '-20px',
+                display: 'block'
+              }}>{kind === 'hard' ? '(HARD)' : '(SOFT)'} {description}</Text></Row>
+            ))}
+          </Column>
+        </Dialog>
         <DefaultTextSize defaultSize={'12px'}>
           <Row
             crossAxisAlignment="start"
@@ -710,6 +725,21 @@ function RenderCallScheduleImpl({
                   >
                     <ToggleButton size="small" value="yes">
                       only new
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                  <ElementSpacer />
+                  <ToggleButtonGroup
+                    size="small"
+                    exclusive
+                    value={showRules}
+                    color="primary"
+                    style={{
+                      height: '28px',
+                    }}
+                    onChange={(_, v) => setShowRules(v as 'list' | null)}
+                  >
+                    <ToggleButton size="small" value="list">
+                      list
                     </ToggleButton>
                   </ToggleButtonGroup>
                 </Row>
