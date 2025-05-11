@@ -656,7 +656,6 @@ function RenderCallScheduleImpl({
                     setSaveDialogOpen={setSaveDialogOpen}
                     isSaving={isSaving}
                     setCopyPasteSnackbar={setCopyPasteSnackbar}
-                    initialData={data}
                     setIsSaving={setIsSaving}
                   />
                 </Row>
@@ -1685,19 +1684,18 @@ function SaveDialog({
   setSaveDialogOpen,
   isSaving,
   setCopyPasteSnackbar,
-  initialData,
   setIsSaving,
 }: {
   saveDialogOpen: boolean;
   setSaveDialogOpen: (v: boolean) => void;
   isSaving: boolean;
   setCopyPasteSnackbar: (v: string) => void;
-  initialData: CallSchedule;
   setIsSaving: (v: boolean) => void;
 }) {
   const [data] = useData();
   const [localData, setLocalData] = useLocalData();
   const [saveName, setSaveName] = useState('');
+  const initialData = useInitialData();
   return <Dialog
       open={saveDialogOpen}
       maxWidth="xl"

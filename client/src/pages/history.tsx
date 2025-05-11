@@ -4,20 +4,22 @@ import { useAsync } from '../common/hooks';
 import { Heading, Text } from '../common/text';
 import { getAcademicYear, StoredCallScheduleMetaData } from '../shared/types';
 import { MainLayout } from './layout';
-import { rpcListCallSchedules, rpcLoadCallSchedules, rpcRestorePreviousVersion } from './rpc';
+import { rpcGetDiff, rpcListCallSchedules, rpcLoadCallSchedules, rpcRestorePreviousVersion } from './rpc';
 import { LoadingIndicator } from '../common/loading';
 import {
   assertNonNull,
   deparseUserIsoDatetime,
+  IsoDatetime,
   isoDatetimeToDate,
 } from '../shared/common/check-type';
 import { formatRelative } from '../shared/common/formatting';
-import { Button, IconButton, Snackbar, Tooltip } from '@mui/material';
+import { Button, Checkbox, Dialog, IconButton, Snackbar, ToggleButton, Tooltip } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useData } from './data-context';
 import CloseIcon from '@mui/icons-material/Close';
 import { Ui } from '../App';
 import { ButtonWithConfirm } from '../common/button';
+import { CheckBox } from '@mui/icons-material';
 
 export function HistoryPage() {
   const [schedules, setSchedules] = useState<
@@ -82,6 +84,38 @@ function RenderSchedules({
   const [originalData, setData] = useData();
   const [errorSnackbar, setErrorSnackbar] = useState('');
   const navigate = useNavigate();
+  const [selectedIndices, setSelectedIndices] = useState<number[]>([0]);
+  const [diff, setDiff] = useState<string>('');
+
+  const runDiff = async (beforeTs: IsoDatetime, afterTs: IsoDatetime) => {
+    if (beforeTs > afterTs) {
+      const temp = beforeTs;
+      beforeTs = afterTs;
+      afterTs = temp;
+    }
+    try {
+      setIsLoading(true);
+      const result = await rpcGetDiff({
+        academicYear: getAcademicYear(originalData.academicYear),
+        beforeTs,
+        afterTs,
+      });
+      switch (result.kind) {
+        case 'ok':
+          setDiff(result.diff);
+          setIsLoading(false);
+          return;
+        case 'not-found':
+          setErrorSnackbar(`Could not find the version you are trying to restore. Maybe ask Stefan for help.`);
+          break;
+      }
+    } catch (e) {
+      console.log(e);
+      setIsLoading(false);
+      setErrorSnackbar(`Failed to fetch schedule.`);
+    }
+  };
+
   return (
     <Column spacing="5px">
       <Snackbar
@@ -103,6 +137,30 @@ function RenderSchedules({
       <Text>
         Here are all previous version of the schedule.
       </Text>
+      <Button
+        disabled={isLoading || selectedIndices.length !== 2}
+        onClick={async () => {
+          await runDiff(schedules[selectedIndices[0]].ts, schedules[selectedIndices[1]].ts);
+        }}
+        variant="outlined"
+        size="small"
+        style={{
+          width: '300px',
+        }}
+      >
+        <Text>Compare selected versions</Text>
+      </Button>
+      <Dialog open={diff !== ''} onClose={() => setDiff('')}>
+        <Row style={{
+          margin: '20px',
+          width: '950px',
+        }}>
+          <Column spacing="10px">
+            <Heading>Changes</Heading>
+            <pre>{diff}</pre>
+          </Column>
+        </Row>
+      </Dialog>
       {schedules
         .sort((a, b) => -a.ts.localeCompare(b.ts))
         .map((schedule, scheduleIndex) => {
@@ -110,7 +168,7 @@ function RenderSchedules({
             <Row
               key={schedule.ts}
               style={{
-                width: '750px',
+                width: '950px',
                 padding: '5px 10px',
                 border: '1px solid #ccc',
               }}
@@ -136,7 +194,7 @@ function RenderSchedules({
                     ? 'Manual save without name'
                     : schedule.name}
                 </Text>
-                <Text
+                {/* <Text
                   style={{
                     fontSize: '12px',
                   }}
@@ -150,9 +208,16 @@ function RenderSchedules({
                   {schedule.lastEditedBy
                     ? `; saved by ${schedule.lastEditedBy}`
                     : ''}
+                </Text> */}
+                <Text
+                  style={{
+                    fontSize: '12px',
+                  }}
+                >
+                  {schedule.shortDiff ?? ''}
                 </Text>
               </Column>
-              <Row>
+              <Row spacing="5px">
                 <Tooltip title={
                   scheduleIndex === 0 ?
                     'This is already the current version.' :
@@ -230,6 +295,26 @@ function RenderSchedules({
                     </ButtonWithConfirm>
                   </Row>
                 </Tooltip>
+                <Button
+                  disabled={isLoading || !schedule.canRestore || scheduleIndex === schedules.length - 1}
+                  onClick={async () => {
+                    await runDiff(schedule.ts, assertNonNull(schedules[scheduleIndex + 1].ts));
+                  }}
+                  variant="outlined"
+                  size="small"
+                >
+                  <Text>Compare with previous</Text>
+                </Button>
+                <Checkbox
+                  checked={selectedIndices.includes(scheduleIndex)}
+                  onChange={val => {
+                    if (val.target.checked) {
+                      setSelectedIndices([scheduleIndex, ...selectedIndices.slice(0, 1)]);
+                    } else {
+                      setSelectedIndices(selectedIndices.filter(i => i !== scheduleIndex));
+                    }
+                  }}
+                />
               </Row>
             </Row>
           );

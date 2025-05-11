@@ -511,7 +511,7 @@ const result: Result = ${objectToCode(getDefaultObject(data, config))}`;
               try {
                 const result = await rpcSaveFullCallSchedules({
                   callSchedule: newData,
-                  name: 'Config editor',
+                  name: `Config editor (${configEditor.config.kind})`,
                 });
 
                 switch (result.kind) {

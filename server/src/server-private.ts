@@ -1,6 +1,7 @@
 import * as dotenv from 'dotenv';
 dotenv.config({ path: __dirname + '/../.env' });
 
+import * as diff from 'diff';
 import { assertNonNull, deepCopy, deparseIsoDatetime, exceptionToString } from './shared/common/check-type';
 import express, { Request, Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
@@ -10,6 +11,7 @@ import { setupExpressServer } from './common/express';
 import {
   assertCallSchedule,
   assertGetDayHistoryRequest,
+  assertGetDiffRequest,
   assertIsoDate,
   assertListCallSchedulesRequest,
   assertLoadCallScheduleRequest,
@@ -19,6 +21,7 @@ import {
 import {
   applyActions,
   compareData,
+  dateToDayOfWeek,
   findDay,
   processCallSchedule,
   scheduleToStoredSchedule,
@@ -32,8 +35,10 @@ import {
   AcademicYear,
   Action,
   ALL_ACADEMIC_YEARS,
+  CallSchedule,
   getAcademicYearFromIsoDate,
   GetDayHistoryResponse,
+  GetDiffResponse,
   ListCallSchedulesResponse,
   LoadCallScheduleResponse,
   RestorePreviousVersionResponse,
@@ -116,6 +121,126 @@ export const AXIOS_PROPS = {
 
 const IS_PUBLIC = process.env['CALL_SCHEDULE_PUBLIC'] === 'yes';
 console.log(`IS_PUBLIC: ${IS_PUBLIC}`);
+
+function fullTextDiffLastTwo(storage: StoredCallSchedules): string {
+  const before = storage.versions[storage.versions.length - 2];
+  const after = storage.versions[storage.versions.length - 1];
+  return fullTextDiff(before.callSchedule, after.callSchedule).fullDiff;
+}
+
+function fullTextDiff(before: CallSchedule, after: CallSchedule): {
+  fullDiff: string;
+  shortDiff: string;
+} {
+  if (before === undefined || after === undefined) {
+    return {
+      fullDiff: 'n/a',
+      shortDiff: 'n/a',
+    };
+  }
+  try {
+    let nShiftChanges = 0;
+    let nAssignmentChanges = 0;
+    const people = new Set<string>();
+    const days = new Set<string>();
+    const shortDiff: string[] = [];
+    const diffs: { title: string, diff: string }[] = [];
+    // Compare schedule
+    {
+      const assignedStr = (assigned: string) => assigned !== '' ? `assigned to ${assigned}` : 'unassigned';
+      const shortAssignedStr = (assigned: string) => assigned !== '' ? `${assigned.slice(0, 1)}` : 'unassigned';
+      const changes: string[] = [];
+      for (const [weekIndex, weekBefore] of before.weeks.entries()) {
+        const weekAfter = after.weeks[weekIndex];
+        for (const [dayIndex, dayBefore] of weekBefore.days.entries()) {
+          const dayAfter = weekAfter.days[dayIndex];
+          const compareShifts = (a: Record<string, string>, b: Record<string, string>) => {
+            const shiftsBefore = Object.keys(a);
+            const shiftsAfter = Object.keys(b);
+            const shiftsOnlyInBefore = shiftsBefore.filter(s => !shiftsAfter.includes(s));
+            const shiftsOnlyInAfter = shiftsAfter.filter(s => !shiftsBefore.includes(s));
+            const commonShifts = shiftsBefore.filter(s => shiftsAfter.includes(s));
+            const dayStr = `${dayBefore.date} (${dateToDayOfWeek(dayBefore.date)})`;
+            for (const shift of shiftsOnlyInBefore) {
+              changes.push(`${dayStr}: deleted shift '${shift}' (${assignedStr(a[shift])})`);
+              nShiftChanges++;
+            }
+            for (const shift of shiftsOnlyInAfter) {
+              changes.push(`${dayStr}: added shift '${shift}' (${assignedStr(b[shift])})`);
+              nShiftChanges++;
+            }
+            for (const shift of commonShifts) {
+              if (a[shift] !== b[shift]) {
+                changes.push(`${dayStr}: ${shift}: ${shortAssignedStr(a[shift])} -> ${shortAssignedStr(b[shift])}`);
+                nAssignmentChanges++;
+                people.add(a[shift]);
+                people.add(b[shift]);
+                days.add(dayBefore.date);
+              }
+            }
+          }
+          compareShifts(dayBefore.shifts, dayAfter.shifts);
+          compareShifts(dayBefore.backupShifts, dayAfter.backupShifts);
+        }
+      }
+      if (changes.length > 0) {
+        diffs.push({ title: `Schedule changes`, diff: changes.join('\n') });
+      }
+      if (nShiftChanges > 0) {
+        shortDiff.push(`${nShiftChanges} shift changes`);
+      }
+      if (nAssignmentChanges > 0) {
+        const details = [];
+        const peopleList = Array.from(people).filter(p => p !== '').sort();
+        const daysList = Array.from(days).sort();
+        if (peopleList.length <= 4) {
+          details.push(` for ${peopleList.join('/')}`);
+        }
+        if (daysList.length <= 4) {
+          details.push(` on ${daysList.join('/')}`);
+        } 
+        shortDiff.push(`${nAssignmentChanges} assignment changes${details.join('')}`);
+      }
+    }
+    // Compare configs
+    const configFields = ['shiftConfigs', 'chiefShiftConfigs', 'callTargets', 'people', 'holidays', 'specialDays', 'vacations', 'rotations'] as const;
+    for (const field of configFields) {
+      const beforeValue = JSON.stringify(before[field], null, 2);
+      const afterValue = JSON.stringify(after[field], null, 2);
+      if (beforeValue !== afterValue) {
+        shortDiff.push(`${field} changed`)
+        const patch = diff.createTwoFilesPatch(
+          `${field} (before)`,
+          `${field} (after)`,
+          beforeValue,
+          afterValue,
+          '',
+          '',
+          { context: 6 }
+        ).split('\n').slice(4).join('\n');
+        diffs.push({ title: `Config (${field}) changes`, diff: patch });
+      }
+    }
+    if (diffs.length === 0) {
+      return {
+        fullDiff: 'No changes',
+        shortDiff: 'No changes',
+      };
+    }
+    return {
+      fullDiff: diffs.map(d => `${d.title}
+---------------------------------------------------------
+${d.diff}`).join('\n\n'),
+      shortDiff: shortDiff.join(', '),
+    };
+  } catch (e) {
+    console.log(e);
+    return {
+      fullDiff: 'Error',
+      shortDiff: 'Error',
+    };
+  }
+}
 
 async function main() {
   await setupExpressServer({
@@ -245,6 +370,9 @@ async function main() {
                 res.status(500).send(`Failed to compare`);
                 return;
               }
+              console.log(diff.changes);
+              console.log(initial.weeks[0].days[1].shifts);
+              console.log(edited.weeks[0].days[1].shifts);
               applyActions(nextSchedule, diff.changes);
             }
             const authedUser = extractAuthedUser(req);
@@ -262,7 +390,7 @@ async function main() {
               options: {
                 to: ['stefanheule@gmail.com'],
                 subject: `[call/${request.callSchedule.academicYear}] Save new version by ${authedUser}`,
-                text: `Name: ${nextVersion.name}`,
+                text: `Name: ${nextVersion.name}\n\n${fullTextDiffLastTwo(newStorage)}`,
               }
             });
 
@@ -331,7 +459,7 @@ async function main() {
               options: {
                 to: ['stefanheule@gmail.com'],
                 subject: `[call/${request.callSchedule.academicYear}] Save new full version by ${authedUser}`,
-                text: `Name: ${nextVersion.name}`,
+                text: `Name: ${nextVersion.name}\n\n${fullTextDiffLastTwo(newStorage)}`,
               }
             });
 
@@ -376,18 +504,22 @@ async function main() {
               academicYear: request.academicYear,
             });
             const chunkSize = 20;
-            const schedules = await Promise.all(
+            const schedules: ListCallSchedulesResponse['schedules'] = await Promise.all(
               Array.from({ length: Math.ceil(storage.versions.length / chunkSize) }, (_, i) =>
                 Promise.all(
-                  storage.versions.slice(i * chunkSize, (i + 1) * chunkSize).map(async v => ({
-                    name: v.name,
-                    lastEditedBy: v.callSchedule.lastEditedBy,
-                    shiftCounts: v.shiftCounts,
-                    issueCounts: v.issueCounts,
-                    backupShiftCounts: v.backupShiftCounts,
-                    ts: v.ts,
-                    canRestore: await Promise.resolve(canRestore(v)),
-                  }))
+                  storage.versions.slice(i * chunkSize, (i + 1) * chunkSize).map(async (v, index) => {
+                    const actualIndex = i * chunkSize + index;
+                    return ({
+                      name: v.name,
+                      shortDiff: fullTextDiff(storage.versions[actualIndex - 1]?.callSchedule, storage.versions[actualIndex]?.callSchedule).shortDiff,
+                      lastEditedBy: v.callSchedule.lastEditedBy,
+                      shiftCounts: v.shiftCounts,
+                      issueCounts: v.issueCounts,
+                      backupShiftCounts: v.backupShiftCounts,
+                      ts: v.ts,
+                      canRestore: await Promise.resolve(canRestore(v)),
+                    })
+                  })
                 )
               )
             ).then(chunks => chunks.flat());
@@ -488,6 +620,49 @@ async function main() {
       );
 
       app.post(
+        '/api/get-diff',
+        async (
+          req: Request,
+          res: Response<GetDiffResponse | string>,
+        ) => {
+          try {
+            if (IS_PUBLIC) {
+              res.status(500).send(`Cannot get diff on public server`);
+              return;
+            }
+            const request = assertGetDiffRequest(req.body);
+
+            const user = extractAuthedUser(req);
+            if (!getAcademicYearsForUser(user).includes(request.academicYear)) {
+              res.status(403).send(`Forbidden`);
+              return;
+            }
+
+            const storage = loadStorage({
+              noCheck: true,
+              academicYear: request.academicYear,
+            });
+            const before = storage.versions.find(v => v.ts === request.beforeTs);
+            const after = storage.versions.find(v => v.ts === request.afterTs);
+            if (!before || !after) {
+              res.send({ kind: 'not-found' });
+              return;
+            }
+            const diff = fullTextDiff(before.callSchedule, after.callSchedule);
+            const result: GetDiffResponse = {
+              kind: 'ok',
+              diff: `Summary: ${diff.shortDiff}\n\n${diff.fullDiff}`,
+            };
+            res.send(result);
+          } catch (e) {
+            console.log(e);
+            res.status(500).send(`exception: ${exceptionToString(e)}`);
+            return;
+          }
+        },
+      );
+
+      app.post(
         '/api/restore-previous-version',
         async (
           req: Request,
@@ -531,7 +706,7 @@ async function main() {
               options: {
                 to: ['stefanheule@gmail.com'],
                 subject: `[call/${request.academicYear}] Restored previous version by ${authedUser}`,
-                text: `Name: ${newStorage.versions[newStorage.versions.length - 1].name}`,
+                text: `Name: ${newStorage.versions[newStorage.versions.length - 1].name}\n\n${fullTextDiffLastTwo(newStorage)}`,
               }
             });
 

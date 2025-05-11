@@ -491,6 +491,7 @@ export type BackupShiftCount = {
 export type StoredCallScheduleMetaData = {
   name: string;
   lastEditedBy?: string;
+  shortDiff?: string;
   backupShiftCounts?: BackupShiftCount;
   shiftCounts: ShiftCount;
   issueCounts: IssueCount;
@@ -571,4 +572,17 @@ export type RestorePreviousVersionResponse = {
 } | {
   kind: 'ok';
   data: CallSchedule;
+};
+
+export type GetDiffRequest = {
+  academicYear: AcademicYear;
+  beforeTs: IsoDatetime;
+  afterTs: IsoDatetime;
+};
+
+export type GetDiffResponse = {
+  kind: 'ok';
+  diff: string;
+} | {
+  kind: 'not-found';
 };

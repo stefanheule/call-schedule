@@ -1,5 +1,6 @@
 import {
   assertGetDayHistoryResponse,
+  assertGetDiffResponse,
   assertListCallSchedulesResponse,
   assertLoadCallScheduleResponse,
   assertRestorePreviousVersionResponse,
@@ -10,6 +11,8 @@ import { axiosPost } from '../shared/common/axios';
 import {
   GetDayHistoryRequest,
   GetDayHistoryResponse,
+  GetDiffRequest,
+  GetDiffResponse,
   ListCallSchedulesRequest,
   ListCallSchedulesResponse,
   LoadCallScheduleRequest,
@@ -74,4 +77,11 @@ export async function rpcRestorePreviousVersion(
 ): Promise<RestorePreviousVersionResponse> {
   const data = (await axiosPost('/api/restore-previous-version', request, AXIOS_PROPS)).data;
   return assertRestorePreviousVersionResponse(data);
+}
+
+export async function rpcGetDiff(
+  request: GetDiffRequest,
+): Promise<GetDiffResponse> {
+  const data = (await axiosPost('/api/get-diff', request, AXIOS_PROPS)).data;
+  return assertGetDiffResponse(data);
 }
