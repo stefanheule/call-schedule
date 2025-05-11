@@ -47,7 +47,7 @@ export function HistoryPage() {
             size="small"
             variant="outlined"
             onClick={async () => {
-              await navigate('/');
+              await navigate(`/${data.academicYear}`);
             }}
             disabled={isLoading}
           >
@@ -119,7 +119,7 @@ function RenderSchedules({
                     return;
                   }
                   setData(result);
-                  await navigate('/');
+                  await navigate(`/${originalData.academicYear}`);
                 } catch (e) {
                   console.log(e);
                   setIsLoading(false);

@@ -1457,6 +1457,40 @@ export function processCallSchedule(data: CallSchedule): CallScheduleProcessed {
       elements: [elementIdForShift(day, today.shift)],
     });
   });
+  // soft 3b. no AUA for seniors
+  forEveryDay(data, (day, _) => {
+    if (data.specialDays[day] != 'AUA') return;
+    for (const person of PEOPLE) {
+      const pc = data.people[person];
+      if (pc.year !== 'S') continue;
+      const today = assertNonNull(result.day2person2info[day][person]);
+      if (!today.shift) continue;
+      addIssue(result, {
+        kind: 'senior-during-aua',
+        startDay: day,
+        message: `Senior is on call during AUA: ${shiftName(today)} on ${day}.`,
+        isHard: false,
+        elements: [elementIdForShift(day, today.shift)],
+      });
+    }
+  });
+  // hard 3c. no AUA for research
+  forEveryDay(data, (day, _) => {
+    if (data.specialDays[day] != 'AUA') return;
+    for (const person of PEOPLE) {
+      const pc = data.people[person];
+      if (pc.year !== 'R') continue;
+      const today = assertNonNull(result.day2person2info[day][person]);
+      if (!today.shift) continue;
+      addIssue(result, {
+        kind: 'research-during-aua',
+        startDay: day,
+        message: `Senior is on call during AUA: ${shiftName(today)} on ${day}.`,
+        isHard: true,
+        elements: [elementIdForShift(day, today.shift)],
+      });
+    }
+  });
 
   // soft 4. no cross coverage
   forEveryDay(data, (day, _) => {

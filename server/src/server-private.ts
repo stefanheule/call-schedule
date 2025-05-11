@@ -10,6 +10,7 @@ import { setupExpressServer } from './common/express';
 import {
   assertCallSchedule,
   assertGetDayHistoryRequest,
+  assertIsoDate,
   assertListCallSchedulesRequest,
   assertLoadCallScheduleRequest,
   assertSaveCallScheduleRequest,
@@ -55,8 +56,14 @@ import { dateToIsoDate } from './shared/optimized';
 // NEWYEAR: add chiefs here
 const STEFAN = 'stefanheule@gmail.com';
 const CHIEF_EMAILS: Record<AcademicYear, string[]> = {
-  '24': [STEFAN, "lisazhang0928@hotmail.com", "dibo900@gmail.com", "tovalweiss@gmail.com", "chloe92@gmail.com"],
+  '24': [STEFAN, "lisazhang0928@hotmail.com", "dibo900@gmail.com", "tovalweiss@gmail.com", "chloe92@gmail.com", "dcarson16@gmail.com"],
   '25': [STEFAN, "dcarson16@gmail.com", "arashamighi@gmail.com", "alexandra.c.jacobs@gmail.com"],
+}
+const ADMIN_CHIEF_EMAILS: Record<AcademicYear, { from: string, emails: string[] }[]> = {
+  '24': [
+    { from: '2025-05-09', emails: ['tovalweiss@gmail.com'] },
+  ],
+  '25': [],
 }
 const HAS_EDIT_CONFIG_ACCESS = [
   'local',
@@ -79,6 +86,23 @@ function getAcademicYearsForUser(user: string): readonly AcademicYear[] {
     return ALL_ACADEMIC_YEARS;
   }
   return ALL_ACADEMIC_YEARS.filter(year => CHIEF_EMAILS[year].includes(user));
+}
+
+function getAdminChiefEmails(): string[] | undefined {
+  const today = dateToIsoDate(new Date());
+  for (const academicYear of ALL_ACADEMIC_YEARS) {
+    const start = assertIsoDate(`20${academicYear}-07-01`);
+    const end = assertIsoDate(`20${parseInt(academicYear) + 1}-06-30`);
+    if (today >= start && today <= end) {
+      const config = ADMIN_CHIEF_EMAILS[academicYear];
+      for (const item of config) {
+        if (today >= item.from) {
+          return item.emails;
+        }
+      }
+    }
+  }
+  return undefined;
 }
 
 export const AXIOS_PROPS = {
@@ -438,7 +462,9 @@ async function main() {
               }
 
               try {
-                const emailNotifications = ['stefanheule@gmail.com', ...(dateToIsoDate(new Date()) <= '2025-06-30' ? ['tovalweiss@gmail.com'] : [])]
+                const adminChiefEmails = getAdminChiefEmails();
+                const titlePrefix = adminChiefEmails === undefined ? '[ADMIN CHIEF IS NOT CONFIGURED!!] ' : '';
+                const emailNotifications = ['stefanheule@gmail.com', ...(adminChiefEmails ?? [])]
                 const storage = loadStorage({
                   noCheck: true,
                   academicYear: getAcademicYearFromIsoDate(dateToIsoDate(new Date())),
@@ -463,8 +489,8 @@ async function main() {
                     message: `Parsing failed with at least 1 error.\n\n${summary}`,
                   });
                   if (request.initialTry && parsed.filter(x => x.kind !== 'ignored' && !x.isPending).length > 0) {
-                    const title = `[Manual action required] Approved trades from Amion could not be applied automatically`;
-                    const message = `Below are some technical details of how exactly what trades were approved and what errors occurred. Feel free to ignore.
+                    const title = `${titlePrefix}[Manual action required] Approved trades from Amion could not be applied automatically`;
+                    const message = `Below are some technical details of how exactly what trades were approved and what errors occurred. Feel free to ignore; these are mostly for Stefan.
 
 ---
 
@@ -526,8 +552,8 @@ ${summary}`;
                     parsed.filter(x => x.kind == 'changes' && !x.isPending).length > 0;
                   const shouldNotify = hasChanges;
                   if (shouldNotify) {
-                    const title = `Approved trades from Amion were applied successfully`;
-                    const message = `Below are some technical details of how exactly what changes were applied. Feel free to ignore.
+                    const title = `${titlePrefix}Approved trades from Amion were applied successfully`;
+                    const message = `Below are some technical details of how exactly what changes were applied. Feel free to ignore; these are mostly for Stefan.
 
 ---
 

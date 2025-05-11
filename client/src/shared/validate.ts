@@ -224,11 +224,18 @@ export function validateData(data: CallSchedule): void {
         `Person ${person}: short name must be 2 or 3 characters long.`,
       );
     }
-    if (config.priorityWeekendSaturday)
+    if (config.priorityWeekendSaturday) {
       validateDate(
         config.priorityWeekendSaturday,
         `priorityWeekendSaturday for person ${person}`,
       );
+      const dow = dateToDayOfWeek(config.priorityWeekendSaturday);
+      if (dow != 'sat') {
+        throw new Error(
+          `Person ${person}: priorityWeekendSaturday must be a Saturday, but it's ${dow}.`,
+        );
+      }
+    }
     if (config.maternity) {
       validateDate(
         config.maternity.from,

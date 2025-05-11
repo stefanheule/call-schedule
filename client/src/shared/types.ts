@@ -454,6 +454,7 @@ export const ISSUE_KINDS_HARD = [
   'priority-weekend',
   'call-before-nf',
   'wrong-call-target',
+  'research-during-aua',
 ] as const;
 export const ISSUE_KINDS_SOFT = [
   'almost-consecutive-call',
@@ -461,6 +462,7 @@ export const ISSUE_KINDS_SOFT = [
   'mad-during-aua',
   'cross-coverage',
   'over-call-target',
+  'senior-during-aua',
 ] as const;
 export const ISSUE_KINDS = [...ISSUE_KINDS_SOFT, ...ISSUE_KINDS_HARD];
 export type IssueKind = (typeof ISSUE_KINDS)[number];
