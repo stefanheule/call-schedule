@@ -1,7 +1,7 @@
 import * as dotenv from 'dotenv';
 dotenv.config({ path: __dirname + '/../.env' });
 
-import { assertNonNull, exceptionToString } from './shared/common/check-type';
+import { assertNonNull, deepCopy, deparseIsoDatetime, exceptionToString } from './shared/common/check-type';
 import express, { Request, Response } from 'express';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import path from 'path';
@@ -13,12 +13,14 @@ import {
   assertIsoDate,
   assertListCallSchedulesRequest,
   assertLoadCallScheduleRequest,
+  assertRestorePreviousVersionRequest,
   assertSaveCallScheduleRequest,
 } from './shared/check-type.generated';
 import {
   applyActions,
   compareData,
   findDay,
+  processCallSchedule,
   scheduleToStoredSchedule,
 } from './shared/compute';
 import {
@@ -34,8 +36,10 @@ import {
   GetDayHistoryResponse,
   ListCallSchedulesResponse,
   LoadCallScheduleResponse,
+  RestorePreviousVersionResponse,
   SaveCallScheduleResponse,
   SaveFullCallScheduleResponse,
+  StoredCallSchedule,
   StoredCallSchedules,
 } from './shared/types';
 import { loadStorage, storeStorage } from './storage';
@@ -161,14 +165,20 @@ async function main() {
               result = storage.versions.find(v => v.ts === request.ts);
               if (!result)
                 throw new Error(`Cannot find version with ts ${request.ts}`);
+              result.callSchedule.viewingPreviousVersionFromTs = request.currentTs;
             } else {
               if (storage.versions.length == 0) {
                 throw new Error(`No versions found`);
               }
               result = storage.versions[storage.versions.length - 1];
+              result.callSchedule.viewingPreviousVersionFromTs = undefined;
             }
 
             result.callSchedule.isPublic = IS_PUBLIC;
+            result.callSchedule.kind = 'call-schedule';
+
+            // This shouldn't be necessary, but somehow it is?!
+            // result.callSchedule.lastEditedAt = result.ts;
             
             const user = extractAuthedUser(req);
             if (!IS_PUBLIC) {
@@ -186,6 +196,7 @@ async function main() {
             result.callSchedule.academicYear = request.academicYear;
             result.callSchedule.hasEditConfigAccess = HAS_EDIT_CONFIG_ACCESS.includes(user);
             result.callSchedule.hasCreateScheduleAccess = HAS_CREATE_SCHEDULE_ACCESS.includes(user);
+            result.callSchedule.name = result.name;
 
             const checkedSchedule = assertCallSchedule(result.callSchedule);
             validateData(checkedSchedule);
@@ -211,8 +222,8 @@ async function main() {
               return;
             }
             const request = assertSaveCallScheduleRequest(req.body);
-
             const user = extractAuthedUser(req);
+
             if (!getAcademicYearsForUser(user).includes(request.callSchedule.academicYear ?? 'foo' as unknown as AcademicYear)) {
               res.status(403).send(`Forbidden`);
               return;
@@ -228,7 +239,7 @@ async function main() {
             if (request.initialCallSchedule && last) {
               const initial = request.initialCallSchedule;
               const edited = request.callSchedule;
-              nextSchedule = last;
+              nextSchedule = deepCopy(last);
               const diff = compareData(initial, edited);
               if (diff.kind === 'error') {
                 res.status(500).send(`Failed to compare`);
@@ -246,6 +257,15 @@ async function main() {
               versions: [...storage.versions, nextVersion],
               academicYear: request.callSchedule.academicYear,
             };
+
+            await sendEmail({
+              options: {
+                to: ['stefanheule@gmail.com'],
+                subject: `[call/${request.callSchedule.academicYear}] Save new version by ${authedUser}`,
+                text: `Name: ${nextVersion.name}`,
+              }
+            });
+
             storeStorage(newStorage);
             res.send({ ts: nextVersion.ts });
           } catch (e) {
@@ -306,6 +326,15 @@ async function main() {
               versions: [...storage.versions, nextVersion],
               academicYear: request.callSchedule.academicYear,
             };
+
+            await sendEmail({
+              options: {
+                to: ['stefanheule@gmail.com'],
+                subject: `[call/${request.callSchedule.academicYear}] Save new full version by ${authedUser}`,
+                text: `Name: ${nextVersion.name}`,
+              }
+            });
+
             storeStorage(newStorage);
             res.send({ kind: 'ok', newData: nextVersion.callSchedule });
           } catch (e) {
@@ -331,19 +360,39 @@ async function main() {
               return;
             }
 
+            function canRestore(v: StoredCallSchedule): boolean {
+              try {
+                assertCallSchedule(v.callSchedule);
+                processCallSchedule(v.callSchedule);
+                validateData(v.callSchedule);
+                return true;
+              } catch (e) {
+                return false;
+              }
+            }
+
             const storage = loadStorage({
               noCheck: true,
               academicYear: request.academicYear,
             });
+            const chunkSize = 20;
+            const schedules = await Promise.all(
+              Array.from({ length: Math.ceil(storage.versions.length / chunkSize) }, (_, i) =>
+                Promise.all(
+                  storage.versions.slice(i * chunkSize, (i + 1) * chunkSize).map(async v => ({
+                    name: v.name,
+                    lastEditedBy: v.callSchedule.lastEditedBy,
+                    shiftCounts: v.shiftCounts,
+                    issueCounts: v.issueCounts,
+                    backupShiftCounts: v.backupShiftCounts,
+                    ts: v.ts,
+                    canRestore: await Promise.resolve(canRestore(v)),
+                  }))
+                )
+              )
+            ).then(chunks => chunks.flat());
             res.send({
-              schedules: storage.versions.map(v => ({
-                name: v.name,
-                lastEditedBy: v.callSchedule.lastEditedBy,
-                shiftCounts: v.shiftCounts,
-                issueCounts: v.issueCounts,
-                backupShiftCounts: v.backupShiftCounts,
-                ts: v.ts,
-              })),
+              schedules,
             });
           } catch (e) {
             console.log(e);
@@ -430,6 +479,64 @@ async function main() {
             result.items[result.items.length - 1].isCurrent = true;
             result.items.reverse();
             res.send(result);
+          } catch (e) {
+            console.log(e);
+            res.status(500).send(`exception: ${exceptionToString(e)}`);
+            return;
+          }
+        },
+      );
+
+      app.post(
+        '/api/restore-previous-version',
+        async (
+          req: Request,
+          res: Response<RestorePreviousVersionResponse | string>,
+        ) => {
+          try {
+            if (IS_PUBLIC) {
+              res.status(500).send(`Cannot restore version on public server`);
+              return;
+            }
+            const request = assertRestorePreviousVersionRequest(req.body);
+
+            const storage = loadStorage({
+              noCheck: true,
+              academicYear: request.academicYear,
+            });
+            const versionToRestore = storage.versions.find(v => v.ts === request.versionToRestore)
+            const currentVersionToReplace = storage.versions[storage.versions.length - 1];
+            if (currentVersionToReplace.ts !== request.currentVersionToReplace) {
+              res.send({ kind: 'not-latest' });
+              return;
+            }
+            if (!versionToRestore) {
+              res.send({ kind: 'not-found' });
+              return;
+            }
+            const authedUser = extractAuthedUser(req);
+            const newStorage: StoredCallSchedules = {
+              versions: [
+                ...storage.versions,
+                scheduleToStoredSchedule(
+                  versionToRestore.callSchedule,
+                  `Restored version from ${deparseIsoDatetime(versionToRestore.ts)} [${versionToRestore.name}]`,
+                  isLocal() ? '<local>' : authedUser,
+                ),
+              ],
+              academicYear: request.academicYear,
+            };
+
+            await sendEmail({
+              options: {
+                to: ['stefanheule@gmail.com'],
+                subject: `[call/${request.academicYear}] Restored previous version by ${authedUser}`,
+                text: `Name: ${newStorage.versions[newStorage.versions.length - 1].name}`,
+              }
+            });
+
+            storeStorage(newStorage);
+            res.send({ kind: 'ok', data: newStorage.versions[newStorage.versions.length - 1].callSchedule });
           } catch (e) {
             console.log(e);
             res.status(500).send(`exception: ${exceptionToString(e)}`);

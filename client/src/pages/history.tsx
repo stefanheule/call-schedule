@@ -4,18 +4,20 @@ import { useAsync } from '../common/hooks';
 import { Heading, Text } from '../common/text';
 import { getAcademicYear, StoredCallScheduleMetaData } from '../shared/types';
 import { MainLayout } from './layout';
-import { rpcListCallSchedules, rpcLoadCallSchedules } from './rpc';
+import { rpcListCallSchedules, rpcLoadCallSchedules, rpcRestorePreviousVersion } from './rpc';
 import { LoadingIndicator } from '../common/loading';
 import {
+  assertNonNull,
   deparseUserIsoDatetime,
   isoDatetimeToDate,
 } from '../shared/common/check-type';
 import { formatRelative } from '../shared/common/formatting';
-import { Button, IconButton, Snackbar } from '@mui/material';
+import { Button, IconButton, Snackbar, Tooltip } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useData } from './data-context';
 import CloseIcon from '@mui/icons-material/Close';
 import { Ui } from '../App';
+import { ButtonWithConfirm } from '../common/button';
 
 export function HistoryPage() {
   const [schedules, setSchedules] = useState<
@@ -99,39 +101,18 @@ function RenderSchedules({
         }
       />
       <Text>
-        Here are all previous version of the schedule. Click to view any of
-        them.
+        Here are all previous version of the schedule.
       </Text>
       {schedules
         .sort((a, b) => -a.ts.localeCompare(b.ts))
-        .map(schedule => {
+        .map((schedule, scheduleIndex) => {
           return (
             <Row
               key={schedule.ts}
-              onClick={async () => {
-                try {
-                  const result = await rpcLoadCallSchedules({
-                    ts: schedule.ts,
-                    academicYear: getAcademicYear(originalData.academicYear),
-                  });
-                  if (result.kind === 'not-available') {
-                    setErrorSnackbar(`This schedule is not available.`);
-                    return;
-                  }
-                  setData(result);
-                  await navigate(`/${originalData.academicYear}`);
-                } catch (e) {
-                  console.log(e);
-                  setIsLoading(false);
-                  setErrorSnackbar(`Failed to fetch schedule.`);
-                }
-              }}
               style={{
-                width: '600px',
+                width: '750px',
                 padding: '5px 10px',
                 border: '1px solid #ccc',
-                cursor: 'pointer',
-                opacity: isLoading ? 0.5 : undefined,
               }}
               spacing="20px"
             >
@@ -149,7 +130,7 @@ function RenderSchedules({
                   {formatRelative(isoDatetimeToDate(schedule.ts), 'past')}
                 </Text>
               </Column>
-              <Column>
+              <Column style={{ width: '500px' }}>
                 <Text>
                   {schedule.name == ''
                     ? 'Manual save without name'
@@ -167,10 +148,89 @@ function RenderSchedules({
                   Violations: {schedule.issueCounts.soft} soft and{' '}
                   {schedule.issueCounts.hard} hard
                   {schedule.lastEditedBy
-                    ? `; last edited by ${schedule.lastEditedBy}`
+                    ? `; saved by ${schedule.lastEditedBy}`
                     : ''}
                 </Text>
               </Column>
+              <Row>
+                <Tooltip title={
+                  scheduleIndex === 0 ?
+                    'This is already the current version.' :
+                    !schedule.canRestore ?
+                      'This version cannot be restored because it is using an outdated storage format. Please ask Stefan for help.' :
+                      ''}>
+                  <Row spacing="5px">
+                    <ButtonWithConfirm
+                      confirmText='This will restore this version and make it the new current version for everyone.'
+                      disabled={isLoading || !schedule.canRestore || scheduleIndex === 0}
+                      onClick={async () => {
+                        try {
+                          setIsLoading(true);
+                          const result = await rpcRestorePreviousVersion({
+                            currentVersionToReplace: assertNonNull(originalData.lastEditedAt),
+                            versionToRestore: schedule.ts,
+                            academicYear: getAcademicYear(originalData.academicYear),
+                          });
+                          switch (result.kind) {
+                            case 'ok':
+                              setData(result.data);
+                              await navigate(`/${originalData.academicYear}`);
+                              break;
+                            case 'not-found':
+                              setErrorSnackbar(`Could not find the version you are trying to restore. Maybe ask Stefan for help.`);
+                              break;
+                            case 'not-latest':
+                              setErrorSnackbar(`There is a more recent version available; please refresh the page first, then try again.`);
+                              break;
+                          }
+                        } catch (e) {
+                          console.log(e);
+                          setIsLoading(false);
+                          setErrorSnackbar(`Failed to fetch schedule.`);
+                        }
+                      }}
+                      variant="outlined"
+                      size="small"
+                    >
+                      <Text>Restore</Text>
+                    </ButtonWithConfirm>
+                    <ButtonWithConfirm
+                      confirmText='This allows you to just view a previous version (but will not change the current version for anyone else until you click restore).'
+                      disabled={isLoading || !schedule.canRestore || scheduleIndex === 0}
+                      onClick={async () => {
+                        try {
+                          setIsLoading(true);
+                          const result = await rpcLoadCallSchedules({
+                            ts: schedule.ts,
+                            currentTs: assertNonNull(originalData.lastEditedAt),
+                            academicYear: getAcademicYear(originalData.academicYear),
+                          });
+                          switch (result.kind) {
+                            case 'not-available':
+                              setErrorSnackbar(`This schedule is not available.`);
+                              return;
+                            case 'call-schedule':
+                              setData(result);
+                              await navigate(`/${originalData.academicYear}`);
+                              break;
+                            case undefined:
+                              setErrorSnackbar(`Failed to fetch schedule.`);
+                              break;
+                          }
+                        } catch (e) {
+                          console.log(e);
+                          setIsLoading(false);
+                          setErrorSnackbar(`Failed to fetch schedule.`);
+                        }
+                      }}
+                      variant="contained"
+                      size="small"
+                    >
+                      <Text>View</Text>
+                    </ButtonWithConfirm>
+                  </Row>
+                </Tooltip>
+              </Row>
             </Row>
           );
         })}

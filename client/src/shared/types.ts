@@ -260,9 +260,11 @@ export type CallSchedule = {
 
   isPublic?: boolean;
   currentUser?: string;
+  /** This is only set if the user is viewing a previous version of the schedule, and it's set to the version the user was looking at before. */
+  viewingPreviousVersionFromTs?: IsoDatetime;
   hasEditConfigAccess?: boolean;
   hasCreateScheduleAccess?: boolean;
-
+  name?: string;
   isPubliclyVisible?: boolean;
   menuItems?: { year: AcademicYear }[];
 };
@@ -493,6 +495,7 @@ export type StoredCallScheduleMetaData = {
   shiftCounts: ShiftCount;
   issueCounts: IssueCount;
   ts: IsoDatetime;
+  canRestore?: boolean;
 };
 
 export type StoredCallSchedule = StoredCallScheduleMetaData & {
@@ -506,6 +509,7 @@ export type StoredCallSchedules = {
 
 export type LoadCallScheduleRequest = {
   ts?: IsoDatetime;
+  currentTs?: IsoDatetime;
   academicYear: AcademicYear;
 };
 
@@ -554,4 +558,17 @@ export type GetDayHistoryResponse = {
     isCurrent: boolean;
     isInitial: boolean;
   }>
+};
+
+export type RestorePreviousVersionRequest = {
+  academicYear: AcademicYear;
+  currentVersionToReplace: IsoDatetime;
+  versionToRestore: IsoDatetime;
+};
+
+export type RestorePreviousVersionResponse = {
+  kind: 'not-found' | 'not-latest';
+} | {
+  kind: 'ok';
+  data: CallSchedule;
 };

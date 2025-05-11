@@ -2,6 +2,8 @@ import {
   assertNonNull,
   dateToIsoDatetime,
   deepCopy,
+  deparseIsoDatetime,
+  deparseUserIsoDatetime,
   IsoDate,
   isoDatetimeToDate,
   isoDateToDate,
@@ -89,7 +91,7 @@ import Snackbar from '@mui/material/Snackbar';
 import IconButton from '@mui/material/IconButton';
 import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
-import { rpcGetDayHistory, rpcSaveCallSchedules, rpcSaveFullCallSchedules } from './rpc';
+import { rpcGetDayHistory, rpcRestorePreviousVersion, rpcSaveCallSchedules, rpcSaveFullCallSchedules } from './rpc';
 import { LoadingIndicator } from '../common/loading';
 import { VList, VListHandle } from 'virtua';
 import { ButtonWithConfirm } from '../common/button';
@@ -117,23 +119,32 @@ import { useAsync } from '../common/hooks';
 import { formatRelative } from '../shared/common/formatting';
 
 function canEditRawData(_data: CallSchedule, localData: LocalData): boolean {
+  if (_data.viewingPreviousVersionFromTs !== undefined) return false;
   return localData.unsavedChanges == 0;
 }
 function showEditRawData(data: CallSchedule, _localData: LocalData): boolean {
+  if (data.viewingPreviousVersionFromTs !== undefined) return false;
   if (data.isPublic) return false;
   if (data.currentUser === undefined) return false;
   return data.hasEditConfigAccess === true;
 }
 
 function canCreateSchedule(data: CallSchedule, _localData: LocalData): boolean {
+  if (data.viewingPreviousVersionFromTs !== undefined) return false;
   if (data.isPublic) return false;
   if (data.currentUser === undefined) return false;
   return data.hasCreateScheduleAccess === true;
 }
 
+function useIsGloballyDisabled(): boolean {
+  const [data] = useData();
+  return data.viewingPreviousVersionFromTs !== undefined;
+}
+
 export function RenderCallSchedule() {
   const [copyPasteSnackbar, setCopyPasteSnackbar] = useState('');
-  const [data] = useData();
+  const [data, setData] = useData();
+  const [isRestoring, setIsRestoring] = useState(false);
   const navigate = useNavigate();
   return (
     <PersonPickerProvider>
@@ -177,6 +188,51 @@ export function RenderCallSchedule() {
               ))}
             </Row>
           </Row>
+          {
+            data.viewingPreviousVersionFromTs && (
+              <Row style={{
+                padding: '15px',
+                backgroundColor: '#fff0f0',
+              }} spacing="15px">
+                <Text>Viewing previous version from {deparseUserIsoDatetime(assertNonNull(data.lastEditedAt))}.</Text>
+                <ButtonWithConfirm
+                  confirmText='This will restore this version and make it the new current version for everyone.'
+                  disabled={isRestoring}
+                  onClick={async () => {
+                    try {
+                      setIsRestoring(true);
+                      const result = await rpcRestorePreviousVersion({
+                        currentVersionToReplace: assertNonNull(data.viewingPreviousVersionFromTs),
+                        versionToRestore: assertNonNull(data.lastEditedAt),
+                        academicYear: getAcademicYear(data.academicYear),
+                      });
+                      switch (result.kind) {
+                        case 'ok':
+                          setData(result.data);
+                          await navigate(`/${data.academicYear}`);
+                          break;
+                        case 'not-found':
+                          setCopyPasteSnackbar(`Could not find the version you are trying to restore. Maybe ask Stefan for help.`);
+                          break;
+                        case 'not-latest':
+                          setCopyPasteSnackbar(`There is a more recent version available; please refresh the page first, then try again.`);
+                          break;
+                      }
+                    } catch (e) {
+                      console.log(e);
+                      setIsRestoring(false);
+                      setCopyPasteSnackbar(`Failed to fetch schedule.`);
+                    }
+                  }}
+                  size="small"
+                  style={smallButtonStyle}
+                  variant="contained"
+                >
+                  <Text>Restore</Text>
+                </ButtonWithConfirm>
+              </Row>
+            )
+          }
           <Row style={{ height: '100%', overflowY: 'hidden', margin: '15px', marginTop: '8px' }}>
             <RenderCallScheduleImpl
               copyPasteSnackbar={copyPasteSnackbar}
@@ -301,6 +357,8 @@ function RenderCallScheduleImpl({
     },
     [],
   );
+
+  const isGloballyDisabled = useIsGloballyDisabled();
 
   const DEBUG_CONFIG_EDITOR = false;
   useEffect(() => {
@@ -462,6 +520,7 @@ function RenderCallScheduleImpl({
                     Show rotations
                   </Row> */}
                   <Button
+                    disabled={isGloballyDisabled}
                     variant="outlined"
                     size="small"
                     onClick={async () => {
@@ -477,6 +536,7 @@ function RenderCallScheduleImpl({
                   </Button>
                   {!data.isPublic && (
                     <Button
+                      disabled={isGloballyDisabled}
                       variant="outlined"
                       size="small"
                       onClick={() => navigate(`/${getAcademicYear(data.academicYear)}/history`)}
@@ -492,7 +552,7 @@ function RenderCallScheduleImpl({
                     }
                     size="small"
                     disabled={
-                      localData.unsavedChanges == 0 && data.isPublic !== true
+                      (localData.unsavedChanges == 0 && data.isPublic !== true) || isGloballyDisabled
                     }
                     onClick={() => {
                       if (data.isPublic) {
@@ -521,6 +581,7 @@ function RenderCallScheduleImpl({
                       style={{
                         width: '160px',
                       }}
+                      disabled={isGloballyDisabled}
                       variant="outlined"
                       size="small"
                       onClick={() => {
@@ -670,10 +731,10 @@ function RenderCallScheduleImpl({
                     </Column>
                   </Dialog>
                 </Row>
-                {canCreateSchedule(data, localData) && <GenerateCallScheduleTools setSnackbar={setCopyPasteSnackbar} />}
+                {canCreateSchedule(data, localData) && !isGloballyDisabled && <GenerateCallScheduleTools setSnackbar={setCopyPasteSnackbar} />}
               </Column>
               <ElementSpacer />
-              {showEditRaw && (
+              {showEditRaw && !isGloballyDisabled && (
                 <>
                   <Column spacing={4}>
                     <Heading style={{ fontSize: '18px' }}>Edit configuration</Heading>

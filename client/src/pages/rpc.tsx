@@ -2,6 +2,7 @@ import {
   assertGetDayHistoryResponse,
   assertListCallSchedulesResponse,
   assertLoadCallScheduleResponse,
+  assertRestorePreviousVersionResponse,
   assertSaveCallScheduleResponse,
   assertSaveFullCallScheduleResponse,
 } from '../shared/check-type.generated';
@@ -13,6 +14,8 @@ import {
   ListCallSchedulesResponse,
   LoadCallScheduleRequest,
   LoadCallScheduleResponse,
+  RestorePreviousVersionRequest,
+  RestorePreviousVersionResponse,
   SaveCallScheduleRequest,
   SaveCallScheduleResponse,
   SaveFullCallScheduleResponse,
@@ -64,4 +67,11 @@ export async function rpcGetDayHistory(
 ): Promise<GetDayHistoryResponse> {
   const data = (await axiosPost('/api/get-day-history', request, AXIOS_PROPS)).data;
   return assertGetDayHistoryResponse(data);
+}
+
+export async function rpcRestorePreviousVersion(
+  request: RestorePreviousVersionRequest,
+): Promise<RestorePreviousVersionResponse> {
+  const data = (await axiosPost('/api/restore-previous-version', request, AXIOS_PROPS)).data;
+  return assertRestorePreviousVersionResponse(data);
 }
