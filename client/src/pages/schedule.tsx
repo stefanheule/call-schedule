@@ -2,7 +2,6 @@ import {
   assertNonNull,
   dateToIsoDatetime,
   deepCopy,
-  deparseIsoDatetime,
   deparseUserIsoDatetime,
   IsoDate,
   isoDatetimeToDate,
@@ -262,10 +261,8 @@ function RenderCallScheduleImpl({
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importText, setImportText] = useState('');
   const [importDoneDialogOpen, setImportDoneDialogOpen] = useState(false);
-  const [saveName, setSaveName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const weekListRef = useRef<VListHandle>(null);
-  const initialData = useInitialData();
   const [onlyNew, setOnlyNew] = useState<'yes' | null>(!processed.isBeforeStartOfAcademicYear ? 'yes' : null);
 
   useMediaQuery(`(min-width:${SIDEBAR_WIDTH + WEEK_WIDTH}px)`);
@@ -558,7 +555,6 @@ function RenderCallScheduleImpl({
                       if (data.isPublic) {
                         setSuggestDialogOpen(true);
                       } else {
-                        setSaveName('');
                         setSaveDialogOpen(true);
                       }
                     }}
@@ -655,81 +651,14 @@ function RenderCallScheduleImpl({
                       </Row>
                     </Column>
                   </Dialog>
-                  <Dialog
-                    open={saveDialogOpen}
-                    maxWidth="xl"
-                    onClose={() => setSaveDialogOpen(false)}
-                  >
-                    <Column
-                      style={{ padding: '20px', minWidth: '450px' }}
-                      spacing="10px"
-                    >
-                      <Row>
-                        <Heading>Save current changes</Heading>
-                      </Row>
-                      <Text
-                        style={{
-                          fontSize: '16px',
-                        }}
-                      >
-                        Optionally name the current version.
-                      </Text>
-                      <Row>
-                        <TextField
-                          size="small"
-                          value={saveName}
-                          onChange={ev => setSaveName(ev.target.value)}
-                        />
-                      </Row>
-                      <Row
-                        style={{ marginTop: '10px' }}
-                        mainAxisAlignment="end"
-                        spacing="10px"
-                      >
-                        <Button
-                          variant="outlined"
-                          onClick={() => setSaveDialogOpen(false)}
-                          disabled={isSaving}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          variant="contained"
-                          disabled={isSaving}
-                          onClick={async () => {
-                            try {
-                              setIsSaving(true);
-                              const result = await rpcSaveCallSchedules({
-                                name: saveName,
-                                callSchedule: data,
-                                initialCallSchedule: initialData,
-                              });
-                              setLocalData({
-                                ...localData,
-                                unsavedChanges: 0,
-                              });
-                              console.log({ result });
-                              setCopyPasteSnackbar(`Saved successfully`);
-                              setSaveDialogOpen(false);
-                            } catch (e) {
-                              console.log(e);
-                              setCopyPasteSnackbar(
-                                `Failed to save, please try again`,
-                              );
-                            } finally {
-                              setIsSaving(false);
-                            }
-                          }}
-                        >
-                          {isSaving ? (
-                            <LoadingIndicator color="secondary" />
-                          ) : (
-                            `Save now`
-                          )}
-                        </Button>
-                      </Row>
-                    </Column>
-                  </Dialog>
+                  <SaveDialog
+                    saveDialogOpen={saveDialogOpen}
+                    setSaveDialogOpen={setSaveDialogOpen}
+                    isSaving={isSaving}
+                    setCopyPasteSnackbar={setCopyPasteSnackbar}
+                    initialData={data}
+                    setIsSaving={setIsSaving}
+                  />
                 </Row>
                 {canCreateSchedule(data, localData) && !isGloballyDisabled && <GenerateCallScheduleTools setSnackbar={setCopyPasteSnackbar} />}
               </Column>
@@ -814,7 +743,6 @@ const smallButtonStyle: React.CSSProperties = {
 
 function GenerateCallScheduleTools({ setSnackbar }: { setSnackbar: (v: string) => void }) {
   const [data, setData] = useData();
-  const processed = useProcessedData();
   const [_2, setLocalData] = useLocalData();
 
   const [detailDialogOpen, setDetailDialogOpen] = useState<'weekend' | 'weekday' | false>(false);
@@ -1750,6 +1678,108 @@ function RenderCallCounts() {
       )}
     </Column>
   );
+}
+
+function SaveDialog({
+  saveDialogOpen,
+  setSaveDialogOpen,
+  isSaving,
+  setCopyPasteSnackbar,
+  initialData,
+  setIsSaving,
+}: {
+  saveDialogOpen: boolean;
+  setSaveDialogOpen: (v: boolean) => void;
+  isSaving: boolean;
+  setCopyPasteSnackbar: (v: string) => void;
+  initialData: CallSchedule;
+  setIsSaving: (v: boolean) => void;
+}) {
+  const [data] = useData();
+  const [localData, setLocalData] = useLocalData();
+  const [saveName, setSaveName] = useState('');
+  return <Dialog
+      open={saveDialogOpen}
+      maxWidth="xl"
+      onClose={() => {
+        setSaveDialogOpen(false);
+        setSaveName('');
+      }}
+    >
+      <Column
+        style={{ padding: '20px', minWidth: '450px' }}
+        spacing="10px"
+      >
+        <Row>
+          <Heading>Save current changes</Heading>
+        </Row>
+        <Text
+          style={{
+            fontSize: '16px',
+          }}
+        >
+          Optionally name the current version.
+        </Text>
+        <Row>
+          <TextField
+            size="small"
+            value={saveName}
+            onChange={ev => setSaveName(ev.target.value)}
+          />
+        </Row>
+        <Row
+          style={{ marginTop: '10px' }}
+          mainAxisAlignment="end"
+          spacing="10px"
+        >
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setSaveDialogOpen(false);
+              setSaveName('');
+            }}
+            disabled={isSaving}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={isSaving}
+            onClick={async () => {
+              try {
+                setIsSaving(true);
+                const result = await rpcSaveCallSchedules({
+                  name: saveName,
+                  callSchedule: data,
+                  initialCallSchedule: initialData,
+                });
+                setLocalData({
+                  ...localData,
+                  unsavedChanges: 0,
+                });
+                console.log({ result });
+                setCopyPasteSnackbar(`Saved successfully`);
+                setSaveDialogOpen(false);
+              } catch (e) {
+                console.log(e);
+                setCopyPasteSnackbar(
+                  `Failed to save, please try again`,
+                );
+              } finally {
+                setIsSaving(false);
+                setSaveName('');
+              }
+            }}
+          >
+            {isSaving ? (
+              <LoadingIndicator color="secondary" />
+            ) : (
+              `Save now`
+            )}
+          </Button>
+        </Row>
+      </Column>
+    </Dialog>
 }
 
 function RuleViolation({
