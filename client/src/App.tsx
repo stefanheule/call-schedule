@@ -82,6 +82,13 @@ export function Ui() {
       });
     }
   }, [data, localData]);
+
+  useEffect(() => {
+    if (window.location.hostname.endsWith('loc.al')) {
+      document.title = '[Local] Call Schedule';
+    }
+  }, []);
+
   return (
     <LocalDataContext.Provider value={{ localData, setLocalData }}>
       <DndContext>
