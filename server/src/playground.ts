@@ -123,7 +123,7 @@ async function main() {
 
   const storage = loadStorage({
     noCheck: true,
-    academicYear: '24',
+    academicYear: '24', // NEWYEAR: update this
   });
 
   const latest = storage.versions[storage.versions.length - 1];
@@ -309,11 +309,9 @@ async function main() {
       else if (dow == 'fri') {
         const friday = findDate({ weeks}, date);
         friday.shifts = {
-          day_nwhsch: '',
-          day_uw: '',
           south_power2: '',
-          weekend_nwhsch: '',
-          weekend_uw: '',
+          nwhsch_power2: '',
+          uw_power2: '',
         };
         friday.backupShifts = {
           backup_holiday: '',
