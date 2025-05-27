@@ -78,7 +78,7 @@ const HAS_EDIT_CONFIG_ACCESS = [
   'local',
   STEFAN,
   "lisazhang0928@hotmail.com",
-  // "dcarson16@gmail.com",
+  "dcarson16@gmail.com",
 ]
 const HAS_CREATE_SCHEDULE_ACCESS = [
   'local',
