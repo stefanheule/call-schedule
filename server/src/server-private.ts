@@ -86,8 +86,7 @@ const HAS_CREATE_SCHEDULE_ACCESS = [
   "lisazhang0928@hotmail.com",
   "dcarson16@gmail.com",
 ]
-const MAIN_PUBLIC_VERSION: AcademicYear = '24';
-const PUBLICLY_VISIBLE_YEARS: AcademicYear[] = ['24'];
+const PUBLICLY_VISIBLE_YEARS: AcademicYear[] = ['24', '25'];
 
 
 function getAcademicYearsForUser(user: string): readonly AcademicYear[] {
@@ -262,7 +261,16 @@ async function main() {
           }
           res.redirect(`/${years[years.length - 1]}`);
         } else {
-          res.redirect(`/${MAIN_PUBLIC_VERSION}`);
+          // Pick the first public year that has started
+          const options = PUBLICLY_VISIBLE_YEARS.map(year => ({ year, firstDay: assertIsoDate(`20${year}-07-01`) }));
+          options.sort((a, b) => a.firstDay.localeCompare(b.firstDay));
+          for (const option of options) {
+            if (dateToIsoDate(new Date()) >= option.firstDay) {
+              res.redirect(`/${option.year}`);
+              return;
+            }
+          }
+          res.redirect(`/24`);
         }
         return;
       });
