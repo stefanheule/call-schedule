@@ -263,7 +263,7 @@ function RenderCallScheduleImpl({
   const [importDoneDialogOpen, setImportDoneDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const weekListRef = useRef<VListHandle>(null);
-  const [onlyNew, setOnlyNew] = useState<'yes' | null>(!processed.isBeforeStartOfAcademicYear ? 'yes' : null);
+  const [onlyNew, setOnlyNew] = useState<'yes' | null>(!processed.isBeforeStartOfAcademicYear || data.isPublic ? 'yes' : null);
   const [showRules, setShowRules] = useState<'list' | null>(null);
 
   useMediaQuery(`(min-width:${SIDEBAR_WIDTH + WEEK_WIDTH}px)`);
@@ -724,7 +724,7 @@ function RenderCallScheduleImpl({
                     onChange={(_, v) => setOnlyNew(v as 'yes' | null)}
                   >
                     <ToggleButton size="small" value="yes">
-                      only new
+                      only&nbsp;new
                     </ToggleButton>
                   </ToggleButtonGroup>
                   <ElementSpacer />
@@ -1544,7 +1544,7 @@ function RenderCallCounts() {
             Backup
           </ToggleButton>
           <ToggleButton size="small" value="backup_holiday">
-            Backup Hol
+            Backup&nbsp;hol
           </ToggleButton>
         </ToggleButtonGroup>
         <ElementSpacer />
