@@ -65,7 +65,7 @@ import { dateToIsoDate } from './shared/optimized';
 // NEWYEAR: add chiefs here
 const STEFAN = 'stefanheule@gmail.com';
 const CHIEF_EMAILS: Record<AcademicYear, string[]> = {
-  '24': [STEFAN, "lisazhang0928@hotmail.com", "dibo900@gmail.com", "tovalweiss@gmail.com", "chloe92@gmail.com", "dcarson16@gmail.com"],
+  '24': [STEFAN, "lisazhang0928@hotmail.com", "dibo900@gmail.com", "tovalweiss@gmail.com", "chloe92@gmail.com"],
   '25': [STEFAN, "dcarson16@gmail.com", "arashamighi@gmail.com", "alexandra.c.jacobs@gmail.com"],
 }
 const ADMIN_CHIEF_EMAILS: Record<AcademicYear, { from: string, emails: string[] }[]> = {
@@ -78,13 +78,13 @@ const HAS_EDIT_CONFIG_ACCESS = [
   'local',
   STEFAN,
   "lisazhang0928@hotmail.com",
-  "dcarson16@gmail.com",
+  // "dcarson16@gmail.com",
 ]
 const HAS_CREATE_SCHEDULE_ACCESS = [
   'local',
   STEFAN,
   "lisazhang0928@hotmail.com",
-  "dcarson16@gmail.com",
+  // "dcarson16@gmail.com",
 ]
 const PUBLICLY_VISIBLE_YEARS: AcademicYear[] = ['24', '25'];
 
