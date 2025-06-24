@@ -64,6 +64,7 @@ export type RunType =
   | 'clear-weekdays'
   | 'diff-previous'
   | 'parse-email'
+  | 'clear-sunday-backup-call'
   | 'import-rotation-schedule'
   | 'generate-new-year';
 
@@ -123,7 +124,7 @@ async function main() {
 
   const storage = loadStorage({
     noCheck: true,
-    academicYear: '24', // NEWYEAR: update this
+    academicYear: '25', // NEWYEAR: update this
   });
 
   const latest = storage.versions[storage.versions.length - 1];
@@ -487,6 +488,22 @@ async function main() {
         console.log('\n\n');
       }
     }
+    return;
+  }
+
+  if (run == 'clear-sunday-backup-call') {
+    for (const week of data.weeks) {
+      const sunday = week.days[0];
+      if (dateToDayOfWeek(sunday.date) !== 'sun') {
+        throw new Error(`Should be sunday: ${dateToDayOfWeek(sunday.date)}`);
+      }
+      sunday.backupShifts = {};
+    }
+
+    const storage = loadStorage({ noCheck: true, academicYear: data.academicYear });
+    storage.versions.push(scheduleToStoredSchedule(data, `Removed Sunday backup call`, '<admin>'));
+    storeStorage(storage);
+    console.log(`Removed Sunday backup call`);
     return;
   }
 
