@@ -72,7 +72,11 @@ const ADMIN_CHIEF_EMAILS: Record<AcademicYear, { from: string, emails: string[] 
   '24': [
     { from: '2025-05-09', emails: ['tovalweiss@gmail.com'] },
   ],
-  '25': [],
+  '25': [
+    { from: '2025-07-01', emails: ['dcarson16@gmail.com'] },
+    { from: '2025-10-27', emails: ['alexandra.c.jacobs@gmail.com'] },
+    { from: '2026-02-23', emails: ['arashamighi@gmail.com'] },
+  ],
 }
 const HAS_EDIT_CONFIG_ACCESS = [
   'local',
