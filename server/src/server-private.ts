@@ -265,9 +265,10 @@ async function main() {
           }
           res.redirect(`/${years[years.length - 1]}`);
         } else {
-          // Pick the first public year that has started
+          // Pick the most recent public year that has started
           const options = PUBLICLY_VISIBLE_YEARS.map(year => ({ year, firstDay: assertIsoDate(`20${year}-07-01`) }));
-          options.sort((a, b) => a.firstDay.localeCompare(b.firstDay));
+          options.sort((a, b) => b.firstDay.localeCompare(a.firstDay)); // Sort latest to earliest
+          console.log(options);
           for (const option of options) {
             if (dateToIsoDate(new Date()) >= option.firstDay) {
               res.redirect(`/${option.year}`);
