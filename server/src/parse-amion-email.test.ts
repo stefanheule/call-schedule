@@ -1,3 +1,4 @@
+
 import {
   TinyEmail,
   parseAmionEmails,
@@ -970,3 +971,71 @@ it('2025-01-08', () => {
         -> Action: 2025-01-13 backup_weekday: TW -> ?"
   `);
 });
+
+
+it('2025-08-27', () => {
+  const emails: TinyEmail[] = [
+  {
+    subject: 'FW: Changes to your Amion schedule',
+    body: '\r\n' +
+      '________________________________\r\n' +
+      'From: Amion schedule update <noreply@amion.com>\r\n' +
+      'Sent: Saturday, August 16, 2025 1:15:39 AM (UTC-09:00) Alaska\r\n' +
+      'To: Daniel Carson <wolves89@uw.edu>\r\n' +
+      'Subject: Changes to your Amion schedule\r\n' +
+      '\r\n' +
+      "This message should go to Harper, Jonathan but Amion doesn't have an email address for him/her.\r\n" +
+      '\r\n' +
+      "Open the schedule in OnCall. Put a block schedule on screen and click a person's name in the left-most column. The top field in the lower left of the Infobox (the blue i on the main toolbar) is for email addresses.\r\n" +
+      '\r\n' +
+      'Changes to your Amion work schedule<https://urldefense.com/v3/__http://www.amion.com/cgi-bin/ocs?Lo=urology&Ps=!1h1maa26Q102R&Mo=9-25__;!!K-Hz7m0Vt54!nlUbfNPzXhhZjSFy4HoJdsg01mT0aYHUuQJNshfNCjN3vuLOBDYy-NhStysA7ANpXHa-KqqOBXot2DMP$>:\r\n' +
+      '\r\n' +
+      "You've been scheduled for Attending North Night on 9-3-25.\r\n" +
+      "You've been scheduled for Attending North Night on 9-15-25.\r\n" +
+      '\r\n' +
+      'jqs: Lo=urology&Msgo=25\r\n'
+  },
+  {
+    subject: 'FW: Changes to your Amion schedule',
+    body: '\r\n' +
+      '________________________________\r\n' +
+      'From: Amion schedule update <noreply@amion.com>\r\n' +
+      'Sent: Saturday, August 16, 2025 1:15:40 AM (UTC-09:00) Alaska\r\n' +
+      'To: Daniel Carson <wolves89@uw.edu>\r\n' +
+      'Subject: Changes to your Amion schedule\r\n' +
+      '\r\n' +
+      "This message should go to de la Calle, Claire but Amion doesn't have an email address for him/her.\r\n" +
+      '\r\n' +
+      "Open the schedule in OnCall. Put a block schedule on screen and click a person's name in the left-most column. The top field in the lower left of the Infobox (the blue i on the main toolbar) is for email addresses.\r\n" +
+      '\r\n' +
+      'Changes to your Amion work schedule<https://urldefense.com/v3/__http://www.amion.com/cgi-bin/ocs?Lo=urology&Ps=!1h4mca20Q265R&Mo=9-25__;!!K-Hz7m0Vt54!iLz2HP9AkLSf-OVH4G5wxm6eexzj7aiDZkPP552xQvnV4z08G8KfhtQqrqepjAe_q9SqWap2w3ORcnRv$>:\r\n' +
+      '\r\n' +
+      "You've been scheduled for Attending North Night on 9-10-25.\r\n" +
+      '\r\n' +
+      'jqs: Lo=urology&Msgo=25\r\n'
+  },
+  {
+    subject: 'FW: Changes to your Amion schedule',
+    body: '\r\n' +
+      '________________________________\r\n' +
+      'From: Amion schedule update <noreply@amion.com>\r\n' +
+      'Sent: Saturday, August 16, 2025 1:15:39 AM (UTC-09:00) Alaska\r\n' +
+      'To: Daniel Carson <wolves89@uw.edu>\r\n' +
+      'Subject: Changes to your Amion schedule\r\n' +
+      '\r\n' +
+      "This message should go to Sorensen, Mathew but Amion doesn't have an email address for him/her.\r\n" +
+      '\r\n' +
+      "Open the schedule in OnCall. Put a block schedule on screen and click a person's name in the left-most column. The top field in the lower left of the Infobox (the blue i on the main toolbar) is for email addresses.\r\n" +
+      '\r\n' +
+      'Changes to your Amion work schedule<https://urldefense.com/v3/__http://www.amion.com/cgi-bin/ocs?Lo=urology&Ps=!1h1moa31Q107R&Mo=9-25__;!!K-Hz7m0Vt54!lUmWt5YfzKT1egug45oqgn4J15PNYb-Y60OlCnNMoX0XYlp5cIwD-NhFGnwiEf8mBuqV8pzMHA6Azom-$>:\r\n' +
+      '\r\n' +
+      "You've been scheduled for Attending North Night from 9-12-25 to 9-14-25.\r\n" +
+      "You've been scheduled for Attending South Night from 9-12-25 to 9-14-25.\r\n" +
+      "You've been scheduled for Attending South Night on 9-29-25.\r\n" +
+      '\r\n' +
+      'jqs: Lo=urology&Msgo=25\r\n'
+  }
+];
+  expect(parseAmionEmailsTest(emails)).toMatchInlineSnapshot(``);
+});
+  
