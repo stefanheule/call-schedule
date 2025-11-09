@@ -28,7 +28,6 @@
     "cookie-parser": "^1.4.7",
     "csv-parser": "^3.2.0",
     "date-fns": "^4.1.0",
-    "deep-equal": "^2.2.3",
     "diff": "^7.0.0",
     "dotenv": "^16.4.7",
     "email-validator": "^2.0.4",
@@ -49,7 +48,6 @@
   "devDependencies": {
     "@types/chai": "^5.0.1",
     "@types/cli-color": "^2.0.6",
-    "@types/deep-equal": "^1.0.4",
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.4",
     "@types/uuid": "^10.0.0",
